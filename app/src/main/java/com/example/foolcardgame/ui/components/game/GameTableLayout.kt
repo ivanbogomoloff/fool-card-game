@@ -1,33 +1,53 @@
 package com.example.foolcardgame.ui.components.game
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.presentation.game.GameUiState
-import com.example.foolcardgame.presentation.game.WaitingPlayerUi
-import com.example.foolcardgame.ui.screens.profile.AvatarPresets
+import com.example.foolcardgame.presentation.game.TablePairUi
+import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.theme.AccentTeal
-import com.example.foolcardgame.ui.theme.TableGreen
+import kotlin.math.roundToInt
+
+private data class HandDragState(
+    val cardId: String,
+    val card: CardUi,
+    val positionInRoot: Offset,
+)
 
 @Composable
 fun GameTableLayout(
     uiState: GameUiState,
     onCardClick: (String) -> Unit,
+    onAttackDrop: (cardId: String) -> Unit,
+    onDefendDrop: (cardId: String, pairId: Int) -> Unit,
     onBitoClick: () -> Unit,
     onPassClick: () -> Unit,
+    onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -41,130 +61,179 @@ fun GameTableLayout(
         return
     }
 
-    Column(
-        modifier = modifier.fillMaxSize(),
-    ) {
-        when (uiState.phase) {
-            com.example.foolcardgame.domain.model.GamePhase.LOBBY_WAITING -> {
-                WaitingRoomContent(
-                    players = uiState.waitingPlayers,
-                    modifier = Modifier.weight(1f),
+    when (uiState.phase) {
+        GamePhase.FINISHED -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = uiState.resultMessage.orEmpty(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(24.dp),
                 )
-            }
-            com.example.foolcardgame.domain.model.GamePhase.IN_PROGRESS -> {
-                OpponentsRow(
-                    opponents = uiState.opponents,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        DeckAndTrumpView(
-                            deckCount = uiState.deckCount,
-                            trump = uiState.trump,
-                        )
-                        TableCardsView(
-                            tablePairs = uiState.tablePairs,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-            com.example.foolcardgame.domain.model.GamePhase.FINISHED -> {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = uiState.resultMessage.orEmpty(),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(24.dp),
-                    )
-                }
             }
         }
+        GamePhase.LOBBY_WAITING,
+        GamePhase.IN_PROGRESS,
+        -> {
+            InProgressGameLayout(
+                uiState = uiState,
+                onCardClick = onCardClick,
+                onAttackDrop = onAttackDrop,
+                onDefendDrop = onDefendDrop,
+                onBitoClick = onBitoClick,
+                onPassClick = onPassClick,
+                onTakeClick = onTakeClick,
+                onReadyClick = onReadyClick,
+                modifier = modifier,
+            )
+        }
+    }
+}
 
-        if (uiState.phase == com.example.foolcardgame.domain.model.GamePhase.IN_PROGRESS) {
+@Composable
+private fun InProgressGameLayout(
+    uiState: GameUiState,
+    onCardClick: (String) -> Unit,
+    onAttackDrop: (cardId: String) -> Unit,
+    onDefendDrop: (cardId: String, pairId: Int) -> Unit,
+    onBitoClick: () -> Unit,
+    onPassClick: () -> Unit,
+    onTakeClick: () -> Unit,
+    onReadyClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var dragState by remember { mutableStateOf<HandDragState?>(null) }
+    var tableBounds by remember { mutableStateOf(Rect.Zero) }
+    var layoutBounds by remember { mutableStateOf(Rect.Zero) }
+    val attackCardBounds = remember { mutableStateMapOf<Int, Rect>() }
+    val density = LocalDensity.current
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                layoutBounds = coordinates.boundsInRoot()
+            },
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            OpponentsRow(
+                opponents = uiState.opponents,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                TableCardsView(
+                    tablePairs = uiState.tablePairs,
+                    onTableBoundsChanged = { tableBounds = it },
+                    onAttackCardBoundsChanged = { pairId, bounds ->
+                        attackCardBounds[pairId] = bounds
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 72.dp),
+                )
+                DeckAndTrumpView(
+                    trump = uiState.trump,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = (-28).dp),
+                )
+            }
+            GameActionBar(
+                actions = uiState.actions,
+                onBitoClick = onBitoClick,
+                onPassClick = onPassClick,
+                onTakeClick = onTakeClick,
+                onReadyClick = onReadyClick,
+            )
             PlayerHandView(
                 hand = uiState.hand,
                 selectedCardId = uiState.selectedCardId,
+                draggingCardId = dragState?.cardId,
                 onCardClick = onCardClick,
+                onDragStart = { cardId, position ->
+                    val card = uiState.hand.firstOrNull { it.id == cardId } ?: return@PlayerHandView
+                    dragState = HandDragState(cardId, card, position)
+                },
+                onDrag = { position ->
+                    dragState = dragState?.copy(positionInRoot = position)
+                },
+                onDragEnd = {
+                    val current = dragState
+                    dragState = null
+                    if (current == null) return@PlayerHandView
+                    resolveDrop(
+                        position = current.positionInRoot,
+                        cardId = current.cardId,
+                        tablePairs = uiState.tablePairs,
+                        tableBounds = tableBounds,
+                        attackCardBounds = attackCardBounds,
+                        onAttackDrop = onAttackDrop,
+                        onDefendDrop = onDefendDrop,
+                    )
+                },
+                onDragCancel = { dragState = null },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
 
-        GameActionBar(
-            actions = uiState.actions,
-            onBitoClick = onBitoClick,
-            onPassClick = onPassClick,
-            onReadyClick = onReadyClick,
-        )
-    }
-}
-
-@Composable
-private fun WaitingRoomContent(
-    players: List<WaitingPlayerUi>,
-    modifier: Modifier = Modifier,
-) {
-    LazyColumn(
-        modifier = modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Text(
-                text = "Ожидание игроков",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 8.dp),
+        val activeDrag = dragState
+        if (activeDrag != null) {
+            val cardWidthPx = with(density) { 56.dp.toPx() }
+            val cardHeightPx = with(density) { 80.dp.toPx() }
+            CardFace(
+                card = activeDrag.card,
+                selected = true,
+                modifier = Modifier
+                    .zIndex(10f)
+                    .offset {
+                        IntOffset(
+                            x = (activeDrag.positionInRoot.x - layoutBounds.left - cardWidthPx / 2)
+                                .roundToInt(),
+                            y = (activeDrag.positionInRoot.y - layoutBounds.top - cardHeightPx / 2)
+                                .roundToInt(),
+                        )
+                    },
             )
-        }
-        items(players, key = { it.id }) { player ->
-            WaitingPlayerRow(player = player)
         }
     }
 }
 
-@Composable
-private fun WaitingPlayerRow(
-    player: WaitingPlayerUi,
-    modifier: Modifier = Modifier,
+private const val AttackHitSlopPx = 48f
+
+private fun resolveDrop(
+    position: Offset,
+    cardId: String,
+    tablePairs: List<TablePairUi>,
+    tableBounds: Rect,
+    attackCardBounds: Map<Int, Rect>,
+    onAttackDrop: (String) -> Unit,
+    onDefendDrop: (String, Int) -> Unit,
 ) {
-    val avatar = AvatarPresets.get(player.avatarId)
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
-            Text(text = player.displayName, style = MaterialTheme.typography.titleMedium)
+    val nearestUndefended = tablePairs
+        .asSequence()
+        .filter { it.defense == null }
+        .mapNotNull { pair ->
+            val bounds = attackCardBounds[pair.id] ?: return@mapNotNull null
+            val hitArea = bounds.inflate(AttackHitSlopPx)
+            if (!hitArea.contains(position)) return@mapNotNull null
+            pair to (position - bounds.center).getDistance()
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = if (player.isReady) "Готов" else "Не готов",
-                color = if (player.isReady) AccentTeal else MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Text(
-                text = if (player.isConnected) "Онлайн" else "Отключён",
-                color = if (player.isConnected) AccentTeal else MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
+        .minByOrNull { it.second }
+        ?.first
+
+    if (nearestUndefended != null) {
+        onDefendDrop(cardId, nearestUndefended.id)
+        return
+    }
+    if (tableBounds.contains(position)) {
+        onAttackDrop(cardId)
     }
 }

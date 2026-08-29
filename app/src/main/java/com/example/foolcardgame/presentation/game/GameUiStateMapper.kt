@@ -19,6 +19,7 @@ object GameUiStateMapper {
                     displayName = it.displayName,
                     avatarId = it.avatarId,
                     cardCount = it.handCount,
+                    isConnected = it.isConnected,
                 )
             }
         val waitingPlayers = dto.players.map {
@@ -40,18 +41,22 @@ object GameUiStateMapper {
             trump = dto.trump?.toUi(),
             tablePairs = dto.tablePairs.map { it.toUi() },
             hand = dto.localHand.map { it.toUi() },
-            actions = GameActionsUi(
-                bitoEnabled = dto.canBito,
-                passEnabled = dto.canPass,
-                readyEnabled = dto.canReady,
-                readyVisible = phase == GamePhase.LOBBY_WAITING,
-            ),
+            actions = GameActionsUi(primary = resolvePrimaryAction(dto)),
             resultMessage = when (phase) {
                 GamePhase.FINISHED -> buildResultMessage(dto)
                 else -> null
             },
             serverTick = dto.serverTick,
+            hasDisconnectedOpponent = opponents.any { !it.isConnected },
         )
+    }
+
+    fun resolvePrimaryAction(dto: GameStateDto): HandPrimaryAction = when {
+        dto.canReady -> HandPrimaryAction.READY
+        dto.canTake -> HandPrimaryAction.TAKE
+        dto.canBito -> HandPrimaryAction.BITO
+        dto.canPass -> HandPrimaryAction.PASS
+        else -> HandPrimaryAction.NONE
     }
 
     private fun buildResultMessage(dto: GameStateDto): String {

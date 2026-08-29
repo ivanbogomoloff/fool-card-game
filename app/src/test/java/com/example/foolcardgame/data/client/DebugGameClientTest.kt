@@ -1,6 +1,9 @@
 package com.example.foolcardgame.data.client
 
 import com.example.foolcardgame.data.api.dto.GamePhaseDto
+import com.example.foolcardgame.domain.model.Card
+import com.example.foolcardgame.domain.model.Rank
+import com.example.foolcardgame.domain.model.Suit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -21,7 +24,8 @@ class DebugGameClientTest {
         ).first()
 
         assertEquals(client.currentState(), emitted)
-        assertEquals(GamePhaseDto.LOBBY_WAITING, emitted.phase)
+        assertEquals(GamePhaseDto.IN_PROGRESS, emitted.phase)
+        assertTrue(emitted.canReady)
     }
 
     @Test
@@ -42,5 +46,48 @@ class DebugGameClientTest {
 
         val state = client.currentState()
         assertEquals(GamePhaseDto.IN_PROGRESS, state.phase)
+        assertEquals(12, state.localHand.size)
+    }
+
+    @Test
+    fun clearTable_removesPairs_keepsDeckAndHand() {
+        val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
+        val before = client.currentState()
+
+        client.clearTable()
+
+        val after = client.currentState()
+        assertTrue(after.tablePairs.isEmpty())
+        assertEquals(before.deckCount, after.deckCount)
+        assertEquals(before.trump, after.trump)
+        assertEquals(before.localHand, after.localHand)
+    }
+
+    @Test
+    fun playCard_attack_movesCardFromHandToTable() = runTest {
+        val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
+        client.clearTable()
+        val card = Card(Suit.HEARTS, Rank.SIX)
+
+        client.playCard(MockGameStates.DEBUG_SESSION_ID, card, targetPairId = null)
+
+        val state = client.currentState()
+        assertTrue(state.localHand.none { it.suit.name == "HEARTS" && it.rank.name == "SIX" })
+        assertEquals(1, state.tablePairs.size)
+        assertEquals("HEARTS", state.tablePairs.first().attack.suit.name)
+        assertEquals(11, state.localHand.size)
+    }
+
+    @Test
+    fun playCard_defend_fillsDefenseSlot() = runTest {
+        val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
+        val undefended = client.currentState().tablePairs.first { it.defense == null }
+        val card = Card(Suit.CLUBS, Rank.ACE)
+
+        client.playCard(MockGameStates.DEBUG_SESSION_ID, card, targetPairId = undefended.id)
+
+        val pair = client.currentState().tablePairs.first { it.id == undefended.id }
+        assertEquals("CLUBS", pair.defense?.suit?.name)
+        assertEquals("ACE", pair.defense?.rank?.name)
     }
 }

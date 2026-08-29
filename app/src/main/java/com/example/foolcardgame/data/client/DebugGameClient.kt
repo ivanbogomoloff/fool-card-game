@@ -2,6 +2,9 @@ package com.example.foolcardgame.data.client
 
 import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.api.dto.GameStateDto
+import com.example.foolcardgame.data.api.dto.PlayerStatusDto
+import com.example.foolcardgame.data.api.dto.TablePairDto
+import com.example.foolcardgame.data.api.dto.toDto
 import com.example.foolcardgame.domain.model.Card
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +22,15 @@ class DebugGameClient(
 
     fun setScenario(scenario: DebugScenario) {
         state.value = scenario.toMockState()
+    }
+
+    fun clearTable() {
+        state.update { current ->
+            current.copy(
+                tablePairs = emptyList(),
+                serverTick = (current.serverTick ?: 0L) + 1,
+            )
+        }
     }
 
     fun currentState(): GameStateDto = state.value
@@ -45,10 +57,43 @@ class DebugGameClient(
         sessionId: GameSessionId,
         card: Card,
         targetPairId: Int?,
-    ): Result<Unit> = refreshAfterAction()
+    ): Result<Unit> {
+        state.update { current ->
+            val cardDto = card.toDto()
+            val handIndex = current.localHand.indexOfFirst {
+                it.suit == cardDto.suit && it.rank == cardDto.rank
+            }
+            if (handIndex < 0) return@update current
 
-    override suspend fun addCard(sessionId: GameSessionId, card: Card): Result<Unit> =
-        refreshAfterAction()
+            val newHand = current.localHand.toMutableList().also { it.removeAt(handIndex) }
+            val newPairs = current.tablePairs.toMutableList()
+            if (targetPairId == null) {
+                val nextId = (newPairs.maxOfOrNull { it.id } ?: 0) + 1
+                newPairs.add(TablePairDto(id = nextId, attack = cardDto))
+            } else {
+                val pairIndex = newPairs.indexOfFirst { it.id == targetPairId }
+                if (pairIndex < 0 || newPairs[pairIndex].defense != null) return@update current
+                newPairs[pairIndex] = newPairs[pairIndex].copy(defense = cardDto)
+            }
+            current.copy(
+                localHand = newHand,
+                tablePairs = newPairs,
+                players = current.players.map { player ->
+                    if (player.id == MockGameStates.LOCAL_PLAYER_ID) {
+                        player.copy(handCount = newHand.size)
+                    } else {
+                        player
+                    }
+                },
+                serverTick = (current.serverTick ?: 0L) + 1,
+            )
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun addCard(sessionId: GameSessionId, card: Card): Result<Unit> {
+        return playCard(sessionId, card, targetPairId = null)
+    }
 
     override suspend fun pass(sessionId: GameSessionId): Result<Unit> = refreshAfterAction()
 
@@ -59,7 +104,7 @@ class DebugGameClient(
             current.copy(
                 players = current.players.map { player ->
                     if (player.id == MockGameStates.LOCAL_PLAYER_ID) {
-                        player.copy(isReady = true, status = com.example.foolcardgame.data.api.dto.PlayerStatusDto.PLAYING)
+                        player.copy(isReady = true, status = PlayerStatusDto.PLAYING)
                     } else {
                         player
                     }

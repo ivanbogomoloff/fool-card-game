@@ -10,36 +10,48 @@ import org.junit.Test
 class GameUiStateMapperTest {
 
     @Test
-    fun map_lobbyWaiting_showsReadyActionAndWaitingPlayers() {
+    fun map_lobbyWaiting_showsReadyInGameMode() {
         val uiState = GameUiStateMapper.map(MockGameStates.lobbyWaiting())
 
-        assertEquals(GamePhase.LOBBY_WAITING, uiState.phase)
-        assertTrue(uiState.actions.readyVisible)
-        assertTrue(uiState.actions.readyEnabled)
-        assertFalse(uiState.actions.bitoEnabled)
-        assertEquals(3, uiState.waitingPlayers.size)
-        assertTrue(uiState.waitingPlayers.any { !it.isReady })
+        assertEquals(GamePhase.IN_PROGRESS, uiState.phase)
+        assertEquals(HandPrimaryAction.READY, uiState.actions.primary)
+        assertEquals(12, uiState.hand.size)
+        assertFalse(uiState.hasDisconnectedOpponent)
     }
 
     @Test
-    fun map_inProgress_enablesBitoAndMapsHand() {
+    fun map_inProgress_showsBitoAsPrimaryAction() {
         val uiState = GameUiStateMapper.map(MockGameStates.inProgress())
 
         assertEquals(GamePhase.IN_PROGRESS, uiState.phase)
-        assertFalse(uiState.actions.readyVisible)
-        assertTrue(uiState.actions.bitoEnabled)
-        assertEquals(5, uiState.hand.size)
+        assertEquals(HandPrimaryAction.BITO, uiState.actions.primary)
+        assertEquals(12, uiState.hand.size)
         assertEquals(2, uiState.tablePairs.size)
         assertEquals(2, uiState.opponents.size)
     }
 
     @Test
-    fun map_disconnectedPlayer_showsNotConnected() {
+    fun map_takeOnly_showsTakeAsPrimaryAction() {
+        val dto = MockGameStates.inProgress().copy(
+            canBito = false,
+            canPass = false,
+            canTake = true,
+            canReady = false,
+        )
+
+        val uiState = GameUiStateMapper.map(dto)
+
+        assertEquals(HandPrimaryAction.TAKE, uiState.actions.primary)
+    }
+
+    @Test
+    fun map_disconnectedPlayer_showsInGameWithBanner() {
         val uiState = GameUiStateMapper.map(MockGameStates.lobbyWithDisconnected())
 
-        val disconnected = uiState.waitingPlayers.first { it.displayName == "Бот 2" }
+        assertEquals(GamePhase.IN_PROGRESS, uiState.phase)
+        assertTrue(uiState.hasDisconnectedOpponent)
+        val disconnected = uiState.opponents.first { it.displayName == "Бот 2" }
         assertFalse(disconnected.isConnected)
-        assertFalse(disconnected.isReady)
     }
 
     @Test
@@ -47,6 +59,18 @@ class GameUiStateMapperTest {
         val uiState = GameUiStateMapper.map(MockGameStates.finished())
 
         assertEquals(GamePhase.FINISHED, uiState.phase)
+        assertEquals(HandPrimaryAction.NONE, uiState.actions.primary)
         assertTrue(uiState.resultMessage?.contains("Победитель") == true)
+    }
+
+    @Test
+    fun resolvePrimaryAction_priorityReadyOverOthers() {
+        val dto = MockGameStates.inProgress().copy(
+            canReady = true,
+            canTake = true,
+            canBito = true,
+            canPass = true,
+        )
+        assertEquals(HandPrimaryAction.READY, GameUiStateMapper.resolvePrimaryAction(dto))
     }
 }

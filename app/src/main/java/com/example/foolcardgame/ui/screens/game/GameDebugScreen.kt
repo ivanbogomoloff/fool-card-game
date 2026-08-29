@@ -36,13 +36,17 @@ fun GameDebugScreen(
         },
         onLeaveDismiss = viewModel::onLeaveDismiss,
         onCardClick = viewModel::onCardSelected,
+        onAttackDrop = viewModel::onAttackDrop,
+        onDefendDrop = viewModel::onDefendDrop,
         onBitoClick = viewModel::onBitoClick,
         onPassClick = viewModel::onPassClick,
+        onTakeClick = viewModel::onTakeClick,
         onReadyClick = viewModel::onReadyClick,
         modifier = modifier,
         debugPanel = {
             DebugScenarioPanel(
                 onScenarioSelected = viewModel::setScenario,
+                onClearTable = viewModel::clearTable,
             )
         },
     )
@@ -51,6 +55,7 @@ fun GameDebugScreen(
 @Composable
 private fun DebugScenarioPanel(
     onScenarioSelected: (DebugScenario) -> Unit,
+    onClearTable: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -67,6 +72,11 @@ private fun DebugScenarioPanel(
                 label = { Text(text = scenario.label) },
             )
         }
+        FilterChip(
+            selected = false,
+            onClick = onClearTable,
+            label = { Text(text = "Стол пуст") },
+        )
     }
 }
 

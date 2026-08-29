@@ -83,6 +83,7 @@ data class GameStateDto(
     val currentPlayerId: String? = null,
     val canBito: Boolean = false,
     val canPass: Boolean = false,
+    val canTake: Boolean = false,
     val canReady: Boolean = false,
     val winnerName: String? = null,
     val loserName: String? = null,

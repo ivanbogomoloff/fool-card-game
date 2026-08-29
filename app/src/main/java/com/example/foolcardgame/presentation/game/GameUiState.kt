@@ -20,6 +20,7 @@ data class OpponentUi(
     val displayName: String,
     val avatarId: Int,
     val cardCount: Int,
+    val isConnected: Boolean = true,
 )
 
 data class WaitingPlayerUi(
@@ -30,11 +31,16 @@ data class WaitingPlayerUi(
     val isConnected: Boolean,
 )
 
+enum class HandPrimaryAction {
+    READY,
+    BITO,
+    PASS,
+    TAKE,
+    NONE,
+}
+
 data class GameActionsUi(
-    val bitoEnabled: Boolean = false,
-    val passEnabled: Boolean = false,
-    val readyEnabled: Boolean = false,
-    val readyVisible: Boolean = false,
+    val primary: HandPrimaryAction = HandPrimaryAction.NONE,
 )
 
 data class GameUiState(
@@ -52,4 +58,5 @@ data class GameUiState(
     val actions: GameActionsUi = GameActionsUi(),
     val resultMessage: String? = null,
     val serverTick: Long? = null,
+    val hasDisconnectedOpponent: Boolean = false,
 )

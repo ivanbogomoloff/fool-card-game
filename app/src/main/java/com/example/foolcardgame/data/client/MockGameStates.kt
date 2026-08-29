@@ -13,32 +13,30 @@ object MockGameStates {
     const val DEBUG_SESSION_ID = "debug"
     const val LOCAL_PLAYER_ID = "local"
 
-    fun lobbyWaiting(): GameStateDto = GameStateDto(
-        sessionId = DEBUG_SESSION_ID,
-        phase = GamePhaseDto.LOBBY_WAITING,
-        localPlayerId = LOCAL_PLAYER_ID,
-        serverTick = 0L,
+    fun lobbyWaiting(): GameStateDto = inProgress().copy(
+        canBito = false,
+        canPass = false,
+        canTake = false,
         canReady = true,
-        players = listOf(
-            localPlayer(isReady = false),
-            botPlayer(id = "bot-1", name = "Бот 1", isReady = true),
-            botPlayer(id = "bot-2", name = "Бот 2", isReady = false),
-        ),
     )
 
-    fun lobbyWithDisconnected(): GameStateDto = lobbyWaiting().copy(
+    fun lobbyWithDisconnected(): GameStateDto = inProgress().copy(
+        canBito = true,
+        canPass = false,
+        canTake = false,
+        canReady = false,
         players = listOf(
-            localPlayer(isReady = true),
-            botPlayer(id = "bot-1", name = "Бот 1", isReady = true),
+            localPlayer(isReady = true, handCount = 12, status = PlayerStatusDto.PLAYING),
+            botPlayer(id = "bot-1", name = "Бот 1", handCount = 3, isReady = true, status = PlayerStatusDto.PLAYING),
             botPlayer(
                 id = "bot-2",
                 name = "Бот 2",
-                isReady = false,
+                handCount = 6,
+                isReady = true,
                 isConnected = false,
                 status = PlayerStatusDto.DISCONNECTED,
             ),
         ),
-        canReady = false,
     )
 
     fun inProgress(): GameStateDto = GameStateDto(
@@ -51,6 +49,7 @@ object MockGameStates {
         currentPlayerId = LOCAL_PLAYER_ID,
         canBito = true,
         canPass = false,
+        canTake = false,
         canReady = false,
         localHand = listOf(
             card(SuitDto.HEARTS, RankDto.SIX),
@@ -58,6 +57,13 @@ object MockGameStates {
             card(SuitDto.DIAMONDS, RankDto.KING),
             card(SuitDto.CLUBS, RankDto.ACE),
             card(SuitDto.HEARTS, RankDto.NINE),
+            card(SuitDto.SPADES, RankDto.TEN),
+            card(SuitDto.CLUBS, RankDto.JACK),
+            card(SuitDto.DIAMONDS, RankDto.QUEEN),
+            card(SuitDto.HEARTS, RankDto.KING),
+            card(SuitDto.SPADES, RankDto.ACE),
+            card(SuitDto.CLUBS, RankDto.SIX),
+            card(SuitDto.DIAMONDS, RankDto.EIGHT),
         ),
         tablePairs = listOf(
             TablePairDto(
@@ -71,7 +77,7 @@ object MockGameStates {
             ),
         ),
         players = listOf(
-            localPlayer(isReady = true, handCount = 5, status = PlayerStatusDto.PLAYING),
+            localPlayer(isReady = true, handCount = 12, status = PlayerStatusDto.PLAYING),
             botPlayer(id = "bot-1", name = "Бот 1", handCount = 3, isReady = true, status = PlayerStatusDto.PLAYING),
             botPlayer(id = "bot-2", name = "Бот 2", handCount = 6, isReady = true, status = PlayerStatusDto.PLAYING),
         ),
@@ -81,6 +87,7 @@ object MockGameStates {
         phase = GamePhaseDto.FINISHED,
         canBito = false,
         canPass = false,
+        canTake = false,
         canReady = false,
         winnerName = "Игрок",
         loserName = "Бот 2",

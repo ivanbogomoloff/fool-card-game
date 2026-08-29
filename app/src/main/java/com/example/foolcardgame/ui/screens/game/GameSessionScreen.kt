@@ -30,8 +30,11 @@ fun GameSessionScreen(
     onLeaveConfirm: () -> Unit,
     onLeaveDismiss: () -> Unit,
     onCardClick: (String) -> Unit,
+    onAttackDrop: (String) -> Unit,
+    onDefendDrop: (String, Int) -> Unit,
     onBitoClick: () -> Unit,
     onPassClick: () -> Unit,
+    onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
     modifier: Modifier = Modifier,
     debugPanel: @Composable (() -> Unit)? = null,
@@ -74,8 +77,11 @@ fun GameSessionScreen(
             GameTableLayout(
                 uiState = uiState,
                 onCardClick = onCardClick,
+                onAttackDrop = onAttackDrop,
+                onDefendDrop = onDefendDrop,
                 onBitoClick = onBitoClick,
                 onPassClick = onPassClick,
+                onTakeClick = onTakeClick,
                 onReadyClick = onReadyClick,
                 modifier = Modifier.fillMaxSize(),
             )

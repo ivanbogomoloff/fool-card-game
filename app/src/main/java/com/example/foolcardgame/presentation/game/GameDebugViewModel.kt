@@ -11,4 +11,8 @@ class GameDebugViewModel(
     fun setScenario(scenario: DebugScenario) {
         debugGameClient.setScenario(scenario)
     }
+
+    fun clearTable() {
+        debugGameClient.clearTable()
+    }
 }

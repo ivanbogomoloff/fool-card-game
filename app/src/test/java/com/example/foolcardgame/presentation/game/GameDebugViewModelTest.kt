@@ -5,6 +5,7 @@ import com.example.foolcardgame.data.client.DebugScenario
 import com.example.foolcardgame.domain.model.GamePhase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GameDebugViewModelTest {
@@ -14,12 +15,14 @@ class GameDebugViewModelTest {
         val client = DebugGameClient(initialScenario = DebugScenario.LOBBY_WAITING)
 
         val lobbyState = GameUiStateMapper.map(client.currentState())
-        assertEquals(GamePhase.LOBBY_WAITING, lobbyState.phase)
+        assertEquals(GamePhase.IN_PROGRESS, lobbyState.phase)
+        assertEquals(HandPrimaryAction.READY, lobbyState.actions.primary)
 
         client.setScenario(DebugScenario.IN_PROGRESS)
         val gameState = GameUiStateMapper.map(client.currentState())
         assertEquals(GamePhase.IN_PROGRESS, gameState.phase)
-        assertEquals(5, gameState.hand.size)
+        assertEquals(HandPrimaryAction.BITO, gameState.actions.primary)
+        assertEquals(12, gameState.hand.size)
     }
 
     @Test
@@ -28,7 +31,8 @@ class GameDebugViewModelTest {
         client.setScenario(DebugScenario.LOBBY_DISCONNECTED)
 
         val uiState = GameUiStateMapper.map(client.currentState())
-        val disconnected = uiState.waitingPlayers.first { it.displayName == "Бот 2" }
+        assertTrue(uiState.hasDisconnectedOpponent)
+        val disconnected = uiState.opponents.first { it.displayName == "Бот 2" }
         assertFalse(disconnected.isConnected)
     }
 }

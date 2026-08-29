@@ -1,48 +1,39 @@
 package com.example.foolcardgame.ui.components.game
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.ui.components.card.CardFace
-import com.example.foolcardgame.ui.theme.SoftCharcoal
 
 @Composable
 fun DeckAndTrumpView(
-    deckCount: Int,
     trump: CardUi?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.padding(start = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Box(
+        modifier = modifier.size(width = 100.dp, height = 100.dp),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            CardFace(card = null, faceUp = false)
-            Text(
-                text = deckCount.toString(),
-                style = MaterialTheme.typography.titleMedium,
-                color = SoftCharcoal,
+        if (trump != null) {
+            CardFace(
+                card = trump,
+                faceUp = true,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(x = 28.dp)
+                    .rotate(90f),
             )
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Козырь",
-                style = MaterialTheme.typography.labelSmall,
-                color = SoftCharcoal,
-            )
-            CardFace(card = trump, faceUp = trump != null)
-        }
+        CardFace(
+            card = null,
+            faceUp = false,
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
     }
 }

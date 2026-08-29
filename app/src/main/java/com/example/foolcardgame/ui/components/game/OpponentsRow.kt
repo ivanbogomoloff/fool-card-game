@@ -1,17 +1,24 @@
 package com.example.foolcardgame.ui.components.game
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.example.foolcardgame.presentation.game.OpponentUi
+import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.screens.profile.AvatarPresets
+import com.example.foolcardgame.ui.theme.SoftCoral
 
 @Composable
 fun OpponentsRow(
@@ -19,7 +26,9 @@ fun OpponentsRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -35,6 +44,7 @@ private fun OpponentItem(
     modifier: Modifier = Modifier,
 ) {
     val avatar = AvatarPresets.get(opponent.avatarId)
+    val visibleBacks = opponent.cardCount.coerceIn(0, 6)
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -45,9 +55,36 @@ private fun OpponentItem(
             text = opponent.displayName,
             style = MaterialTheme.typography.labelMedium,
         )
-        Text(
-            text = "${opponent.cardCount} карт",
-            style = MaterialTheme.typography.labelSmall,
-        )
+        if (!opponent.isConnected) {
+            Text(
+                text = "Нет сети",
+                style = MaterialTheme.typography.labelSmall,
+                color = SoftCoral,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .width((28 + (visibleBacks - 1).coerceAtLeast(0) * 10).dp)
+                .padding(vertical = 2.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            repeat(visibleBacks) { index ->
+                CardFace(
+                    card = null,
+                    faceUp = false,
+                    width = 28.dp,
+                    height = 40.dp,
+                    modifier = Modifier
+                        .offset(x = (index * 10).dp)
+                        .zIndex(index.toFloat()),
+                )
+            }
+        }
+        if (opponent.cardCount > 0) {
+            Text(
+                text = "${opponent.cardCount}",
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foolcardgame.presentation.game.CardUi
@@ -37,6 +38,8 @@ fun CardFace(
     modifier: Modifier = Modifier,
     faceUp: Boolean = true,
     selected: Boolean = false,
+    width: Dp = 56.dp,
+    height: Dp = 80.dp,
     onClick: (() -> Unit)? = null,
 ) {
     val scale by animateFloatAsState(
@@ -51,8 +54,8 @@ fun CardFace(
     }
     Box(
         modifier = modifier
-            .width(56.dp)
-            .height(80.dp)
+            .width(width)
+            .height(height)
             .scale(scale)
             .clip(shape)
             .then(
@@ -73,18 +76,19 @@ fun CardFace(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (card.isRed) Color(0xFFC75050) else SoftCharcoal,
-                    fontSize = 18.sp,
+                    fontSize = (height.value * 0.22f).sp,
                 )
                 Text(
                     text = card.suitSymbol,
                     style = MaterialTheme.typography.titleLarge,
                     color = if (card.isRed) Color(0xFFC75050) else SoftCharcoal,
+                    fontSize = (height.value * 0.28f).sp,
                 )
             }
         } else if (!faceUp) {
             Text(
                 text = "🂠",
-                fontSize = 24.sp,
+                fontSize = (height.value * 0.3f).sp,
             )
         }
     }
