@@ -97,7 +97,15 @@ class DebugGameClient(
 
     override suspend fun pass(sessionId: GameSessionId): Result<Unit> = refreshAfterAction()
 
-    override suspend fun bito(sessionId: GameSessionId): Result<Unit> = refreshAfterAction()
+    override suspend fun bito(sessionId: GameSessionId): Result<Unit> {
+        state.update { current ->
+            current.copy(
+                tablePairs = emptyList(),
+                serverTick = (current.serverTick ?: 0L) + 1,
+            )
+        }
+        return Result.success(Unit)
+    }
 
     override suspend fun ready(sessionId: GameSessionId): Result<Unit> {
         state.update { current ->

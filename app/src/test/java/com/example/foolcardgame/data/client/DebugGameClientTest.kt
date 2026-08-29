@@ -64,6 +64,16 @@ class DebugGameClientTest {
     }
 
     @Test
+    fun bito_clearsTablePairs() = runTest {
+        val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
+        assertTrue(client.currentState().tablePairs.isNotEmpty())
+
+        client.bito(MockGameStates.DEBUG_SESSION_ID)
+
+        assertTrue(client.currentState().tablePairs.isEmpty())
+    }
+
+    @Test
     fun playCard_attack_movesCardFromHandToTable() = runTest {
         val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
         client.clearTable()

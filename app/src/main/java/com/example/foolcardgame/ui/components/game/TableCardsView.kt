@@ -49,6 +49,7 @@ fun TableCardsView(
     onTableBoundsChanged: (Rect) -> Unit,
     onAttackCardBoundsChanged: (pairId: Int, bounds: Rect) -> Unit,
     modifier: Modifier = Modifier,
+    showEmptyHint: Boolean = true,
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -58,7 +59,7 @@ fun TableCardsView(
                 onTableBoundsChanged(coordinates.boundsInRoot())
             }
             .then(
-                if (tablePairs.isEmpty()) {
+                if (tablePairs.isEmpty() && showEmptyHint) {
                     Modifier
                         .border(
                             width = 1.dp,
@@ -76,11 +77,13 @@ fun TableCardsView(
         contentAlignment = Alignment.Center,
     ) {
         if (tablePairs.isEmpty()) {
-            Text(
-                text = "Перетащите карту на стол",
-                style = MaterialTheme.typography.bodyMedium,
-                color = AccentTeal,
-            )
+            if (showEmptyHint) {
+                Text(
+                    text = "Перетащите карту на стол",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AccentTeal,
+                )
+            }
         } else {
             // Equal column slots; pair stacks may overflow and overlap neighbors.
             val cellWidth = maxWidth / TableColumnCount
