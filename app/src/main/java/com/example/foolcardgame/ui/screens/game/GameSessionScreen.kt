@@ -1,6 +1,7 @@
-package com.example.foolcardgame.ui.screens.stub
+package com.example.foolcardgame.ui.screens.game
 
-import androidx.compose.foundation.layout.Box
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -8,34 +9,48 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.example.foolcardgame.presentation.game.GameUiState
+import com.example.foolcardgame.ui.components.game.GameTableLayout
+import com.example.foolcardgame.ui.components.game.LeaveGameDialog
 import com.example.foolcardgame.ui.theme.AccentTeal
-import com.example.foolcardgame.ui.theme.FoolCardGameTheme
 import com.example.foolcardgame.ui.theme.TableGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaceholderScreen(
+fun GameSessionScreen(
+    uiState: GameUiState,
     title: String,
-    onBack: () -> Unit,
+    onBackClick: () -> Unit,
+    onLeaveConfirm: () -> Unit,
+    onLeaveDismiss: () -> Unit,
+    onCardClick: (String) -> Unit,
+    onBitoClick: () -> Unit,
+    onPassClick: () -> Unit,
+    onReadyClick: () -> Unit,
     modifier: Modifier = Modifier,
-    message: String = "Скоро",
+    debugPanel: @Composable (() -> Unit)? = null,
 ) {
+    BackHandler(onBack = onBackClick)
+
+    LeaveGameDialog(
+        visible = uiState.showLeaveDialog,
+        onConfirm = onLeaveConfirm,
+        onDismiss = onLeaveDismiss,
+    )
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(text = title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
@@ -44,35 +59,26 @@ fun PlaceholderScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = TableGreen,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
                     navigationIconContentColor = AccentTeal,
                 ),
             )
         },
         containerColor = TableGreen,
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.headlineSmall,
+            debugPanel?.invoke()
+            GameTableLayout(
+                uiState = uiState,
+                onCardClick = onCardClick,
+                onBitoClick = onBitoClick,
+                onPassClick = onPassClick,
+                onReadyClick = onReadyClick,
+                modifier = Modifier.fillMaxSize(),
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PlaceholderScreenPreview() {
-    FoolCardGameTheme {
-        PlaceholderScreen(
-            title = "Оффлайн",
-            message = "Скоро",
-            onBack = {},
-        )
     }
 }

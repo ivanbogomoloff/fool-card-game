@@ -35,14 +35,14 @@ data/api/FakeProfileApi.kt
 
 ## Задачи
 
-- [ ] DataStore: `displayName`, `avatarId`
-- [ ] `ProfileViewModel` — load/save
-- [ ] UI: TextField имени, grid аватаров (8 preset)
-- [ ] `ProfileApi` interface + `FakeProfileApi` (stub POST)
-- [ ] `ProfileRepository` — local first, затем fake API call
-- [ ] Кнопка «Сохранить» — persist + snackbar
-- [ ] Gradle: DataStore, kotlinx-serialization (если ещё нет)
-- [ ] `ProfileRepositoryTest`, `ProfileViewModelTest`
+- [x] DataStore: `displayName`, `avatarId`
+- [x] `ProfileViewModel` — load/save
+- [x] UI: TextField имени, grid аватаров (8 preset)
+- [x] `ProfileApi` interface + `FakeProfileApi` (stub POST)
+- [x] `ProfileRepository` — local first, затем fake API call
+- [x] Кнопка «Сохранить» — persist + snackbar
+- [x] Gradle: DataStore, kotlinx-serialization
+- [x] `ProfileRepositoryTest`, `ProfileViewModelTest`
 
 ## DoD
 

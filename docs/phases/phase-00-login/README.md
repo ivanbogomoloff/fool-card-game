@@ -31,12 +31,13 @@ ui/navigation/Routes.kt
 
 ## Задачи
 
-- [ ] Создать `Routes.kt` с константами маршрутов
-- [ ] Создать `AppNavGraph` с `startDestination = login`
-- [ ] Реализовать `LoginScreen` (Compose)
-- [ ] Кнопка «Войти» → `navigate(main)` { popUpTo(login) { inclusive = true } }
-- [ ] Подключить NavHost в `MainActivity`
-- [ ] Добавить Gradle-зависимости: Navigation Compose, ViewModel, Coroutines
+- [x] Создать `Routes.kt` с константами маршрутов
+- [x] Создать `AppNavGraph` с `startDestination = login`
+- [x] Реализовать `LoginScreen` (Compose)
+- [x] Кнопка «Войти» → `navigate(main)` { popUpTo(login) { inclusive = true } }
+- [x] Подключить NavHost в `MainActivity`
+- [x] Добавить Gradle-зависимости: Navigation Compose, ViewModel, Coroutines
+- [x] `RoutesTest`
 
 ## DoD
 

@@ -31,10 +31,10 @@ ui/navigation/AppNavGraph.kt   (добавить destinations)
 
 ## Задачи
 
-- [ ] `MainMenuScreen` с тремя кнопками
-- [ ] Навигация: `offline/setup`, `online/lobby`, `profile`
-- [ ] Заглушки экранов для offline/online/profile (пустые composable до Phase 2/4/5)
-- [ ] Единый стиль кнопок (theme tokens)
+- [x] `MainMenuScreen` с тремя кнопками
+- [x] Навигация: `offline/setup`, `online/lobby`, `profile`
+- [x] Заглушки экранов для offline/online/profile (с TopAppBar и «Назад»)
+- [x] Единый стиль кнопок (`PrimaryButton`, theme tokens)
 
 ## DoD
 

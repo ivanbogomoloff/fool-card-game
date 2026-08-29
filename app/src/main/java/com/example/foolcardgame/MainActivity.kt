@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.example.foolcardgame.ui.navigation.AppNavGraph
+import com.example.foolcardgame.ui.navigation.Routes
 import com.example.foolcardgame.ui.theme.FoolCardGameTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,7 +19,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             FoolCardGameTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AppNavGraph(modifier = Modifier.padding(innerPadding))
+                    AppNavGraph(
+                        modifier = Modifier.padding(innerPadding),
+                        startDestination = Routes.GAME_DEBUG,
+                    )
                 }
             }
         }

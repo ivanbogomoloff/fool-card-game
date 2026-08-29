@@ -88,13 +88,13 @@ data/client/DebugGameClient.kt
 
 ## Задачи
 
-- [ ] `CardFace` composable (программный рендер)
-- [ ] Все game-компоненты из таблицы
-- [ ] `DebugGameClient` с fake `observeState` tick
-- [ ] `GameDebugViewModel` — mock LOBBY_WAITING / IN_PROGRESS / DISCONNECTED
-- [ ] Debug-панель: кнопки смены состояния
-- [ ] `MainActivity` startDestination = `game/debug`
-- [ ] `GameUiStateMapperTest`, `DebugGameClientTest`
+- [x] `CardFace` composable (программный рендер)
+- [x] Все game-компоненты из таблицы
+- [x] `DebugGameClient` с fake `observeState` tick
+- [x] `GameDebugViewModel` — mock LOBBY_WAITING / IN_PROGRESS / DISCONNECTED
+- [x] Debug-панель: кнопки смены состояния
+- [x] `MainActivity` startDestination = `game/debug`
+- [x] `GameUiStateMapperTest`, `DebugGameClientTest`, `GameDebugViewModelTest`
 
 ## DoD
 
