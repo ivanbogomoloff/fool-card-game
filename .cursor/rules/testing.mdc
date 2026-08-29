@@ -1,0 +1,23 @@
+---
+description: Юнит-тесты — domain first, runTest, Turbine для Flow
+globs: "**/{test,androidTest}/**/*.kt"
+alwaysApply: false
+---
+
+# Unit Testing Rules
+
+- Write tests in the same phase as the feature; green tests are part of DoD
+- Run: `./gradlew testDebugUnitTest`
+- Domain (`GameEngine`, `Rules`) — highest priority, pure JVM, fixed deck seed
+- Flow/tick: `runTest` + Turbine for `observeState`
+- ViewModel: inject fake `GameClient` / `ProfileRepository`, no Android framework
+- Phase 5+: MockWebServer for Retrofit, not live API
+- See `docs/architecture/testing.md` for required scenarios per phase
+
+```kotlin
+@Test
+fun addCard_rejects_whenRankNotOnTable() = runTest {
+    val engine = GameEngine(seed = 42)
+    // ...
+}
+```

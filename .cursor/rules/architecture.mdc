@@ -1,0 +1,23 @@
+---
+description: Архитектура domain/data — GameClient, engine, без Android в domain
+globs: "**/{domain,data}/**/*.kt"
+alwaysApply: false
+---
+
+# Architecture Rules
+
+- `domain/` — pure Kotlin, no Android imports
+- Game logic lives in `GameEngine`; bots in `BotAI`
+- All game actions go through `GameClient` interface (local or remote)
+- ViewModels call `GameClient`, never `GameEngine` directly
+- Use `observeState()` Flow for tick polling; immediate `getState()` after actions
+- Actions: `playCard`, `addCard`, `pass`, `bito`, `ready`, `leaveSession`
+- DTOs in `data/api/dto/` with `@Serializable`; map to/from domain in repository
+
+```kotlin
+// ✅ ViewModel
+gameClient.playCard(sessionId, card, targetPairId)
+
+// ❌ ViewModel
+gameEngine.playCard(card)
+```

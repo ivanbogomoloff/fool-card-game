@@ -1,0 +1,25 @@
+---
+description: Compose UI — stateless composables, theme tokens, русский UI
+globs: "**/ui/**/*.kt"
+alwaysApply: false
+---
+
+# Compose UI Rules
+
+- Screens are thin; state from ViewModel via `UiState` + `collectAsStateWithLifecycle`
+- Composables are stateless; pass callbacks for events
+- Use theme tokens from `ui/theme/Color.kt` (soft palette)
+- Game components in `ui/components/game/`, cards in `ui/components/card/`
+- Navigation via `AppNavGraph` and `Routes` constants
+- All user-facing strings in Russian
+- `@Preview` for standalone components
+
+```kotlin
+// ✅
+@Composable
+fun LoginScreen(onLoginClick: () -> Unit, modifier: Modifier = Modifier)
+
+// ❌
+@Composable
+fun LoginScreen() { viewModel.login() }
+```

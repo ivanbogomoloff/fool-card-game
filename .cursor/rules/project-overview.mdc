@@ -1,0 +1,15 @@
+---
+description: Обзор проекта Подкидной дурак — стек, язык, docs
+alwaysApply: true
+---
+
+# FoolCardGame — Project Overview
+
+- Kotlin Android app, minSdk 34, Jetpack Compose + MVVM
+- Stack: Retrofit, OkHttp, Coroutines, Kotlinx Serialization, Compose Animation
+- UI language: **Russian**
+- Follow phased plan in `docs/phases/` — current phase README is source of truth
+- Architecture docs: `docs/architecture/`
+- Game rules: `docs/game-rules/podkidnoy-durak.md`
+- Do not skip phases; Phase 3 game UI is critical before bot logic
+- Unit tests per phase: `docs/architecture/testing.md`; run `./gradlew testDebugUnitTest` before next phase

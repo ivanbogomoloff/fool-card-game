@@ -1,0 +1,77 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+**/build/
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# Local configuration
+local.properties
+*.iml
+
+# Log/OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Android Studio / IntelliJ IDEA
+.idea/
+!.idea/runConfigurations/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/fileTemplates/
+*.iws
+*.ipr
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build
+.externalNativeBuild/
+.cxx/
+
+# Captures (screenshots from AS)
+/captures/
+
+# Kotlin
+.kotlin/
+
+# Navigation safe args (generated)
+**/generated/
+
+# Unit test reports
+**/test-results/
+**/reports/
+
+# NDK
+obj/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Misc
+*.swp
+*~
+.env
+.env.*

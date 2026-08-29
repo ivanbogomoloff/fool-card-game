@@ -1,0 +1,17 @@
+---
+description: Работа по этапам docs/phases — не перескакивать
+globs: "docs/**"
+alwaysApply: false
+---
+
+# Phased Development
+
+- Implement strictly in order: phase-00 → phase-06
+- Before coding, read the current phase `README.md` (goal, DoD, checklist)
+- Phase 3: temporarily set `startDestination = game/debug`
+- Phase 4: restore `startDestination = login`; wire `LocalGameClient`
+- Do not start Phase 5 until Phase 4 DoD is met
+- Wireframes and nav diagrams: `docs/architecture/navigation-and-screens.md`
+- Mark phase checklist items as done when completing tasks
+- Each phase includes unit tests; see `docs/architecture/testing.md`
+- `./gradlew testDebugUnitTest` must pass before moving to next phase
