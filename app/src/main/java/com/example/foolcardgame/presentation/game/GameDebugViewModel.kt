@@ -22,4 +22,9 @@ class GameDebugViewModel(
         debugGameClient.setTakePending()
         restartReadyTimerIfNeeded(canReady = false)
     }
+
+    fun setOpponentTurn() {
+        debugGameClient.setOpponentTurn()
+        restartReadyTimerIfNeeded(canReady = false)
+    }
 }

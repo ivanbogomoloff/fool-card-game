@@ -21,6 +21,7 @@ object GameUiStateMapper {
                     cardCount = it.handCount,
                     isConnected = it.isConnected,
                     isReady = it.isReady,
+                    isCurrentTurn = it.id == dto.currentPlayerId,
                 )
             }
         val waitingPlayers = dto.players.map {
@@ -49,6 +50,8 @@ object GameUiStateMapper {
             },
             serverTick = dto.serverTick,
             hasDisconnectedOpponent = opponents.any { !it.isConnected },
+            isLocalPlayerTurn = dto.currentPlayerId != null &&
+                dto.currentPlayerId == dto.localPlayerId,
         )
     }
 

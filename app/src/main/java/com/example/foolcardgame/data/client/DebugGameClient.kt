@@ -28,6 +28,10 @@ class DebugGameClient(
         state.value = MockGameStates.takePending()
     }
 
+    fun setOpponentTurn() {
+        state.value = MockGameStates.opponentTurn()
+    }
+
     fun clearTable() {
         state.update { current ->
             current.copy(

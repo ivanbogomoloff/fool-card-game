@@ -26,8 +26,9 @@ fun GameActionBar(
     onReadyClick: () -> Unit,
     modifier: Modifier = Modifier,
     readySecondsLeft: Int? = null,
+    isLocalPlayerTurn: Boolean = false,
 ) {
-    if (actions.primary == HandPrimaryAction.NONE) return
+    if (actions.primary == HandPrimaryAction.NONE && !isLocalPlayerTurn) return
 
     Box(
         modifier = modifier
@@ -71,7 +72,15 @@ fun GameActionBar(
                 onClick = onTakeClick,
                 fillWidth = false,
             )
-            HandPrimaryAction.NONE -> Unit
+            HandPrimaryAction.NONE -> {
+                if (isLocalPlayerTurn) {
+                    Text(
+                        text = "Ваш ход",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReadyGreen,
+                    )
+                }
+            }
         }
     }
 }

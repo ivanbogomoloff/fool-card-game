@@ -31,6 +31,19 @@ class GameUiStateMapperTest {
         assertEquals(2, uiState.tablePairs.size)
         assertEquals(2, uiState.opponents.size)
         assertTrue(uiState.opponents.all { it.isReady })
+        assertTrue(uiState.isLocalPlayerTurn)
+        assertTrue(uiState.opponents.none { it.isCurrentTurn })
+    }
+
+    @Test
+    fun map_opponentTurn_marksBotAsCurrent() {
+        val uiState = GameUiStateMapper.map(MockGameStates.opponentTurn())
+
+        assertFalse(uiState.isLocalPlayerTurn)
+        assertEquals(HandPrimaryAction.NONE, uiState.actions.primary)
+        val bot1 = uiState.opponents.first { it.id == "bot-1" }
+        assertTrue(bot1.isCurrentTurn)
+        assertTrue(uiState.opponents.filter { it.id != "bot-1" }.none { it.isCurrentTurn })
     }
 
     @Test

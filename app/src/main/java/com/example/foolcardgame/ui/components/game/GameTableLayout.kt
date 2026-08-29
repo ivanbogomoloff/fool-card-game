@@ -177,6 +177,7 @@ private fun InProgressGameLayout(
             GameActionBar(
                 actions = uiState.actions,
                 readySecondsLeft = uiState.readySecondsLeft,
+                isLocalPlayerTurn = uiState.isLocalPlayerTurn,
                 onBitoClick = {
                     if (isDiscardAnimating) return@GameActionBar
                     startTableFlyaway(TableFlyawayDirection.Right)

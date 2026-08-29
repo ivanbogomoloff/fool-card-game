@@ -23,6 +23,8 @@ import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.screens.profile.AvatarPresets
+import com.example.foolcardgame.ui.theme.ReadyGreen
+import com.example.foolcardgame.ui.theme.SoftCharcoal
 import com.example.foolcardgame.ui.theme.SoftCoral
 
 @Composable
@@ -77,8 +79,13 @@ private fun OpponentItem(
             Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
         }
         Text(
-            text = opponent.displayName,
+            text = if (opponent.isCurrentTurn) {
+                "Ходит ${opponent.displayName}"
+            } else {
+                opponent.displayName
+            },
             style = MaterialTheme.typography.labelMedium,
+            color = if (opponent.isCurrentTurn) ReadyGreen else SoftCharcoal,
         )
         if (!opponent.isConnected) {
             Text(

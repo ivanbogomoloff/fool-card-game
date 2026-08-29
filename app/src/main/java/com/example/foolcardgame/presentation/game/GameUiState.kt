@@ -22,6 +22,7 @@ data class OpponentUi(
     val cardCount: Int,
     val isConnected: Boolean = true,
     val isReady: Boolean = true,
+    val isCurrentTurn: Boolean = false,
 )
 
 data class WaitingPlayerUi(
@@ -62,4 +63,5 @@ data class GameUiState(
     val hasDisconnectedOpponent: Boolean = false,
     val readySecondsLeft: Int? = null,
     val showLobbyTimeoutDialog: Boolean = false,
+    val isLocalPlayerTurn: Boolean = false,
 )

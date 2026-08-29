@@ -61,6 +61,15 @@ object MockGameStates {
         canReady = false,
     )
 
+    /** Ход оппонента — для проверки индикатора «Ходит». */
+    fun opponentTurn(): GameStateDto = inProgress().copy(
+        currentPlayerId = "bot-1",
+        canBito = false,
+        canPass = false,
+        canTake = false,
+        canReady = false,
+    )
+
     fun inProgress(): GameStateDto = GameStateDto(
         sessionId = DEBUG_SESSION_ID,
         phase = GamePhaseDto.IN_PROGRESS,

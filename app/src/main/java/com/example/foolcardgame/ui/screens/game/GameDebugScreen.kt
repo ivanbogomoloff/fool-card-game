@@ -52,6 +52,7 @@ fun GameDebugScreen(
                 onScenarioSelected = viewModel::setScenario,
                 onClearTable = viewModel::clearTable,
                 onTakePending = viewModel::setTakePending,
+                onOpponentTurn = viewModel::setOpponentTurn,
             )
         },
     )
@@ -62,6 +63,7 @@ private fun DebugScenarioPanel(
     onScenarioSelected: (DebugScenario) -> Unit,
     onClearTable: () -> Unit,
     onTakePending: () -> Unit,
+    onOpponentTurn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -82,6 +84,11 @@ private fun DebugScenarioPanel(
             selected = false,
             onClick = onTakePending,
             label = { Text(text = "Беру") },
+        )
+        FilterChip(
+            selected = false,
+            onClick = onOpponentTurn,
+            label = { Text(text = "Ход бота") },
         )
         FilterChip(
             selected = false,
