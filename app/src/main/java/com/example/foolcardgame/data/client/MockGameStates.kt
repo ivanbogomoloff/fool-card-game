@@ -13,11 +13,25 @@ object MockGameStates {
     const val DEBUG_SESSION_ID = "debug"
     const val LOCAL_PLAYER_ID = "local"
 
-    fun lobbyWaiting(): GameStateDto = inProgress().copy(
+    fun lobbyWaiting(): GameStateDto = GameStateDto(
+        sessionId = DEBUG_SESSION_ID,
+        phase = GamePhaseDto.LOBBY_WAITING,
+        localPlayerId = LOCAL_PLAYER_ID,
+        serverTick = 0L,
+        deckCount = 0,
+        trump = null,
+        currentPlayerId = null,
         canBito = false,
         canPass = false,
         canTake = false,
         canReady = true,
+        localHand = emptyList(),
+        tablePairs = emptyList(),
+        players = listOf(
+            localPlayer(isReady = false, handCount = 0, status = PlayerStatusDto.WAITING),
+            botPlayer(id = "bot-1", name = "Бот 1", handCount = 0, isReady = false),
+            botPlayer(id = "bot-2", name = "Бот 2", handCount = 0, isReady = false),
+        ),
     )
 
     fun lobbyWithDisconnected(): GameStateDto = inProgress().copy(

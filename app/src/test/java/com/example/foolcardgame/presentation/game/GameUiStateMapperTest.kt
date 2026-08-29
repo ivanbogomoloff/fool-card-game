@@ -2,6 +2,7 @@ package com.example.foolcardgame.presentation.game
 
 import com.example.foolcardgame.data.client.MockGameStates
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.ui.components.game.formatReadyTimer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,13 +11,14 @@ import org.junit.Test
 class GameUiStateMapperTest {
 
     @Test
-    fun map_lobbyWaiting_showsReadyInGameMode() {
+    fun map_lobbyWaiting_showsReadyAndLobbyPhase() {
         val uiState = GameUiStateMapper.map(MockGameStates.lobbyWaiting())
 
-        assertEquals(GamePhase.IN_PROGRESS, uiState.phase)
+        assertEquals(GamePhase.LOBBY_WAITING, uiState.phase)
         assertEquals(HandPrimaryAction.READY, uiState.actions.primary)
-        assertEquals(12, uiState.hand.size)
+        assertTrue(uiState.hand.isEmpty())
         assertFalse(uiState.hasDisconnectedOpponent)
+        assertTrue(uiState.opponents.all { !it.isReady })
     }
 
     @Test
@@ -28,6 +30,7 @@ class GameUiStateMapperTest {
         assertEquals(12, uiState.hand.size)
         assertEquals(2, uiState.tablePairs.size)
         assertEquals(2, uiState.opponents.size)
+        assertTrue(uiState.opponents.all { it.isReady })
     }
 
     @Test
@@ -72,5 +75,13 @@ class GameUiStateMapperTest {
             canPass = true,
         )
         assertEquals(HandPrimaryAction.READY, GameUiStateMapper.resolvePrimaryAction(dto))
+    }
+
+    @Test
+    fun formatReadyTimer_formatsMinutesAndSeconds() {
+        assertEquals("1:00", formatReadyTimer(60))
+        assertEquals("0:45", formatReadyTimer(45))
+        assertEquals("0:05", formatReadyTimer(5))
+        assertEquals("0:00", formatReadyTimer(0))
     }
 }

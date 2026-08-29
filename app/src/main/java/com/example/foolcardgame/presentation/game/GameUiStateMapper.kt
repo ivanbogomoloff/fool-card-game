@@ -20,6 +20,7 @@ object GameUiStateMapper {
                     avatarId = it.avatarId,
                     cardCount = it.handCount,
                     isConnected = it.isConnected,
+                    isReady = it.isReady,
                 )
             }
         val waitingPlayers = dto.players.map {

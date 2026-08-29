@@ -7,6 +7,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.ui.theme.AccentTeal
 import com.example.foolcardgame.ui.theme.CardCream
@@ -17,6 +18,8 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     fillWidth: Boolean = true,
+    containerColor: Color = AccentTeal,
+    contentColor: Color = CardCream,
 ) {
     Button(
         onClick = onClick,
@@ -26,8 +29,8 @@ fun PrimaryButton(
             modifier
         }.padding(vertical = 4.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AccentTeal,
-            contentColor = CardCream,
+            containerColor = containerColor,
+            contentColor = contentColor,
         ),
     ) {
         Text(text = text)

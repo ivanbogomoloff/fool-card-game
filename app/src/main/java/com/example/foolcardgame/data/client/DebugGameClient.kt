@@ -115,7 +115,17 @@ class DebugGameClient(
         return refreshAfterAction()
     }
 
-    override suspend fun leaveSession(sessionId: GameSessionId) = Unit
+    override suspend fun leaveSession(sessionId: GameSessionId) {
+        state.update { current ->
+            current.copy(
+                canReady = false,
+                canBito = false,
+                canPass = false,
+                canTake = false,
+                serverTick = (current.serverTick ?: 0L) + 1,
+            )
+        }
+    }
 
     private fun refreshAfterAction(): Result<Unit> {
         state.update { current ->

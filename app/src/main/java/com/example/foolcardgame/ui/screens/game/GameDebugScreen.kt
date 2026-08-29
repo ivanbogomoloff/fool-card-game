@@ -42,6 +42,10 @@ fun GameDebugScreen(
         onPassClick = viewModel::onPassClick,
         onTakeClick = viewModel::onTakeClick,
         onReadyClick = viewModel::onReadyClick,
+        onLobbyTimeoutDismiss = {
+            viewModel.onLobbyTimeoutDismiss()
+            onBack()
+        },
         modifier = modifier,
         debugPanel = {
             DebugScenarioPanel(

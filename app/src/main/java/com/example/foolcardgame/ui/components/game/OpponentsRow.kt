@@ -1,5 +1,7 @@
 package com.example.foolcardgame.ui.components.game
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,7 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.screens.profile.AvatarPresets
@@ -23,6 +28,7 @@ import com.example.foolcardgame.ui.theme.SoftCoral
 @Composable
 fun OpponentsRow(
     opponents: List<OpponentUi>,
+    phase: GamePhase,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -33,7 +39,10 @@ fun OpponentsRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         opponents.forEach { opponent ->
-            OpponentItem(opponent = opponent)
+            OpponentItem(
+                opponent = opponent,
+                showNotReadyOutline = phase == GamePhase.LOBBY_WAITING && !opponent.isReady,
+            )
         }
     }
 }
@@ -41,6 +50,7 @@ fun OpponentsRow(
 @Composable
 private fun OpponentItem(
     opponent: OpponentUi,
+    showNotReadyOutline: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val avatar = AvatarPresets.get(opponent.avatarId)
@@ -50,7 +60,22 @@ private fun OpponentItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .then(
+                    if (showNotReadyOutline) {
+                        Modifier
+                            .border(width = 2.dp, color = SoftCoral, shape = CircleShape)
+                            .background(SoftCoral.copy(alpha = 0.12f), CircleShape)
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
+        }
         Text(
             text = opponent.displayName,
             style = MaterialTheme.typography.labelMedium,

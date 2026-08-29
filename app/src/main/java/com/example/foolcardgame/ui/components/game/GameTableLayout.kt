@@ -1,6 +1,7 @@
 package com.example.foolcardgame.ui.components.game
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -120,13 +121,17 @@ private fun InProgressGameLayout(
         Column(modifier = Modifier.fillMaxSize()) {
             OpponentsRow(
                 opponents = uiState.opponents,
+                phase = uiState.phase,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
             ) {
+                val deckShiftRight = maxWidth * 0.05f
+                // Колода ~100dp; козырь торчит вправо — оставляем зазор до стола.
+                val tableStartPadding = 100.dp + deckShiftRight + 20.dp
                 TableCardsView(
                     tablePairs = uiState.tablePairs,
                     onTableBoundsChanged = { tableBounds = it },
@@ -135,17 +140,18 @@ private fun InProgressGameLayout(
                     },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 72.dp),
+                        .padding(start = tableStartPadding),
                 )
                 DeckAndTrumpView(
                     trump = uiState.trump,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = (-28).dp),
+                        .offset(x = (-28).dp + deckShiftRight),
                 )
             }
             GameActionBar(
                 actions = uiState.actions,
+                readySecondsLeft = uiState.readySecondsLeft,
                 onBitoClick = onBitoClick,
                 onPassClick = onPassClick,
                 onTakeClick = onTakeClick,

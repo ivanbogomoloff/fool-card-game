@@ -10,6 +10,8 @@ class GameDebugViewModel(
 
     fun setScenario(scenario: DebugScenario) {
         debugGameClient.setScenario(scenario)
+        val canReady = debugGameClient.currentState().canReady
+        restartReadyTimerIfNeeded(canReady = canReady)
     }
 
     fun clearTable() {

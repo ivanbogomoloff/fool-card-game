@@ -24,7 +24,7 @@ class DebugGameClientTest {
         ).first()
 
         assertEquals(client.currentState(), emitted)
-        assertEquals(GamePhaseDto.IN_PROGRESS, emitted.phase)
+        assertEquals(GamePhaseDto.LOBBY_WAITING, emitted.phase)
         assertTrue(emitted.canReady)
     }
 

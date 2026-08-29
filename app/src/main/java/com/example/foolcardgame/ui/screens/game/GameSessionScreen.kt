@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import com.example.foolcardgame.presentation.game.GameUiState
 import com.example.foolcardgame.ui.components.game.GameTableLayout
 import com.example.foolcardgame.ui.components.game.LeaveGameDialog
+import com.example.foolcardgame.ui.components.game.LobbyTimeoutDialog
 import com.example.foolcardgame.ui.theme.AccentTeal
 import com.example.foolcardgame.ui.theme.TableGreen
 
@@ -36,6 +37,7 @@ fun GameSessionScreen(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onLobbyTimeoutDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     debugPanel: @Composable (() -> Unit)? = null,
 ) {
@@ -45,6 +47,11 @@ fun GameSessionScreen(
         visible = uiState.showLeaveDialog,
         onConfirm = onLeaveConfirm,
         onDismiss = onLeaveDismiss,
+    )
+
+    LobbyTimeoutDialog(
+        visible = uiState.showLobbyTimeoutDialog,
+        onDismiss = onLobbyTimeoutDismiss,
     )
 
     Scaffold(

@@ -21,6 +21,7 @@ data class OpponentUi(
     val avatarId: Int,
     val cardCount: Int,
     val isConnected: Boolean = true,
+    val isReady: Boolean = true,
 )
 
 data class WaitingPlayerUi(
@@ -59,4 +60,6 @@ data class GameUiState(
     val resultMessage: String? = null,
     val serverTick: Long? = null,
     val hasDisconnectedOpponent: Boolean = false,
+    val readySecondsLeft: Int? = null,
+    val showLobbyTimeoutDialog: Boolean = false,
 )

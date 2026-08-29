@@ -8,6 +8,7 @@ val AccentTeal = Color(0xFF6B9E9B)
 val SoftCharcoal = Color(0xFF3D3D3D)
 val TrumpGold = Color(0xFFC9A962)
 val SoftCoral = Color(0xFFD4847C)
+val ReadyGreen = Color(0xFF6B9E7A)
 
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
