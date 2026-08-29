@@ -24,6 +24,10 @@ class DebugGameClient(
         state.value = scenario.toMockState()
     }
 
+    fun setTakePending() {
+        state.value = MockGameStates.takePending()
+    }
+
     fun clearTable() {
         state.update { current ->
             current.copy(
@@ -95,7 +99,30 @@ class DebugGameClient(
         return playCard(sessionId, card, targetPairId = null)
     }
 
-    override suspend fun pass(sessionId: GameSessionId): Result<Unit> = refreshAfterAction()
+    override suspend fun pass(sessionId: GameSessionId): Result<Unit> {
+        state.update { current ->
+            val takenCards = current.tablePairs.flatMap { pair ->
+                listOfNotNull(pair.attack, pair.defense)
+            }
+            val newHand = current.localHand + takenCards
+            current.copy(
+                localHand = newHand,
+                tablePairs = emptyList(),
+                canTake = false,
+                canBito = false,
+                canPass = false,
+                players = current.players.map { player ->
+                    if (player.id == MockGameStates.LOCAL_PLAYER_ID) {
+                        player.copy(handCount = newHand.size)
+                    } else {
+                        player
+                    }
+                },
+                serverTick = (current.serverTick ?: 0L) + 1,
+            )
+        }
+        return Result.success(Unit)
+    }
 
     override suspend fun bito(sessionId: GameSessionId): Result<Unit> {
         state.update { current ->

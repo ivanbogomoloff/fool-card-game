@@ -51,6 +51,7 @@ fun GameDebugScreen(
             DebugScenarioPanel(
                 onScenarioSelected = viewModel::setScenario,
                 onClearTable = viewModel::clearTable,
+                onTakePending = viewModel::setTakePending,
             )
         },
     )
@@ -60,6 +61,7 @@ fun GameDebugScreen(
 private fun DebugScenarioPanel(
     onScenarioSelected: (DebugScenario) -> Unit,
     onClearTable: () -> Unit,
+    onTakePending: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -76,6 +78,11 @@ private fun DebugScenarioPanel(
                 label = { Text(text = scenario.label) },
             )
         }
+        FilterChip(
+            selected = false,
+            onClick = onTakePending,
+            label = { Text(text = "Беру") },
+        )
         FilterChip(
             selected = false,
             onClick = onClearTable,

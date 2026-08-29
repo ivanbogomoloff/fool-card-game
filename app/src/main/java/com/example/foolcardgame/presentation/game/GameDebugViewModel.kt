@@ -17,4 +17,9 @@ class GameDebugViewModel(
     fun clearTable() {
         debugGameClient.clearTable()
     }
+
+    fun setTakePending() {
+        debugGameClient.setTakePending()
+        restartReadyTimerIfNeeded(canReady = false)
+    }
 }

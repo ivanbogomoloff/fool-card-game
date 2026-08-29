@@ -53,6 +53,14 @@ object MockGameStates {
         ),
     )
 
+    /** Стол с картами и кнопкой «Беру» — для проверки анимации улёта вниз. */
+    fun takePending(): GameStateDto = inProgress().copy(
+        canBito = false,
+        canPass = false,
+        canTake = true,
+        canReady = false,
+    )
+
     fun inProgress(): GameStateDto = GameStateDto(
         sessionId = DEBUG_SESSION_ID,
         phase = GamePhaseDto.IN_PROGRESS,

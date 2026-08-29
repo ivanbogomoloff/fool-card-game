@@ -74,6 +74,28 @@ class DebugGameClientTest {
     }
 
     @Test
+    fun pass_movesTableCardsToLocalHand() = runTest {
+        val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
+        client.setTakePending()
+        val before = client.currentState()
+        val tableCardCount = before.tablePairs.sumOf { pair ->
+            1 + if (pair.defense != null) 1 else 0
+        }
+        val handBefore = before.localHand.size
+        assertTrue(before.canTake)
+        assertTrue(tableCardCount > 0)
+
+        client.pass(MockGameStates.DEBUG_SESSION_ID)
+
+        val after = client.currentState()
+        assertTrue(after.tablePairs.isEmpty())
+        assertTrue(!after.canTake)
+        assertEquals(handBefore + tableCardCount, after.localHand.size)
+        val localPlayer = after.players.first { it.id == MockGameStates.LOCAL_PLAYER_ID }
+        assertEquals(after.localHand.size, localPlayer.handCount)
+    }
+
+    @Test
     fun playCard_attack_movesCardFromHandToTable() = runTest {
         val client = DebugGameClient(initialScenario = DebugScenario.IN_PROGRESS)
         client.clearTable()

@@ -26,23 +26,28 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+enum class TableFlyawayDirection {
+    Right,
+    Down,
+}
+
 data class FlyingDiscardCard(
     val id: String,
     val card: CardUi?,
     val startTopLeftInRoot: Offset,
+    val endTopLeftInRoot: Offset,
     val widthPx: Float,
     val heightPx: Float,
     val staggerIndex: Int,
 )
 
-private const val BitoFlyDurationMs = 700
-private const val BitoStaggerMs = 50L
+private const val FlyDurationMs = 700
+private const val FlyStaggerMs = 50L
 
 @Composable
-fun BitoDiscardOverlay(
+fun TableCardsFlyawayOverlay(
     cards: List<FlyingDiscardCard>,
     layoutTopLeftInRoot: Offset,
-    flyDistancePx: Float,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -53,7 +58,7 @@ fun BitoDiscardOverlay(
 
     LaunchedEffect(cards.map { it.id }) {
         val maxStagger = cards.maxOfOrNull { it.staggerIndex } ?: 0
-        delay(BitoFlyDurationMs + maxStagger * BitoStaggerMs + 50L)
+        delay(FlyDurationMs + maxStagger * FlyStaggerMs + 50L)
         onFinished()
     }
 
@@ -62,7 +67,6 @@ fun BitoDiscardOverlay(
             FlyingDiscardCardItem(
                 flying = flying,
                 layoutTopLeftInRoot = layoutTopLeftInRoot,
-                flyDistancePx = flyDistancePx,
                 cameraDistance = cameraDistance,
             )
         }
@@ -73,7 +77,6 @@ fun BitoDiscardOverlay(
 private fun FlyingDiscardCardItem(
     flying: FlyingDiscardCard,
     layoutTopLeftInRoot: Offset,
-    flyDistancePx: Float,
     cameraDistance: Float,
 ) {
     var progress by remember(flying.id) { mutableFloatStateOf(0f) }
@@ -81,14 +84,14 @@ private fun FlyingDiscardCardItem(
     val density = LocalDensity.current
 
     LaunchedEffect(flying.id) {
-        delay(flying.staggerIndex * BitoStaggerMs)
+        delay(flying.staggerIndex * FlyStaggerMs)
         coroutineScope {
             launch {
                 val anim = Animatable(0f)
                 anim.animateTo(
                     targetValue = 1f,
                     animationSpec = tween(
-                        durationMillis = BitoFlyDurationMs,
+                        durationMillis = FlyDurationMs,
                         easing = LinearOutSlowInEasing,
                     ),
                 ) {
@@ -100,7 +103,7 @@ private fun FlyingDiscardCardItem(
                 anim.animateTo(
                     targetValue = 180f,
                     animationSpec = tween(
-                        durationMillis = BitoFlyDurationMs,
+                        durationMillis = FlyDurationMs,
                         easing = LinearOutSlowInEasing,
                     ),
                 ) {
@@ -112,6 +115,12 @@ private fun FlyingDiscardCardItem(
 
     val faceUp = rotationY <= 90f
     val displayRotation = if (faceUp) rotationY else rotationY - 180f
+    val currentTopLeft = Offset(
+        x = flying.startTopLeftInRoot.x +
+            (flying.endTopLeftInRoot.x - flying.startTopLeftInRoot.x) * progress,
+        y = flying.startTopLeftInRoot.y +
+            (flying.endTopLeftInRoot.y - flying.startTopLeftInRoot.y) * progress,
+    )
 
     CardFace(
         card = flying.card,
@@ -121,14 +130,17 @@ private fun FlyingDiscardCardItem(
         modifier = Modifier
             .offset {
                 IntOffset(
-                    x = (flying.startTopLeftInRoot.x - layoutTopLeftInRoot.x +
-                        progress * flyDistancePx).roundToInt(),
-                    y = (flying.startTopLeftInRoot.y - layoutTopLeftInRoot.y).roundToInt(),
+                    x = (currentTopLeft.x - layoutTopLeftInRoot.x).roundToInt(),
+                    y = (currentTopLeft.y - layoutTopLeftInRoot.y).roundToInt(),
                 )
             }
             .graphicsLayer {
                 this.rotationY = displayRotation
                 this.cameraDistance = cameraDistance
+                // Slight shrink into the hand.
+                val scale = 1f - 0.15f * progress
+                scaleX = scale
+                scaleY = scale
             },
     )
 }
