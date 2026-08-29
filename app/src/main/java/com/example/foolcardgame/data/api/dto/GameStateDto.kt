@@ -87,6 +87,7 @@ data class GameStateDto(
     val canReady: Boolean = false,
     val winnerName: String? = null,
     val loserName: String? = null,
+    val turnDeadlineAtMs: Long? = null,
 )
 
 fun CardDto.toDomain(): Card = Card(suit = suit.toDomain(), rank = rank.toDomain())

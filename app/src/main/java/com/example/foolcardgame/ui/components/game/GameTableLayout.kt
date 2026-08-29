@@ -177,6 +177,7 @@ private fun InProgressGameLayout(
             GameActionBar(
                 actions = uiState.actions,
                 readySecondsLeft = uiState.readySecondsLeft,
+                turnSecondsLeft = uiState.turnSecondsLeft,
                 isLocalPlayerTurn = uiState.isLocalPlayerTurn,
                 onBitoClick = {
                     if (isDiscardAnimating) return@GameActionBar

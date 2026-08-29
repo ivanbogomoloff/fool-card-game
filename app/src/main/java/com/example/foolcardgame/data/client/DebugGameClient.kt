@@ -43,6 +43,10 @@ class DebugGameClient(
 
     fun currentState(): GameStateDto = state.value
 
+    override suspend fun createSession(config: com.example.foolcardgame.domain.model.GameConfig): GameSessionId {
+        return MockGameStates.DEBUG_SESSION_ID
+    }
+
     override suspend fun getState(sessionId: GameSessionId): GameStateDto = state.value
 
     override fun observeState(
@@ -152,6 +156,18 @@ class DebugGameClient(
             )
         }
         return refreshAfterAction()
+    }
+
+    override suspend fun skipTurn(sessionId: GameSessionId): Result<Unit> {
+        state.update { current ->
+            current.copy(
+                currentPlayerId = current.players
+                    .firstOrNull { it.id != current.currentPlayerId }
+                    ?.id,
+                serverTick = (current.serverTick ?: 0L) + 1,
+            )
+        }
+        return Result.success(Unit)
     }
 
     override suspend fun leaveSession(sessionId: GameSessionId) {

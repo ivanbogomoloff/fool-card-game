@@ -26,6 +26,7 @@ fun GameActionBar(
     onReadyClick: () -> Unit,
     modifier: Modifier = Modifier,
     readySecondsLeft: Int? = null,
+    turnSecondsLeft: Int? = null,
     isLocalPlayerTurn: Boolean = false,
 ) {
     if (actions.primary == HandPrimaryAction.NONE && !isLocalPlayerTurn) return
@@ -57,30 +58,76 @@ fun GameActionBar(
                     }
                 }
             }
-            HandPrimaryAction.BITO -> PrimaryButton(
-                text = "Бито",
-                onClick = onBitoClick,
-                fillWidth = false,
+            HandPrimaryAction.BITO -> TurnActionRow(
+                label = null,
+                turnSecondsLeft = turnSecondsLeft,
+                button = {
+                    PrimaryButton(
+                        text = "Бито",
+                        onClick = onBitoClick,
+                        fillWidth = false,
+                    )
+                },
             )
-            HandPrimaryAction.PASS -> PrimaryButton(
-                text = "Пас",
-                onClick = onPassClick,
-                fillWidth = false,
+            HandPrimaryAction.PASS -> TurnActionRow(
+                label = null,
+                turnSecondsLeft = turnSecondsLeft,
+                button = {
+                    PrimaryButton(
+                        text = "Пас",
+                        onClick = onPassClick,
+                        fillWidth = false,
+                    )
+                },
             )
-            HandPrimaryAction.TAKE -> PrimaryButton(
-                text = "Беру",
-                onClick = onTakeClick,
-                fillWidth = false,
+            HandPrimaryAction.TAKE -> TurnActionRow(
+                label = null,
+                turnSecondsLeft = turnSecondsLeft,
+                button = {
+                    PrimaryButton(
+                        text = "Беру",
+                        onClick = onTakeClick,
+                        fillWidth = false,
+                    )
+                },
             )
             HandPrimaryAction.NONE -> {
                 if (isLocalPlayerTurn) {
-                    Text(
-                        text = "Ваш ход",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = ReadyGreen,
+                    TurnActionRow(
+                        label = "Ваш ход",
+                        turnSecondsLeft = turnSecondsLeft,
+                        button = null,
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TurnActionRow(
+    label: String?,
+    turnSecondsLeft: Int?,
+    button: (@Composable () -> Unit)?,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        button?.invoke()
+        if (label != null) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = ReadyGreen,
+            )
+        }
+        if (turnSecondsLeft != null) {
+            Text(
+                text = formatReadyTimer(turnSecondsLeft),
+                style = MaterialTheme.typography.titleMedium,
+                color = SoftCharcoal,
+            )
         }
     }
 }

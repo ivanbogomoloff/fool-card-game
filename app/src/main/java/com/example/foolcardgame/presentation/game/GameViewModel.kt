@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.client.GameClient
 import com.example.foolcardgame.domain.model.Card
+import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.Rank
 import com.example.foolcardgame.domain.model.Suit
 import kotlinx.coroutines.Job
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 open class GameViewModel(
     protected val gameClient: GameClient,
@@ -24,7 +26,9 @@ open class GameViewModel(
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
     private var readyTimerJob: Job? = null
+    private var turnTimerJob: Job? = null
     private var observeJob: Job? = null
+    private var lastTurnPlayerId: String? = null
 
     init {
         observeJob = viewModelScope.launch {
@@ -35,10 +39,16 @@ open class GameViewModel(
                         selectedCardId = current.selectedCardId,
                         showLeaveDialog = current.showLeaveDialog,
                         readySecondsLeft = current.readySecondsLeft,
+                        turnSecondsLeft = current.turnSecondsLeft,
                         showLobbyTimeoutDialog = current.showLobbyTimeoutDialog,
                     )
                 }
                 syncReadyTimer(canReady = dto.canReady)
+                syncTurnTimer(
+                    isLocalTurn = mapped.isLocalPlayerTurn,
+                    currentPlayerId = dto.currentPlayerId,
+                    turnDeadlineAtMs = dto.turnDeadlineAtMs,
+                )
             }
         }
     }
@@ -46,6 +56,10 @@ open class GameViewModel(
     override fun onCleared() {
         observeJob?.cancel()
         cancelReadyTimer(clearSeconds = true)
+        cancelTurnTimer(clearSeconds = true)
+        kotlinx.coroutines.runBlocking {
+            runCatching { gameClient.leaveSession(sessionId) }
+        }
         super.onCleared()
     }
 
@@ -53,6 +67,7 @@ open class GameViewModel(
     internal fun disposeForTest() {
         observeJob?.cancel()
         cancelReadyTimer(clearSeconds = true)
+        cancelTurnTimer(clearSeconds = true)
     }
 
     fun onCardSelected(cardId: String) {
@@ -92,6 +107,7 @@ open class GameViewModel(
 
     fun onLeaveConfirm() {
         cancelReadyTimer(clearSeconds = true)
+        cancelTurnTimer(clearSeconds = true)
         viewModelScope.launch {
             gameClient.leaveSession(sessionId)
             _uiState.update { it.copy(showLeaveDialog = false) }
@@ -122,6 +138,23 @@ open class GameViewModel(
         }
     }
 
+    private fun syncTurnTimer(
+        isLocalTurn: Boolean,
+        currentPlayerId: String?,
+        turnDeadlineAtMs: Long?,
+    ) {
+        if (!isLocalTurn) {
+            lastTurnPlayerId = currentPlayerId
+            cancelTurnTimer(clearSeconds = true)
+            return
+        }
+        val turnChanged = currentPlayerId != lastTurnPlayerId
+        lastTurnPlayerId = currentPlayerId
+        if (turnChanged || turnTimerJob?.isActive != true) {
+            startTurnTimer(turnDeadlineAtMs)
+        }
+    }
+
     private fun startReadyTimer() {
         readyTimerJob?.cancel()
         readyTimerJob = viewModelScope.launch {
@@ -139,11 +172,38 @@ open class GameViewModel(
         }
     }
 
+    private fun startTurnTimer(turnDeadlineAtMs: Long?) {
+        turnTimerJob?.cancel()
+        turnTimerJob = viewModelScope.launch {
+            val totalSeconds = if (turnDeadlineAtMs != null) {
+                ((turnDeadlineAtMs - System.currentTimeMillis()) / 1_000L)
+                    .toInt()
+                    .coerceIn(1, TURN_TIMEOUT_SECONDS)
+            } else {
+                TURN_TIMEOUT_SECONDS
+            }
+            for (secondsLeft in totalSeconds downTo 1) {
+                _uiState.update { it.copy(turnSecondsLeft = secondsLeft) }
+                delay(1_000)
+            }
+            gameClient.skipTurn(sessionId)
+            _uiState.update { it.copy(turnSecondsLeft = null) }
+        }
+    }
+
     private fun cancelReadyTimer(clearSeconds: Boolean) {
         readyTimerJob?.cancel()
         readyTimerJob = null
         if (clearSeconds) {
             _uiState.update { it.copy(readySecondsLeft = null) }
+        }
+    }
+
+    private fun cancelTurnTimer(clearSeconds: Boolean) {
+        turnTimerJob?.cancel()
+        turnTimerJob = null
+        if (clearSeconds) {
+            _uiState.update { it.copy(turnSecondsLeft = null) }
         }
     }
 
@@ -157,6 +217,7 @@ open class GameViewModel(
 
     companion object {
         const val READY_TIMEOUT_SECONDS = 60
+        const val TURN_TIMEOUT_SECONDS = (GameConfig.TURN_TIMEOUT_MS / 1_000L).toInt()
     }
 }
 

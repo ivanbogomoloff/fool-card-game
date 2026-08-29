@@ -62,6 +62,7 @@ data class GameUiState(
     val serverTick: Long? = null,
     val hasDisconnectedOpponent: Boolean = false,
     val readySecondsLeft: Int? = null,
+    val turnSecondsLeft: Int? = null,
     val showLobbyTimeoutDialog: Boolean = false,
     val isLocalPlayerTurn: Boolean = false,
 )

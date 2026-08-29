@@ -8,6 +8,7 @@ import com.example.foolcardgame.data.client.GameClient
 import com.example.foolcardgame.data.client.MockGameStates
 import com.example.foolcardgame.data.client.toMockState
 import com.example.foolcardgame.domain.model.Card
+import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.GamePhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,6 +93,24 @@ class GameViewModelTest {
             viewModel.disposeForTest()
         }
     }
+
+    @Test
+    fun turnTimer_expires_callsSkipTurn() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            assertEquals(GameViewModel.TURN_TIMEOUT_SECONDS, viewModel.uiState.value.turnSecondsLeft)
+
+            advanceTimeBy(GameViewModel.TURN_TIMEOUT_SECONDS * 1_000L)
+            runCurrent()
+
+            assertEquals(1, client.skipTurnCalls)
+            assertNull(viewModel.uiState.value.turnSecondsLeft)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
 }
 
 class GameDebugViewModelTest {
@@ -118,8 +137,14 @@ class GameDebugViewModelTest {
 }
 
 /** GameClient without infinite poll ticks — safe for runTest. */
-private class LobbyTestClient : GameClient {
-    private val state = MutableStateFlow(MockGameStates.lobbyWaiting())
+private class LobbyTestClient(
+    initial: GameStateDto = MockGameStates.lobbyWaiting(),
+) : GameClient {
+    private val state = MutableStateFlow(initial)
+    var skipTurnCalls: Int = 0
+
+    override suspend fun createSession(config: GameConfig): GameSessionId =
+        MockGameStates.DEBUG_SESSION_ID
 
     override suspend fun getState(sessionId: GameSessionId): GameStateDto = state.value
 
@@ -152,6 +177,11 @@ private class LobbyTestClient : GameClient {
                 },
             )
         }
+        return Result.success(Unit)
+    }
+
+    override suspend fun skipTurn(sessionId: GameSessionId): Result<Unit> {
+        skipTurnCalls++
         return Result.success(Unit)
     }
 

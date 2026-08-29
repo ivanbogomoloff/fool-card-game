@@ -37,15 +37,17 @@ presentation/game/GameViewModel.kt  (подключить LocalGameClient)
 
 ## Задачи
 
-- [ ] Domain models (36 карт, игроки, стол)
-- [ ] `GameEngine`: раздача, playCard, addCard, pass, bito, добор, конец
-- [ ] `GameEngine.onTick()`: auto-ready ботов
-- [ ] `BotAI`: атака, отбивка, подкидывание
-- [ ] `LocalGameClient` implements `GameClient`
-- [ ] `OfflineSetupScreen`: выбор 1–3 ботов → createSession → game
-- [ ] `GameViewModel`: collect `observeState`, `leaveSession` in onCleared
-- [ ] Вернуть `startDestination = login`
-- [ ] `RulesTest`, `GameEngineTest`, `LocalGameClientTest`, `BotAITest`
+- [x] Domain models (36 карт, игроки, стол)
+- [x] `GameEngine`: раздача, playCard, addCard, pass, bito, добор, конец
+- [x] `GameEngine.onTick()`: auto-ready ботов
+- [x] `BotAI`: атака, отбивка, подкидывание
+- [x] `LocalGameClient` implements `GameClient`
+- [x] `OfflineSetupScreen`: выбор 1–3 ботов → createSession → game
+- [x] `GameViewModel`: collect `observeState`, `leaveSession` in onCleared
+- [x] Вернуть `startDestination = login`
+- [x] `RulesTest`, `GameEngineTest`, `LocalGameClientTest`, `BotAITest`
+- [x] Функциональный тест партии ≥3 игроков (`GameEngineFunctionalTest`)
+- [x] Debug-экран (`game/debug`) сохранён
 
 ## DoD
 
@@ -65,6 +67,7 @@ presentation/game/GameViewModel.kt  (подключить LocalGameClient)
 | `GameEngineTest` | раздача, атака, отбивка, addCard, pass, bito, добор, конец партии, onTick auto-ready |
 | `BotAITest` | бот выбирает легальный ход |
 | `LocalGameClientTest` | createSession + playCard + getState; observeState после action |
+| `GameEngineFunctionalTest` | полная партия 3 игрока до FINISHED с инвариантами правил |
 
 См. полный список кейсов: [testing.md](../../architecture/testing.md#phase-4--эталонные-сценарии-gameengine).
 
