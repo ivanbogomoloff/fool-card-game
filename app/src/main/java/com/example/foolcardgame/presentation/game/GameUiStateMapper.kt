@@ -11,6 +11,9 @@ object GameUiStateMapper {
 
     fun map(dto: GameStateDto): GameUiState {
         val phase = dto.phase.toDomain()
+        val hasUnbeaten = dto.tablePairs.any { it.defense == null }
+        val allBeaten = dto.tablePairs.isNotEmpty() && dto.tablePairs.all { it.defense != null }
+
         val opponents = dto.players
             .filter { it.id != dto.localPlayerId }
             .map {
@@ -21,7 +24,14 @@ object GameUiStateMapper {
                     cardCount = it.handCount,
                     isConnected = it.isConnected,
                     isReady = it.isReady,
-                    isCurrentTurn = it.id == dto.currentPlayerId,
+                    roleBanner = roleBannerFor(
+                        playerId = it.id,
+                        attackerId = dto.attackerId,
+                        defenderId = dto.defenderId,
+                        tableEmpty = dto.tablePairs.isEmpty(),
+                        hasUnbeaten = hasUnbeaten,
+                        allBeaten = allBeaten,
+                    ),
                 )
             }
         val waitingPlayers = dto.players.map {
@@ -33,6 +43,14 @@ object GameUiStateMapper {
                 isConnected = it.isConnected,
             )
         }
+        val localBanner = roleBannerFor(
+            playerId = dto.localPlayerId,
+            attackerId = dto.attackerId,
+            defenderId = dto.defenderId,
+            tableEmpty = dto.tablePairs.isEmpty(),
+            hasUnbeaten = hasUnbeaten,
+            allBeaten = allBeaten,
+        )
         return GameUiState(
             phase = phase,
             isLoading = false,
@@ -52,14 +70,30 @@ object GameUiStateMapper {
             hasDisconnectedOpponent = opponents.any { !it.isConnected },
             isLocalPlayerTurn = dto.currentPlayerId != null &&
                 dto.currentPlayerId == dto.localPlayerId,
+            isLocalDefending = localBanner == OpponentRoleBanner.DEFENDING,
+            isLocalAttacking = localBanner == OpponentRoleBanner.ATTACKING,
         )
+    }
+
+    fun roleBannerFor(
+        playerId: String,
+        attackerId: String?,
+        defenderId: String?,
+        tableEmpty: Boolean,
+        hasUnbeaten: Boolean,
+        allBeaten: Boolean,
+    ): OpponentRoleBanner = when {
+        playerId == defenderId && hasUnbeaten -> OpponentRoleBanner.DEFENDING
+        playerId == attackerId && (tableEmpty || allBeaten) -> OpponentRoleBanner.ATTACKING
+        else -> OpponentRoleBanner.NONE
     }
 
     fun resolvePrimaryAction(dto: GameStateDto): HandPrimaryAction = when {
         dto.canReady -> HandPrimaryAction.READY
         dto.canTake -> HandPrimaryAction.TAKE
-        dto.canBito -> HandPrimaryAction.BITO
+        // Pass before bito so the attacker can refuse to throw and auto-finish via engine.
         dto.canPass -> HandPrimaryAction.PASS
+        dto.canBito -> HandPrimaryAction.BITO
         else -> HandPrimaryAction.NONE
     }
 

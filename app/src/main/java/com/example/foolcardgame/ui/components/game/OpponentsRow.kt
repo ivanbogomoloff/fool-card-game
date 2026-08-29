@@ -17,9 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.presentation.game.OpponentRoleBanner
 import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.screens.profile.AvatarPresets
@@ -57,6 +59,7 @@ private fun OpponentItem(
 ) {
     val avatar = AvatarPresets.get(opponent.avatarId)
     val visibleBacks = opponent.cardCount.coerceIn(0, 6)
+    val (label, labelColor) = opponentRoleLabel(opponent)
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -79,13 +82,9 @@ private fun OpponentItem(
             Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
         }
         Text(
-            text = if (opponent.isCurrentTurn) {
-                "Ходит ${opponent.displayName}"
-            } else {
-                opponent.displayName
-            },
+            text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (opponent.isCurrentTurn) ReadyGreen else SoftCharcoal,
+            color = labelColor,
         )
         if (!opponent.isConnected) {
             Text(
@@ -119,4 +118,10 @@ private fun OpponentItem(
             )
         }
     }
+}
+
+private fun opponentRoleLabel(opponent: OpponentUi): Pair<String, Color> = when (opponent.roleBanner) {
+    OpponentRoleBanner.ATTACKING -> "Ходит ${opponent.displayName}" to ReadyGreen
+    OpponentRoleBanner.DEFENDING -> "Отбивается ${opponent.displayName}" to SoftCoral
+    OpponentRoleBanner.NONE -> opponent.displayName to SoftCharcoal
 }

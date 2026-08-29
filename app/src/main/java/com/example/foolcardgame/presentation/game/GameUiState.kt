@@ -22,8 +22,14 @@ data class OpponentUi(
     val cardCount: Int,
     val isConnected: Boolean = true,
     val isReady: Boolean = true,
-    val isCurrentTurn: Boolean = false,
+    val roleBanner: OpponentRoleBanner = OpponentRoleBanner.NONE,
 )
+
+enum class OpponentRoleBanner {
+    NONE,
+    ATTACKING,
+    DEFENDING,
+}
 
 data class WaitingPlayerUi(
     val id: String,
@@ -65,4 +71,6 @@ data class GameUiState(
     val turnSecondsLeft: Int? = null,
     val showLobbyTimeoutDialog: Boolean = false,
     val isLocalPlayerTurn: Boolean = false,
+    val isLocalDefending: Boolean = false,
+    val isLocalAttacking: Boolean = false,
 )

@@ -489,6 +489,10 @@ class GameEngine(
             .markFinishedPlayers()
 
         next = if (next.allBeaten) {
+            if (next.throwingClosed()) {
+                // Limit reached or no throwers — round ends as bito immediately.
+                return Result.success(endRoundBito(next).withTurnDeadline().bumpTick())
+            }
             next.copy(currentPlayerId = next.attackerId)
         } else {
             next.copy(currentPlayerId = next.defenderId)
@@ -508,18 +512,19 @@ class GameEngine(
                 passedPlayerIds = emptySet(),
             )
         next = drawUpToSix(next, skipDefenderDraw = false)
-        // Defender who took attacks again next round
-        val defenderId = playerId
-        val attackerId = defenderId
+        // Taker skips; next clockwise after taker becomes attacker.
         val players = next.playersInGame()
-        val attackerIndex = players.indexOfFirst { it.id == attackerId }
-        val newDefender = nextPlayerWithCards(players, attackerIndex)
+        val takerIndex = players.indexOfFirst { it.id == playerId }
+        val newAttacker = nextPlayerWithCards(players, takerIndex)
+            ?: return Result.success(next.copy(phase = GamePhase.FINISHED).bumpTick())
+        val newAttackerIndex = players.indexOfFirst { it.id == newAttacker.id }
+        val newDefender = nextPlayerWithCards(players, newAttackerIndex)
             ?: return Result.success(next.copy(phase = GamePhase.FINISHED).bumpTick())
 
         next = next.copy(
-            attackerId = attackerId,
+            attackerId = newAttacker.id,
             defenderId = newDefender.id,
-            currentPlayerId = attackerId,
+            currentPlayerId = newAttacker.id,
             defenderHandSizeAtRoundStart = next.player(newDefender.id)?.hand?.size ?: 0,
         ).markFinishedPlayers().checkGameEnd().withTurnDeadline().bumpTick()
         return Result.success(next)
@@ -530,7 +535,7 @@ class GameEngine(
             passedPlayerIds = state.passedPlayerIds + playerId,
         )
         return if (next.throwingClosed() && next.allBeaten) {
-            Result.success(next.withTurnDeadline().bumpTick())
+            Result.success(endRoundBito(next).withTurnDeadline().bumpTick())
         } else {
             val nextActor = next.throwerIds()
                 .firstOrNull { it !in next.passedPlayerIds }
@@ -557,11 +562,15 @@ class GameEngine(
         val oldDefenderId = state.defenderId ?: return finishedCheck
         val players = finishedCheck.playersInGame().ifEmpty { finishedCheck.playersWithCards() }
         val defenderIndex = players.indexOfFirst { it.id == oldDefenderId }
-        val newAttacker = if (defenderIndex >= 0) {
-            nextPlayerWithCards(players, defenderIndex) ?: players.first()
-        } else {
-            players.firstOrNull() ?: return finishedCheck
-        }
+        // After bito, previous defender becomes the attacker.
+        val newAttacker = players.find { it.id == oldDefenderId && it.hand.isNotEmpty() }
+            ?: (if (defenderIndex >= 0) {
+                nextPlayerWithCards(players, defenderIndex)
+            } else {
+                null
+            })
+            ?: players.firstOrNull()
+            ?: return finishedCheck
         val newAttackerIndex = players.indexOfFirst { it.id == newAttacker.id }
         val newDefender = nextPlayerWithCards(players, newAttackerIndex) ?: players.first()
 

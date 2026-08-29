@@ -10,12 +10,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.game.GameActionsUi
 import com.example.foolcardgame.presentation.game.HandPrimaryAction
 import com.example.foolcardgame.ui.components.common.PrimaryButton
 import com.example.foolcardgame.ui.theme.ReadyGreen
 import com.example.foolcardgame.ui.theme.SoftCharcoal
+import com.example.foolcardgame.ui.theme.SoftCoral
 
 @Composable
 fun GameActionBar(
@@ -28,8 +30,12 @@ fun GameActionBar(
     readySecondsLeft: Int? = null,
     turnSecondsLeft: Int? = null,
     isLocalPlayerTurn: Boolean = false,
+    isLocalDefending: Boolean = false,
+    isLocalAttacking: Boolean = false,
 ) {
-    if (actions.primary == HandPrimaryAction.NONE && !isLocalPlayerTurn) return
+    val showStatusOnly = actions.primary == HandPrimaryAction.NONE &&
+        (isLocalDefending || (isLocalAttacking && isLocalPlayerTurn))
+    if (actions.primary == HandPrimaryAction.NONE && !showStatusOnly) return
 
     Box(
         modifier = modifier
@@ -81,7 +87,8 @@ fun GameActionBar(
                 },
             )
             HandPrimaryAction.TAKE -> TurnActionRow(
-                label = null,
+                label = if (isLocalDefending) "Вы отбиваетесь" else null,
+                labelColor = SoftCoral,
                 turnSecondsLeft = turnSecondsLeft,
                 button = {
                     PrimaryButton(
@@ -92,9 +99,16 @@ fun GameActionBar(
                 },
             )
             HandPrimaryAction.NONE -> {
-                if (isLocalPlayerTurn) {
-                    TurnActionRow(
+                when {
+                    isLocalDefending -> TurnActionRow(
+                        label = "Вы отбиваетесь",
+                        labelColor = SoftCoral,
+                        turnSecondsLeft = if (isLocalPlayerTurn) turnSecondsLeft else null,
+                        button = null,
+                    )
+                    isLocalAttacking && isLocalPlayerTurn -> TurnActionRow(
                         label = "Ваш ход",
+                        labelColor = ReadyGreen,
                         turnSecondsLeft = turnSecondsLeft,
                         button = null,
                     )
@@ -109,6 +123,7 @@ private fun TurnActionRow(
     label: String?,
     turnSecondsLeft: Int?,
     button: (@Composable () -> Unit)?,
+    labelColor: Color = ReadyGreen,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -119,7 +134,7 @@ private fun TurnActionRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleMedium,
-                color = ReadyGreen,
+                color = labelColor,
             )
         }
         if (turnSecondsLeft != null) {

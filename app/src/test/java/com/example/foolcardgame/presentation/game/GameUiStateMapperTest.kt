@@ -19,10 +19,11 @@ class GameUiStateMapperTest {
         assertTrue(uiState.hand.isEmpty())
         assertFalse(uiState.hasDisconnectedOpponent)
         assertTrue(uiState.opponents.all { !it.isReady })
+        assertTrue(uiState.opponents.all { it.roleBanner == OpponentRoleBanner.NONE })
     }
 
     @Test
-    fun map_inProgress_showsBitoAsPrimaryAction() {
+    fun map_inProgress_withUnbeaten_marksDefenderNotAttacker() {
         val uiState = GameUiStateMapper.map(MockGameStates.inProgress())
 
         assertEquals(GamePhase.IN_PROGRESS, uiState.phase)
@@ -32,18 +33,53 @@ class GameUiStateMapperTest {
         assertEquals(2, uiState.opponents.size)
         assertTrue(uiState.opponents.all { it.isReady })
         assertTrue(uiState.isLocalPlayerTurn)
-        assertTrue(uiState.opponents.none { it.isCurrentTurn })
+        assertFalse(uiState.isLocalAttacking)
+        assertFalse(uiState.isLocalDefending)
+
+        val bot1 = uiState.opponents.first { it.id == "bot-1" }
+        assertEquals(OpponentRoleBanner.DEFENDING, bot1.roleBanner)
+        assertTrue(uiState.opponents.filter { it.id != "bot-1" }.all {
+            it.roleBanner == OpponentRoleBanner.NONE
+        })
     }
 
     @Test
-    fun map_opponentTurn_marksBotAsCurrent() {
+    fun map_opponentTurn_marksBotAsAttacking() {
         val uiState = GameUiStateMapper.map(MockGameStates.opponentTurn())
 
         assertFalse(uiState.isLocalPlayerTurn)
         assertEquals(HandPrimaryAction.NONE, uiState.actions.primary)
+        assertTrue(uiState.isLocalDefending.not())
         val bot1 = uiState.opponents.first { it.id == "bot-1" }
-        assertTrue(bot1.isCurrentTurn)
-        assertTrue(uiState.opponents.filter { it.id != "bot-1" }.none { it.isCurrentTurn })
+        assertEquals(OpponentRoleBanner.ATTACKING, bot1.roleBanner)
+        assertTrue(uiState.opponents.filter { it.id != "bot-1" }.all {
+            it.roleBanner == OpponentRoleBanner.NONE
+        })
+    }
+
+    @Test
+    fun map_emptyTable_localAttacker_isLocalAttacking() {
+        val dto = MockGameStates.opponentTurn().copy(
+            currentPlayerId = MockGameStates.LOCAL_PLAYER_ID,
+            attackerId = MockGameStates.LOCAL_PLAYER_ID,
+            defenderId = "bot-1",
+        )
+        val uiState = GameUiStateMapper.map(dto)
+
+        assertTrue(uiState.isLocalAttacking)
+        assertFalse(uiState.isLocalDefending)
+        assertTrue(uiState.opponents.all { it.roleBanner == OpponentRoleBanner.NONE })
+    }
+
+    @Test
+    fun map_takePending_localIsDefending() {
+        val uiState = GameUiStateMapper.map(MockGameStates.takePending())
+
+        assertTrue(uiState.isLocalDefending)
+        assertFalse(uiState.isLocalAttacking)
+        assertEquals(HandPrimaryAction.TAKE, uiState.actions.primary)
+        // While defending, attacker has no «Ходит» banner
+        assertTrue(uiState.opponents.all { it.roleBanner == OpponentRoleBanner.NONE })
     }
 
     @Test
@@ -77,6 +113,17 @@ class GameUiStateMapperTest {
         assertEquals(GamePhase.FINISHED, uiState.phase)
         assertEquals(HandPrimaryAction.NONE, uiState.actions.primary)
         assertTrue(uiState.resultMessage?.contains("Победитель") == true)
+    }
+
+    @Test
+    fun resolvePrimaryAction_passBeforeBito() {
+        val dto = MockGameStates.inProgress().copy(
+            canReady = false,
+            canTake = false,
+            canBito = true,
+            canPass = true,
+        )
+        assertEquals(HandPrimaryAction.PASS, GameUiStateMapper.resolvePrimaryAction(dto))
     }
 
     @Test

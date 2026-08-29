@@ -285,6 +285,8 @@ internal fun GameState.toDto(localPlayerId: String): GameStateDto {
         },
         localHand = local?.hand?.map { it.toDto() }.orEmpty(),
         currentPlayerId = currentPlayerId,
+        attackerId = attackerId,
+        defenderId = defenderId,
         canBito = perms.canBito,
         canPass = perms.canPass,
         canTake = perms.canTake,

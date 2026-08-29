@@ -26,7 +26,8 @@ private fun GameState.inProgressPermissions(playerId: String): ActionPermissions
     val hasUnbeaten = unbeatenPairs.isNotEmpty()
 
     val canTake = isDefender && hasUnbeaten
-    val canBito = isAttacker && allBeaten && throwingClosed()
+    // Attacker may close the round after full defense without waiting for all passes.
+    val canBito = isAttacker && allBeaten
     val canPass = !isDefender && hasTable && allBeaten &&
         playerId in throwerIds() &&
         playerId !in passedPlayerIds

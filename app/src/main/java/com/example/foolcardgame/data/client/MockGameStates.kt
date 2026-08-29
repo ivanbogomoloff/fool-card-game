@@ -59,15 +59,21 @@ object MockGameStates {
         canPass = false,
         canTake = true,
         canReady = false,
+        currentPlayerId = LOCAL_PLAYER_ID,
+        attackerId = "bot-1",
+        defenderId = LOCAL_PLAYER_ID,
     )
 
-    /** Ход оппонента — для проверки индикатора «Ходит». */
+    /** Ход оппонента-атакующего — пустой стол, индикатор «Ходит». */
     fun opponentTurn(): GameStateDto = inProgress().copy(
         currentPlayerId = "bot-1",
+        attackerId = "bot-1",
+        defenderId = LOCAL_PLAYER_ID,
         canBito = false,
         canPass = false,
         canTake = false,
         canReady = false,
+        tablePairs = emptyList(),
     )
 
     fun inProgress(): GameStateDto = GameStateDto(
@@ -78,6 +84,8 @@ object MockGameStates {
         deckCount = 12,
         trump = card(SuitDto.HEARTS, RankDto.SEVEN),
         currentPlayerId = LOCAL_PLAYER_ID,
+        attackerId = LOCAL_PLAYER_ID,
+        defenderId = "bot-1",
         canBito = true,
         canPass = false,
         canTake = false,

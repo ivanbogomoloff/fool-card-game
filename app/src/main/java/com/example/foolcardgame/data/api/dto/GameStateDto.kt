@@ -81,6 +81,8 @@ data class GameStateDto(
     val tablePairs: List<TablePairDto> = emptyList(),
     val localHand: List<CardDto> = emptyList(),
     val currentPlayerId: String? = null,
+    val attackerId: String? = null,
+    val defenderId: String? = null,
     val canBito: Boolean = false,
     val canPass: Boolean = false,
     val canTake: Boolean = false,
