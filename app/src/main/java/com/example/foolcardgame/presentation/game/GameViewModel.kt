@@ -54,17 +54,6 @@ open class GameViewModel(
                             RoundEventKindDto.TOOK -> RoundEventKind.TOOK
                             RoundEventKindDto.BITO -> RoundEventKind.BITO
                         }
-                        val message = when (kind) {
-                            RoundEventKind.TOOK -> "Взял"
-                            RoundEventKind.BITO -> "Бито!"
-                        }
-                        newOpponentAction = OpponentActionUi(
-                            opponentId = event.playerId,
-                            message = message,
-                            atTick = event.atTick,
-                        )
-                        scheduleOpponentToastClear()
-
                         val snapshotPairs = previousDto?.tablePairs
                             ?.let { GameUiStateMapper.mapTablePairs(it) }
                             .orEmpty()
@@ -87,6 +76,16 @@ open class GameViewModel(
                             players = dto.players,
                             timestampMs = System.currentTimeMillis(),
                         )
+                        if (event.playerId != dto.localPlayerId) {
+                            opponentBadgeMessage(event.kind)?.let { message ->
+                                newOpponentAction = OpponentActionUi(
+                                    opponentId = event.playerId,
+                                    message = message,
+                                    atTick = event.atTick,
+                                )
+                                scheduleOpponentToastClear()
+                            }
+                        }
                     }
                 }
                 previousDto = dto

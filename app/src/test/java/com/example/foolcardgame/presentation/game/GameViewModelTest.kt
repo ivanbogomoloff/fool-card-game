@@ -120,7 +120,7 @@ class GameViewModelTest {
     }
 
     @Test
-    fun opponentRoundEvent_showsToastAndFlyAnimation() = runTest {
+    fun opponentRoundEvent_showsBadgeAndFlyAnimation() = runTest {
         val table = MockGameStates.inProgress().tablePairs
         val client = LobbyTestClient(initial = MockGameStates.inProgress())
         val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
@@ -135,12 +135,19 @@ class GameViewModelTest {
                 clearedTable = true,
                 previousTable = table,
             )
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.TOOK,
+                    playerId = "bot-1",
+                    atTick = 99L,
+                ),
+            )
             runCurrent()
 
             val action = viewModel.uiState.value.opponentAction
             assertNotNull(action)
             assertEquals("bot-1", action?.opponentId)
-            assertEquals("Взял", action?.message)
+            assertEquals("Беру", action?.message)
             assertNotNull(viewModel.uiState.value.tableFlyAnimation)
             assertEquals(RoundEventKind.TOOK, viewModel.uiState.value.tableFlyAnimation?.kind)
         } finally {
@@ -149,7 +156,7 @@ class GameViewModelTest {
     }
 
     @Test
-    fun opponentBitoEvent_showsToastEvenWithoutTableSnapshot() = runTest {
+    fun opponentBitoEvent_showsBadgeEvenWithoutTableSnapshot() = runTest {
         val client = LobbyTestClient(initial = MockGameStates.inProgress())
         val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
         try {
@@ -165,11 +172,18 @@ class GameViewModelTest {
                 clearedTable = true,
                 previousTable = emptyList(),
             )
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.BITO,
+                    playerId = "bot-1",
+                    atTick = 101L,
+                ),
+            )
             runCurrent()
 
             val action = viewModel.uiState.value.opponentAction
             assertNotNull(action)
-            assertEquals("Бито!", action?.message)
+            assertEquals("Бито", action?.message)
             assertNull(viewModel.uiState.value.tableFlyAnimation)
         } finally {
             viewModel.disposeForTest()
@@ -177,20 +191,41 @@ class GameViewModelTest {
     }
 
     @Test
-    fun opponentToast_clearsAfterThreeSeconds() = runTest {
-        val table = MockGameStates.inProgress().tablePairs
+    fun opponentPassActionEvent_showsBadge() = runTest {
         val client = LobbyTestClient(initial = MockGameStates.inProgress())
         val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
         try {
             runCurrent()
-            client.emitRoundEvent(
-                RoundEventDto(
-                    kind = RoundEventKindDto.BITO,
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.PASS,
+                    playerId = "bot-1",
+                    atTick = 103L,
+                ),
+            )
+            runCurrent()
+
+            val action = viewModel.uiState.value.opponentAction
+            assertNotNull(action)
+            assertEquals("bot-1", action?.opponentId)
+            assertEquals("Пас", action?.message)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun opponentBadge_clearsAfterThreeSeconds() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.BITO,
                     playerId = "bot-1",
                     atTick = 102L,
                 ),
-                clearedTable = true,
-                previousTable = table,
             )
             runCurrent()
             assertNotNull(viewModel.uiState.value.opponentAction)

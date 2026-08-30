@@ -5,6 +5,16 @@ import com.example.foolcardgame.data.api.dto.GameActionKindDto
 import com.example.foolcardgame.data.api.dto.GameStateDto
 import com.example.foolcardgame.data.api.dto.PlayerStateDto
 
+internal fun opponentBadgeMessage(kind: GameActionKindDto): String? = when (kind) {
+    GameActionKindDto.PASS -> "Пас"
+    GameActionKindDto.TOOK -> "Беру"
+    GameActionKindDto.BITO -> "Бито"
+    GameActionKindDto.ATTACK,
+    GameActionKindDto.DEFEND,
+    GameActionKindDto.THROW_IN,
+    -> null
+}
+
 internal fun formatGameHistoryLine(
     playerName: String,
     kind: GameActionKindDto,

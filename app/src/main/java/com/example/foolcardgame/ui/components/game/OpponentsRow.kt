@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.presentation.game.OpponentActionUi
 import com.example.foolcardgame.presentation.game.OpponentRoleBanner
 import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
@@ -37,6 +38,7 @@ import com.example.foolcardgame.ui.theme.SoftCoral
 fun OpponentsRow(
     opponents: List<OpponentUi>,
     phase: GamePhase,
+    opponentAction: OpponentActionUi? = null,
     onOpponentAvatarBoundsChanged: (String, Rect) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
@@ -51,6 +53,11 @@ fun OpponentsRow(
             OpponentItem(
                 opponent = opponent,
                 showNotReadyOutline = phase == GamePhase.LOBBY_WAITING && !opponent.isReady,
+                actionMessage = if (opponentAction?.opponentId == opponent.id) {
+                    opponentAction.message
+                } else {
+                    null
+                },
                 onAvatarBoundsChanged = { bounds ->
                     onOpponentAvatarBoundsChanged(opponent.id, bounds)
                 },
@@ -63,6 +70,7 @@ fun OpponentsRow(
 private fun OpponentItem(
     opponent: OpponentUi,
     showNotReadyOutline: Boolean,
+    actionMessage: String? = null,
     onAvatarBoundsChanged: (Rect) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -96,7 +104,11 @@ private fun OpponentItem(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
+                if (actionMessage != null) {
+                    OpponentActionBadge(message = actionMessage)
+                } else {
+                    Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
+                }
             }
         }
         Text(

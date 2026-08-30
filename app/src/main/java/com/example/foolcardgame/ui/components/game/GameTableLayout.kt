@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -119,7 +118,6 @@ private fun InProgressGameLayout(
     var layoutBounds by remember { mutableStateOf(Rect.Zero) }
     var handBounds by remember { mutableStateOf(Rect.Zero) }
     val opponentAvatarBounds = remember { mutableStateMapOf<String, Rect>() }
-    val cachedAvatarBounds = remember { mutableStateMapOf<String, Rect>() }
     val attackCardBounds = remember { mutableStateMapOf<Int, Rect>() }
     var discardFlyaway by remember { mutableStateOf<List<FlyingDiscardCard>>(emptyList()) }
     var suppressTableCards by remember { mutableStateOf(false) }
@@ -201,9 +199,9 @@ private fun InProgressGameLayout(
             OpponentsRow(
                 opponents = uiState.opponents,
                 phase = uiState.phase,
+                opponentAction = uiState.opponentAction,
                 onOpponentAvatarBoundsChanged = { id, bounds ->
                     opponentAvatarBounds[id] = bounds
-                    cachedAvatarBounds[id] = bounds
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -229,8 +227,7 @@ private fun InProgressGameLayout(
                     deckCount = uiState.deckCount,
                     trump = uiState.trump,
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(top = 8.dp)
+                        .align(Alignment.CenterStart)
                         .offset(x = (-28).dp + deckShiftRight),
                 )
             }
@@ -313,45 +310,6 @@ private fun InProgressGameLayout(
                     pendingAfterFlyaway = null
                 },
             )
-        }
-
-        val opponentAction = uiState.opponentAction
-        var cachedToastMessage by remember { mutableStateOf("") }
-        if (opponentAction != null) {
-            cachedToastMessage = opponentAction.message
-        }
-        val toastVisible = opponentAction != null
-        val avatarBounds = opponentAction?.opponentId?.let { id ->
-            opponentAvatarBounds[id] ?: cachedAvatarBounds[id]
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(40f),
-        ) {
-            val anchor = avatarBounds
-                ?: opponentAction?.opponentId?.let { cachedAvatarBounds[it] }
-            if (anchor != null || toastVisible) {
-                val target = anchor ?: Rect(
-                    left = layoutBounds.center.x - 24f,
-                    top = layoutBounds.top + with(density) { 56.dp.toPx() },
-                    right = layoutBounds.center.x + 24f,
-                    bottom = layoutBounds.top + with(density) { 104.dp.toPx() },
-                )
-                OpponentActionToast(
-                    visible = toastVisible,
-                    message = cachedToastMessage,
-                    modifier = Modifier
-                        .offset {
-                            IntOffset(
-                                x = (target.center.x - layoutBounds.left).roundToInt(),
-                                y = (target.top - layoutBounds.top - with(density) { 40.dp.roundToPx() })
-                                    .roundToInt(),
-                            )
-                        }
-                        .wrapContentSize(unbounded = true, align = Alignment.BottomCenter),
-                )
-            }
         }
 
         val activeDrag = dragState
