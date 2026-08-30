@@ -37,4 +37,22 @@ class ProfileRepositoryTest {
         assertTrue(result is SaveProfileResult.SavedLocallyApiFailed)
         assertEquals(profile, localStore.observeProfile().first())
     }
+
+    @Test
+    fun observeProfile_soundsEnabledDefaultsToTrue() = runTest {
+        val repository = ProfileRepository(InMemoryProfileLocalStore(), FakeProfileApi())
+
+        assertEquals(true, repository.observeProfile().first().soundsEnabled)
+    }
+
+    @Test
+    fun saveProfile_persistsSoundsEnabled() = runTest {
+        val localStore = InMemoryProfileLocalStore()
+        val repository = ProfileRepository(localStore, FakeProfileApi())
+        val profile = UserProfile(displayName = "Иван", avatarId = 0, soundsEnabled = false)
+
+        repository.saveProfile(profile)
+
+        assertEquals(false, localStore.observeProfile().first().soundsEnabled)
+    }
 }

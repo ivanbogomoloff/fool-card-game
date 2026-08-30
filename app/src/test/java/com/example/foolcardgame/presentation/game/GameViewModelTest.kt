@@ -12,6 +12,8 @@ import com.example.foolcardgame.data.client.DebugScenario
 import com.example.foolcardgame.data.client.GameClient
 import com.example.foolcardgame.data.client.MockGameStates
 import com.example.foolcardgame.data.client.toMockState
+import com.example.foolcardgame.domain.audio.GameSoundKind
+import com.example.foolcardgame.domain.audio.RecordingGameSoundEffects
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.GamePhase
@@ -281,6 +283,106 @@ class GameViewModelTest {
 
             assertNull(viewModel.uiState.value.opponentAction)
             assertNull(viewModel.uiState.value.tableFlyAnimation)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun actionEvent_playsCardSoundForOpponentAndLocal() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val soundEffects = RecordingGameSoundEffects()
+        val viewModel = GameViewModel(
+            client,
+            MockGameStates.DEBUG_SESSION_ID,
+            soundEffects,
+        )
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.DEFEND,
+                    playerId = "bot-1",
+                    atTick = 60L,
+                ),
+            )
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.ATTACK,
+                    playerId = MockGameStates.LOCAL_PLAYER_ID,
+                    atTick = 61L,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(
+                listOf(GameSoundKind.CARD_PLAY, GameSoundKind.CARD_PLAY),
+                soundEffects.played,
+            )
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun actionEvent_playsBitoAndTakeSounds() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val soundEffects = RecordingGameSoundEffects()
+        val viewModel = GameViewModel(
+            client,
+            MockGameStates.DEBUG_SESSION_ID,
+            soundEffects,
+        )
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.BITO,
+                    playerId = "bot-1",
+                    atTick = 70L,
+                ),
+            )
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.TOOK,
+                    playerId = "bot-1",
+                    atTick = 71L,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(
+                listOf(GameSoundKind.BITO, GameSoundKind.TAKE),
+                soundEffects.played,
+            )
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun passActionEvent_doesNotPlaySound() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val soundEffects = RecordingGameSoundEffects()
+        val viewModel = GameViewModel(
+            client,
+            MockGameStates.DEBUG_SESSION_ID,
+            soundEffects,
+        )
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.PASS,
+                    playerId = "bot-1",
+                    atTick = 72L,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(emptyList<GameSoundKind>(), soundEffects.played)
         } finally {
             viewModel.disposeForTest()
         }

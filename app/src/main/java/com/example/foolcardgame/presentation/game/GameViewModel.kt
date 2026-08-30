@@ -6,6 +6,8 @@ import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.api.dto.GameStateDto
 import com.example.foolcardgame.data.api.dto.RoundEventKindDto
 import com.example.foolcardgame.data.client.GameClient
+import com.example.foolcardgame.domain.audio.GameSoundEffects
+import com.example.foolcardgame.domain.audio.NoOpGameSoundEffects
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.Rank
@@ -23,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 open class GameViewModel(
     protected val gameClient: GameClient,
     protected val sessionId: GameSessionId,
+    private val soundEffects: GameSoundEffects = NoOpGameSoundEffects,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameUiState())
@@ -76,6 +79,7 @@ open class GameViewModel(
                             players = dto.players,
                             timestampMs = System.currentTimeMillis(),
                         )
+                        event.kind.toGameSoundKind()?.let { soundEffects.play(it) }
                         if (event.playerId != dto.localPlayerId) {
                             opponentBadgeMessage(event.kind)?.let { message ->
                                 newOpponentAction = OpponentActionUi(

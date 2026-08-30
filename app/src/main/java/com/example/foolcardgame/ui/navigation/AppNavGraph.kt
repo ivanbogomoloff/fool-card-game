@@ -98,6 +98,7 @@ fun AppNavGraph(
                 uiState = uiState,
                 onDisplayNameChange = viewModel::onDisplayNameChange,
                 onAvatarSelected = viewModel::onAvatarSelected,
+                onSoundsEnabledChange = viewModel::onSoundsEnabledChange,
                 onSaveClick = viewModel::saveProfile,
                 onBack = { navController.popBackStack() },
                 onSnackbarShown = viewModel::consumeSnackbarMessage,
@@ -107,11 +108,13 @@ fun AppNavGraph(
             route = Routes.GAME,
             arguments = listOf(navArgument("sessionId") { type = NavType.StringType }),
         ) { entry ->
+            val context = LocalContext.current
             val sessionId = entry.arguments?.getString("sessionId").orEmpty()
             val viewModel: GameViewModel = viewModel(
                 factory = GameViewModelFactory(
                     gameClient = AppGraph.localGameClient(),
                     sessionId = sessionId,
+                    soundEffects = AppGraph.gameSoundEffects(context),
                 ),
             )
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -50,6 +52,7 @@ fun ProfileScreen(
     uiState: ProfileUiState,
     onDisplayNameChange: (String) -> Unit,
     onAvatarSelected: (Int) -> Unit,
+    onSoundsEnabledChange: (Boolean) -> Unit,
     onSaveClick: () -> Unit,
     onBack: () -> Unit,
     onSnackbarShown: () -> Unit,
@@ -138,6 +141,25 @@ fun ProfileScreen(
                 },
             )
 
+            Text(
+                text = "Игра",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Звуки",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Switch(
+                    checked = uiState.soundsEnabled,
+                    onCheckedChange = onSoundsEnabledChange,
+                )
+            }
+
             PrimaryButton(
                 text = if (uiState.isSaving) "Сохранение..." else "Сохранить",
                 onClick = onSaveClick,
@@ -186,6 +208,7 @@ private fun ProfileScreenPreview() {
             ),
             onDisplayNameChange = {},
             onAvatarSelected = {},
+            onSoundsEnabledChange = {},
             onSaveClick = {},
             onBack = {},
             onSnackbarShown = {},

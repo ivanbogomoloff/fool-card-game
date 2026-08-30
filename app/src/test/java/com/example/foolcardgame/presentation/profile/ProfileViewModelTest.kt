@@ -6,6 +6,7 @@ import com.example.foolcardgame.data.repository.ProfileRepository
 import com.example.foolcardgame.domain.model.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -98,5 +99,19 @@ class ProfileViewModelTest {
 
         assertEquals("Сохранено локально", viewModel.uiState.value.snackbarMessage)
         assertNotNull(viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun onSoundsEnabledChange_savesImmediately() = runTest {
+        val localStore = InMemoryProfileLocalStore()
+        val repository = ProfileRepository(localStore, FakeProfileApi())
+        val viewModel = ProfileViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.onSoundsEnabledChange(false)
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.soundsEnabled)
+        assertEquals(false, localStore.observeProfile().first().soundsEnabled)
     }
 }

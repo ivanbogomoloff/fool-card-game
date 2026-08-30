@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -24,6 +25,7 @@ class ProfileDataStore(
             UserProfile(
                 displayName = preferences[KEY_DISPLAY_NAME] ?: UserProfile.DEFAULT_DISPLAY_NAME,
                 avatarId = preferences[KEY_AVATAR_ID] ?: UserProfile.DEFAULT_AVATAR_ID,
+                soundsEnabled = preferences[KEY_SOUNDS_ENABLED] ?: true,
             )
         }
     }
@@ -32,11 +34,13 @@ class ProfileDataStore(
         context.profileDataStore.edit { preferences ->
             preferences[KEY_DISPLAY_NAME] = profile.displayName
             preferences[KEY_AVATAR_ID] = profile.avatarId
+            preferences[KEY_SOUNDS_ENABLED] = profile.soundsEnabled
         }
     }
 
     companion object {
         private val KEY_DISPLAY_NAME = stringPreferencesKey("display_name")
         private val KEY_AVATAR_ID = intPreferencesKey("avatar_id")
+        private val KEY_SOUNDS_ENABLED = booleanPreferencesKey("sounds_enabled")
     }
 }

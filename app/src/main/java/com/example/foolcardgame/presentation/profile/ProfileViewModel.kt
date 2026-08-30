@@ -25,6 +25,7 @@ class ProfileViewModel(
                     it.copy(
                         displayName = profile.displayName,
                         avatarId = profile.avatarId,
+                        soundsEnabled = profile.soundsEnabled,
                         isLoading = false,
                     )
                 }
@@ -38,6 +39,20 @@ class ProfileViewModel(
 
     fun onAvatarSelected(avatarId: Int) {
         _uiState.update { it.copy(avatarId = avatarId, error = null) }
+    }
+
+    fun onSoundsEnabledChange(enabled: Boolean) {
+        _uiState.update { it.copy(soundsEnabled = enabled, error = null) }
+        viewModelScope.launch {
+            val state = _uiState.value
+            repository.saveProfile(
+                UserProfile(
+                    displayName = state.displayName.trim().ifEmpty { UserProfile.DEFAULT_DISPLAY_NAME },
+                    avatarId = state.avatarId,
+                    soundsEnabled = enabled,
+                ),
+            )
+        }
     }
 
     fun saveProfile() {
@@ -54,6 +69,7 @@ class ProfileViewModel(
                 UserProfile(
                     displayName = trimmedName,
                     avatarId = state.avatarId,
+                    soundsEnabled = state.soundsEnabled,
                 ),
             )
             _uiState.update {
