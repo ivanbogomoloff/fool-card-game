@@ -132,6 +132,7 @@ class GameEngineTest {
                     ),
                 ),
                 currentPlayerId = "local",
+                passedPlayerIds = setOf("bot-2"),
             ),
         )
 
@@ -155,6 +156,8 @@ class GameEngineTest {
                         defense = Card(Suit.SPADES, Rank.TEN),
                     ),
                 ),
+                currentPlayerId = "local",
+                passedPlayerIds = setOf("bot-2"),
             ),
         )
 
@@ -179,6 +182,8 @@ class GameEngineTest {
                     ),
                 ),
                 defenderHandSizeAtRoundStart = 1,
+                currentPlayerId = "local",
+                passedPlayerIds = setOf("bot-2"),
             ),
         )
 
@@ -233,7 +238,7 @@ class GameEngineTest {
                         defense = Card(Suit.SPADES, Rank.TEN),
                     ),
                 ),
-                currentPlayerId = "local",
+                currentPlayerId = "bot-2",
                 helperHand = listOf(throwCard, Card(Suit.DIAMONDS, Rank.NINE)),
                 defenderHandSizeAtRoundStart = 2,
             ),
@@ -262,7 +267,7 @@ class GameEngineTest {
                         defense = Card(Suit.SPADES, Rank.TEN),
                     ),
                 ),
-                currentPlayerId = "local",
+                currentPlayerId = "bot-2",
                 helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
                 defenderHandSizeAtRoundStart = 3,
             ),
@@ -468,12 +473,12 @@ class GameEngineTest {
                         defense = Card(Suit.SPADES, Rank.TEN),
                     ),
                 ),
-                currentPlayerId = "local",
+                currentPlayerId = "bot-2",
                 defenderHandSizeAtRoundStart = 3,
             ),
         )
-        assertTrue(engine.skipTurn(sessionId, "local").isSuccess)
-        assertTrue("local" in engine.getState(sessionId).passedPlayerIds)
+        assertTrue(engine.skipTurn(sessionId, "bot-2").isSuccess)
+        assertTrue("bot-2" in engine.getState(sessionId).passedPlayerIds)
     }
 
     @Test
@@ -607,6 +612,7 @@ class GameEngineTest {
                     ),
                 ),
                 currentPlayerId = "local",
+                passedPlayerIds = setOf("bot-2"),
             ),
         )
 
@@ -694,7 +700,7 @@ class GameEngineTest {
     }
 
     @Test
-    fun attacker_allBeaten_canBito_notPass() {
+    fun attacker_allBeaten_cannotBito_untilHelpersPass() {
         val sessionId = "s-perm-attacker"
         engine.loadStateForTest(
             inProgressState(
@@ -710,11 +716,17 @@ class GameEngineTest {
                 ),
                 helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
                 defenderHandSizeAtRoundStart = 3,
+                currentPlayerId = "bot-2",
             ),
         )
         val perms = engine.getState(sessionId).permissionsFor("local")
-        assertTrue(perms.canBito)
+        assertFalse(perms.canBito)
         assertFalse(perms.canPass)
+
+        assertTrue(engine.pass(sessionId, "bot-2").isSuccess)
+        val afterPass = engine.getState(sessionId).permissionsFor("local")
+        assertTrue(afterPass.canBito)
+        assertFalse(afterPass.canPass)
     }
 
     @Test
@@ -742,6 +754,66 @@ class GameEngineTest {
         assertFalse(perms.canBito)
     }
 
+    @Test
+    fun bito_rejected_untilAllHelpersPassed() {
+        val sessionId = "s-bito-blocked"
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                defenderHandSizeAtRoundStart = 3,
+                currentPlayerId = "bot-2",
+            ),
+        )
+
+        assertTrue(engine.bito(sessionId, "local").isFailure)
+        assertTrue(engine.pass(sessionId, "bot-2").isSuccess)
+        assertTrue(engine.bito(sessionId, "local").isSuccess)
+    }
+
+    @Test
+    fun defend_allBeaten_passesTurnToHelper() {
+        val sessionId = "s-defend-throw-turn"
+        val defense = Card(Suit.SPADES, Rank.TEN)
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerId = "bot-1",
+                defenderId = "bot-2",
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(defense, Card(Suit.DIAMONDS, Rank.EIGHT)),
+                helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                    ),
+                ),
+                currentPlayerId = "bot-2",
+                defenderHandSizeAtRoundStart = 2,
+            ),
+        )
+
+        assertTrue(engine.playCard(sessionId, "bot-2", defense, targetPairId = 1).isSuccess)
+        val state = engine.getState(sessionId)
+        assertEquals("local", state.currentPlayerId)
+        assertTrue(state.permissionsFor("local").canPass)
+        assertFalse(state.permissionsFor("bot-1").canBito)
+        assertEquals(
+            GameConfig.THROW_TIMEOUT_MS,
+            (state.turnDeadlineAtMs ?: 0L) - (state.turnStartedAtMs ?: 0L),
+        )
+    }
+
     private fun readyAll(sessionId: String) {
         engine.ready(sessionId, "local")
         engine.getState(sessionId).players.filter { it.isBot }.forEach { bot ->
@@ -760,7 +832,15 @@ class GameEngineTest {
         passedPlayerIds: Set<String> = emptySet(),
         defenderHandSizeAtRoundStart: Int = defenderHand.size,
         helperHand: List<Card> = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
-    ): GameState = GameState(
+        attackerId: String = "local",
+        defenderId: String = "bot-1",
+    ): GameState {
+        fun handFor(playerId: String): List<Card> = when (playerId) {
+            attackerId -> attackerHand
+            defenderId -> defenderHand
+            else -> helperHand
+        }
+        return GameState(
         sessionId = sessionId,
         phase = GamePhase.IN_PROGRESS,
         players = listOf(
@@ -769,7 +849,7 @@ class GameEngineTest {
                 displayName = "Вы",
                 avatarId = 0,
                 isBot = false,
-                hand = attackerHand,
+                hand = handFor("local"),
                 isReady = true,
                 status = PlayerStatus.PLAYING,
             ),
@@ -778,7 +858,7 @@ class GameEngineTest {
                 displayName = "Бот 1",
                 avatarId = 1,
                 isBot = true,
-                hand = defenderHand,
+                hand = handFor("bot-1"),
                 isReady = true,
                 status = PlayerStatus.PLAYING,
             ),
@@ -787,7 +867,7 @@ class GameEngineTest {
                 displayName = "Бот 2",
                 avatarId = 2,
                 isBot = true,
-                hand = helperHand,
+                hand = handFor("bot-2"),
                 isReady = true,
                 status = PlayerStatus.PLAYING,
             ),
@@ -796,10 +876,11 @@ class GameEngineTest {
         trumpCard = deck.lastOrNull() ?: Card(Suit.HEARTS, Rank.ACE),
         trumpSuit = Suit.HEARTS,
         tablePairs = tablePairs,
-        attackerId = "local",
-        defenderId = "bot-1",
+        attackerId = attackerId,
+        defenderId = defenderId,
         currentPlayerId = currentPlayerId,
         passedPlayerIds = passedPlayerIds,
         defenderHandSizeAtRoundStart = defenderHandSizeAtRoundStart,
     )
+    }
 }

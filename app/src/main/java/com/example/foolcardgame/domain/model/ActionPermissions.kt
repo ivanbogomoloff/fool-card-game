@@ -26,11 +26,13 @@ private fun GameState.inProgressPermissions(playerId: String): ActionPermissions
     val hasUnbeaten = unbeatenPairs.isNotEmpty()
 
     val canTake = isDefender && hasUnbeaten
-    // Attacker may close the round after full defense without waiting for all passes.
-    val canBito = isAttacker && allBeaten
+    val helperThrowers = throwerIds() - attackerId
+    val allHelpersPassed = helperThrowers.all { it in passedPlayerIds }
+    val canBito = isAttacker && allBeaten && allHelpersPassed
     val canPass = !isDefender && !isAttacker && hasTable && allBeaten &&
         playerId in throwerIds() &&
-        playerId !in passedPlayerIds
+        playerId !in passedPlayerIds &&
+        playerId == currentPlayerId
 
     return ActionPermissions(
         canBito = canBito,
@@ -57,3 +59,30 @@ fun GameState.canAddMoreAttacks(): Boolean =
         currentAttackCount = tablePairs.size,
         defenderHandSizeAtRoundStart = defenderHandSizeAtRoundStart,
     )
+
+/** Throwers clockwise after attacker (excluding defender); attacker is last for bito. */
+fun GameState.throwPhaseTurnOrder(): List<String> {
+    if (!allBeaten) return emptyList()
+    val attacker = attackerId ?: return emptyList()
+    val defender = defenderId
+    val throwers = throwerIds()
+    val players = playersInGame()
+    if (players.isEmpty()) return emptyList()
+
+    val attIdx = players.indexOfFirst { it.id == attacker }
+    if (attIdx < 0) return emptyList()
+
+    val ordered = mutableListOf<String>()
+    for (i in 1 until players.size) {
+        val player = players[(attIdx + i) % players.size]
+        if (player.id == defender) continue
+        if (player.id in throwers) ordered.add(player.id)
+    }
+    if (attacker !in ordered) {
+        ordered.add(attacker)
+    }
+    return ordered
+}
+
+fun GameState.nextThrowPhaseActor(): String? =
+    throwPhaseTurnOrder().firstOrNull { it !in passedPlayerIds }

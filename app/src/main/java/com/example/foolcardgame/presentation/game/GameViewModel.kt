@@ -265,10 +265,11 @@ open class GameViewModel(
     private fun startTurnTimer(turnDeadlineAtMs: Long?) {
         turnTimerJob?.cancel()
         turnTimerJob = viewModelScope.launch {
+            val maxTimeoutSeconds = maxOf(TURN_TIMEOUT_SECONDS, THROW_TIMEOUT_SECONDS)
             val totalSeconds = if (turnDeadlineAtMs != null) {
                 ((turnDeadlineAtMs - System.currentTimeMillis()) / 1_000L)
                     .toInt()
-                    .coerceIn(1, TURN_TIMEOUT_SECONDS)
+                    .coerceIn(1, maxTimeoutSeconds)
             } else {
                 TURN_TIMEOUT_SECONDS
             }
@@ -308,6 +309,7 @@ open class GameViewModel(
     companion object {
         const val READY_TIMEOUT_SECONDS = 60
         const val TURN_TIMEOUT_SECONDS = (GameConfig.TURN_TIMEOUT_MS / 1_000L).toInt()
+        const val THROW_TIMEOUT_SECONDS = (GameConfig.THROW_TIMEOUT_MS / 1_000L).toInt()
         private const val OPPONENT_TOAST_MS = 3_000L
         internal const val OPPONENT_TOAST_MS_FOR_TEST = OPPONENT_TOAST_MS
     }

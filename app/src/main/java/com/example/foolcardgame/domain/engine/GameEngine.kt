@@ -16,7 +16,7 @@ import com.example.foolcardgame.domain.model.Suit
 import com.example.foolcardgame.domain.model.TablePair
 import com.example.foolcardgame.domain.model.canAddMoreAttacks
 import com.example.foolcardgame.domain.model.permissionsFor
-import com.example.foolcardgame.domain.model.throwerIds
+import com.example.foolcardgame.domain.model.nextThrowPhaseActor
 import com.example.foolcardgame.domain.model.throwingClosed
 import java.util.UUID
 
@@ -264,9 +264,7 @@ class GameEngine(
                 .recordRoundEvent(RoundEventKind.BITO, attackerId)
                 .recordActionEvent(GameActionKind.BITO, attackerId)
         }
-        val nextActor = next.throwerIds()
-            .firstOrNull { it !in next.passedPlayerIds }
-            ?: next.attackerId
+        val nextActor = next.nextThrowPhaseActor() ?: next.attackerId
         return next.copy(currentPlayerId = nextActor)
             .withTurnDeadline()
             .bumpTick()
@@ -471,6 +469,9 @@ class GameEngine(
         if (playerId in state.passedPlayerIds) {
             return Result.failure(IllegalStateException("Already passed"))
         }
+        if (state.allBeaten && playerId != state.currentPlayerId) {
+            return Result.failure(IllegalStateException("Not your turn"))
+        }
 
         val pair = TablePair(id = nextPairId(state), attack = card)
         val next = state
@@ -534,7 +535,7 @@ class GameEngine(
                         .recordActionEvent(GameActionKind.BITO, attackerId),
                 )
             }
-            next.copy(currentPlayerId = next.attackerId)
+            next.copy(currentPlayerId = next.nextThrowPhaseActor() ?: next.attackerId)
         } else {
             next.copy(currentPlayerId = next.defenderId)
         }
@@ -589,9 +590,7 @@ class GameEngine(
                     .recordActionEvent(GameActionKind.BITO, attackerId),
             )
         } else {
-            val nextActor = next.throwerIds()
-                .firstOrNull { it !in next.passedPlayerIds }
-                ?: next.attackerId
+            val nextActor = next.nextThrowPhaseActor() ?: next.attackerId
             Result.success(
                 next.copy(currentPlayerId = nextActor)
                     .withTurnDeadline()
@@ -728,9 +727,14 @@ class GameEngine(
             return copy(turnStartedAtMs = null, turnDeadlineAtMs = null)
         }
         val now = clock()
+        val timeoutMs = if (allBeaten && tablePairs.isNotEmpty()) {
+            GameConfig.THROW_TIMEOUT_MS
+        } else {
+            GameConfig.TURN_TIMEOUT_MS
+        }
         return copy(
             turnStartedAtMs = now,
-            turnDeadlineAtMs = now + GameConfig.TURN_TIMEOUT_MS,
+            turnDeadlineAtMs = now + timeoutMs,
         )
     }
 

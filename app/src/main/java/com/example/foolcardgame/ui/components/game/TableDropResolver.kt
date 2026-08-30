@@ -49,6 +49,7 @@ private fun hitsRect(
 
 fun tableDropZone(
     playAreaBounds: Rect,
+    actionBarBounds: Rect,
     handBounds: Rect,
     layoutBounds: Rect,
 ): Rect {
@@ -62,6 +63,7 @@ fun tableDropZone(
         0f
     }
     val bottom = when {
+        actionBarBounds.height > 1f -> actionBarBounds.top
         handBounds.height > 1f -> handBounds.top
         playAreaBounds.height > 1f -> playAreaBounds.bottom
         layoutBounds.height > 1f -> layoutBounds.bottom
@@ -80,11 +82,13 @@ fun resolveTableDrop(
     attackCardBounds: Map<Int, Rect>,
     cardSize: DraggedCardSizePx? = null,
     handTop: Float = Float.NaN,
+    playAreaBounds: Rect = Rect.Zero,
 ): TableDropAction? {
     val unbeaten = tablePairs.filter { it.defense == null }
     val onTable = isDropOnTable(
         position = position,
         zone = tableBounds,
+        playAreaBounds = playAreaBounds,
         cardSize = cardSize,
         handTop = handTop,
     )
@@ -129,12 +133,14 @@ private fun resolveDefendDrop(
 private fun isDropOnTable(
     position: Offset,
     zone: Rect,
+    playAreaBounds: Rect,
     cardSize: DraggedCardSizePx?,
     handTop: Float,
 ): Boolean {
     if (hitsDropZone(position, zone, cardSize)) return true
     if (!handTop.isNaN() && isCardLiftedAboveHand(position, cardSize, handTop)) {
-        return zone.left <= position.x && position.x <= zone.right
+        val cardRect = draggedCardRect(position, cardSize) ?: return false
+        return playAreaBounds.height > 1f && playAreaBounds.overlaps(cardRect)
     }
     return false
 }

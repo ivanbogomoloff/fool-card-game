@@ -13,6 +13,18 @@ class TableDropResolverTest {
 
     private val tableBounds = Rect(0f, 0f, 400f, 300f)
     private val attackBounds = Rect(20f, 80f, 76f, 160f)
+    private val playArea = Rect(0f, 100f, 800f, 400f)
+    private val actionBar = Rect(0f, 400f, 800f, 500f)
+    private val hand = Rect(0f, 500f, 800f, 620f)
+    private val layout = Rect(0f, 0f, 800f, 800f)
+    private val cardSize = DraggedCardSizePx(width = 56f, height = 80f)
+
+    private fun dropZone() = tableDropZone(
+        playAreaBounds = playArea,
+        actionBarBounds = actionBar,
+        handBounds = hand,
+        layoutBounds = layout,
+    )
 
     @Test
     fun dropBesideAttackCard_onTable_withOneUnbeaten_isDefend() {
@@ -91,11 +103,11 @@ class TableDropResolverTest {
 
     @Test
     fun dropOnLeftOfPlayArea_allBeaten_isAttack() {
-        val playArea = Rect(0f, 0f, 800f, 300f)
+        val widePlayArea = Rect(0f, 0f, 800f, 300f)
         val action = resolveTableDrop(
             position = Offset(20f, 150f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = playArea,
+            tableBounds = widePlayArea,
             attackCardBounds = mapOf(1 to Rect(360f, 80f, 416f, 160f)),
         )
 
@@ -104,11 +116,11 @@ class TableDropResolverTest {
 
     @Test
     fun dropOnLeftOfPlayArea_emptyTable_isAttack() {
-        val playArea = Rect(0f, 0f, 800f, 300f)
+        val widePlayArea = Rect(0f, 0f, 800f, 300f)
         val action = resolveTableDrop(
             position = Offset(20f, 150f),
             tablePairs = emptyList(),
-            tableBounds = playArea,
+            tableBounds = widePlayArea,
             attackCardBounds = emptyMap(),
         )
 
@@ -117,11 +129,11 @@ class TableDropResolverTest {
 
     @Test
     fun dropOnLeftOfPlayArea_unbeaten_isDefend() {
-        val playArea = Rect(0f, 0f, 800f, 300f)
+        val widePlayArea = Rect(0f, 0f, 800f, 300f)
         val action = resolveTableDrop(
             position = Offset(20f, 150f),
             tablePairs = listOf(unbeatenPair(id = 1)),
-            tableBounds = playArea,
+            tableBounds = widePlayArea,
             attackCardBounds = mapOf(1 to Rect(360f, 80f, 416f, 160f)),
         )
 
@@ -130,11 +142,11 @@ class TableDropResolverTest {
 
     @Test
     fun dropAbovePlayArea_isIgnored() {
-        val playArea = Rect(0f, 100f, 800f, 400f)
+        val boundedPlayArea = Rect(0f, 100f, 800f, 400f)
         val action = resolveTableDrop(
             position = Offset(200f, 20f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = playArea,
+            tableBounds = boundedPlayArea,
             attackCardBounds = mapOf(1 to attackBounds),
         )
 
@@ -143,12 +155,12 @@ class TableDropResolverTest {
 
     @Test
     fun dropOnBeatenPairSlop_outsidePlayArea_isAttack() {
-        val playArea = Rect(100f, 0f, 800f, 300f)
+        val boundedPlayArea = Rect(100f, 0f, 800f, 300f)
         val pairBounds = Rect(20f, 80f, 76f, 160f)
         val action = resolveTableDrop(
             position = Offset(30f, 120f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = playArea,
+            tableBounds = boundedPlayArea,
             attackCardBounds = mapOf(1 to pairBounds),
         )
 
@@ -156,84 +168,82 @@ class TableDropResolverTest {
     }
 
     @Test
-    fun tableDropZone_includesActionBarAboveHand() {
+    fun tableDropZone_excludesActionBarAboveHand() {
         val zone = tableDropZone(
-            playAreaBounds = Rect(0f, 100f, 400f, 400f),
-            handBounds = Rect(0f, 500f, 400f, 620f),
-            layoutBounds = Rect(0f, 0f, 400f, 800f),
+            playAreaBounds = playArea,
+            actionBarBounds = actionBar,
+            handBounds = hand,
+            layoutBounds = layout,
         )
-        assertEquals(Rect(0f, 100f, 400f, 500f), zone)
+        assertEquals(Rect(0f, 100f, 800f, 400f), zone)
     }
 
     @Test
-    fun dropOnActionBar_allBeaten_isAttack() {
-        val dropZone = tableDropZone(
-            playAreaBounds = Rect(0f, 100f, 800f, 400f),
-            handBounds = Rect(0f, 500f, 800f, 620f),
-            layoutBounds = Rect(0f, 0f, 800f, 800f),
-        )
+    fun dropOnActionBar_allBeaten_isIgnored() {
         val action = resolveTableDrop(
             position = Offset(40f, 450f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = dropZone,
+            tableBounds = dropZone(),
             attackCardBounds = mapOf(1 to Rect(360f, 180f, 416f, 260f)),
+            playAreaBounds = playArea,
         )
 
-        assertEquals(TableDropAction.Attack, action)
+        assertNull(action)
     }
 
     @Test
-    fun dropOnActionBar_unbeaten_isDefend() {
-        val dropZone = tableDropZone(
-            playAreaBounds = Rect(0f, 100f, 800f, 400f),
-            handBounds = Rect(0f, 500f, 800f, 620f),
-            layoutBounds = Rect(0f, 0f, 800f, 800f),
-        )
+    fun dropOnActionBar_unbeaten_isIgnored() {
         val action = resolveTableDrop(
             position = Offset(40f, 450f),
             tablePairs = listOf(unbeatenPair(id = 1)),
-            tableBounds = dropZone,
+            tableBounds = dropZone(),
             attackCardBounds = mapOf(1 to Rect(360f, 180f, 416f, 260f)),
+            playAreaBounds = playArea,
         )
 
-        assertEquals(TableDropAction.Defend(1), action)
+        assertNull(action)
     }
 
-    private val cardSize = DraggedCardSizePx(width = 56f, height = 80f)
+    @Test
+    fun dropWithFingerInHand_cardLiftedAboveHand_onlyOverActionBar_isIgnored() {
+        val action = resolveTableDrop(
+            position = Offset(40f, 530f),
+            tablePairs = listOf(beatenPair(id = 1)),
+            tableBounds = dropZone(),
+            attackCardBounds = emptyMap(),
+            cardSize = cardSize,
+            handTop = hand.top,
+            playAreaBounds = playArea,
+        )
+
+        assertNull(action)
+    }
 
     @Test
-    fun dropWithFingerInHand_cardOverlapsZone_allBeaten_isAttack() {
-        val dropZone = tableDropZone(
-            playAreaBounds = Rect(0f, 100f, 800f, 400f),
-            handBounds = Rect(0f, 500f, 800f, 620f),
-            layoutBounds = Rect(0f, 0f, 800f, 800f),
-        )
+    fun dropWithFingerInHand_cardLiftedAboveHand_overlapsPlayArea_isAttack() {
         val action = resolveTableDrop(
-            position = Offset(40f, 538f),
+            position = Offset(40f, 250f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = dropZone,
-            attackCardBounds = mapOf(1 to Rect(360f, 180f, 416f, 260f)),
+            tableBounds = dropZone(),
+            attackCardBounds = emptyMap(),
             cardSize = cardSize,
-            handTop = 500f,
+            handTop = hand.top,
+            playAreaBounds = playArea,
         )
 
         assertEquals(TableDropAction.Attack, action)
     }
 
     @Test
-    fun dropWithFingerInHand_cardLiftedAboveHand_allBeaten_isAttack() {
-        val dropZone = tableDropZone(
-            playAreaBounds = Rect(0f, 100f, 800f, 400f),
-            handBounds = Rect(0f, 500f, 800f, 620f),
-            layoutBounds = Rect(0f, 0f, 800f, 800f),
-        )
+    fun dropWithFingerInHand_cardOverlapsZone_allBeaten_isAttack() {
         val action = resolveTableDrop(
-            position = Offset(40f, 530f),
+            position = Offset(40f, 350f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = dropZone,
-            attackCardBounds = emptyMap(),
+            tableBounds = dropZone(),
+            attackCardBounds = mapOf(1 to Rect(360f, 180f, 416f, 260f)),
             cardSize = cardSize,
-            handTop = 500f,
+            handTop = hand.top,
+            playAreaBounds = playArea,
         )
 
         assertEquals(TableDropAction.Attack, action)
@@ -241,18 +251,14 @@ class TableDropResolverTest {
 
     @Test
     fun dropWithFingerInHand_notLifted_isIgnored() {
-        val dropZone = tableDropZone(
-            playAreaBounds = Rect(0f, 100f, 800f, 400f),
-            handBounds = Rect(0f, 500f, 800f, 620f),
-            layoutBounds = Rect(0f, 0f, 800f, 800f),
-        )
         val action = resolveTableDrop(
             position = Offset(40f, 580f),
             tablePairs = listOf(beatenPair(id = 1)),
-            tableBounds = dropZone,
+            tableBounds = dropZone(),
             attackCardBounds = emptyMap(),
             cardSize = cardSize,
-            handTop = 500f,
+            handTop = hand.top,
+            playAreaBounds = playArea,
         )
 
         assertNull(action)

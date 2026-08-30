@@ -105,6 +105,7 @@ private fun InProgressGameLayout(
     var playAreaBounds by remember { mutableStateOf(Rect.Zero) }
     var layoutBounds by remember { mutableStateOf(Rect.Zero) }
     var handBounds by remember { mutableStateOf(Rect.Zero) }
+    var actionBarBounds by remember { mutableStateOf(Rect.Zero) }
     val opponentAvatarBounds = remember { mutableStateMapOf<String, Rect>() }
     val attackCardBounds = remember { mutableStateMapOf<Int, Rect>() }
     var discardFlyaway by remember { mutableStateOf<List<FlyingDiscardCard>>(emptyList()) }
@@ -268,6 +269,9 @@ private fun InProgressGameLayout(
                 onReadyClick = onReadyClick,
                 onToggleLoserCardsClick = onToggleLoserCardsClick,
                 onExitClick = onExitClick,
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    actionBarBounds = coordinates.boundsInRoot()
+                },
             )
             PlayerHandView(
                 hand = uiState.hand,
@@ -299,6 +303,7 @@ private fun InProgressGameLayout(
                             tablePairs = uiState.tablePairs,
                             tableBounds = tableDropZone(
                                 playAreaBounds = playAreaBounds,
+                                actionBarBounds = actionBarBounds,
                                 handBounds = handBounds,
                                 layoutBounds = layoutBounds,
                             ),
@@ -308,6 +313,7 @@ private fun InProgressGameLayout(
                                 height = cardHeightPx,
                             ),
                             handTop = if (handBounds.height > 1f) handBounds.top else Float.NaN,
+                            playAreaBounds = playAreaBounds,
                         )
                     ) {
                         is TableDropAction.Defend -> onDefendDrop(current.cardId, action.pairId)

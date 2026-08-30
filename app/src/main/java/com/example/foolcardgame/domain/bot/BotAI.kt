@@ -5,7 +5,7 @@ import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.domain.model.GameState
 import com.example.foolcardgame.domain.model.permissionsFor
-import com.example.foolcardgame.domain.model.throwerIds
+import com.example.foolcardgame.domain.model.throwPhaseTurnOrder
 import com.example.foolcardgame.domain.model.canAddMoreAttacks
 
 /**
@@ -38,6 +38,13 @@ class BotAI {
             GamePhase.IN_PROGRESS -> Unit
         }
 
+        if (!controlAllPlayers) {
+            val actorId = state.currentPlayerId ?: return null
+            val actor = state.player(actorId) ?: return null
+            if (!controllable(actor.isBot)) return null
+            return chooseActionForActor(state, actorId)
+        }
+
         val defenderId = state.defenderId
         if (defenderId != null) {
             val defender = state.player(defenderId)
@@ -66,7 +73,7 @@ class BotAI {
         }
 
         if (state.tablePairs.isNotEmpty() && state.allBeaten) {
-            for (throwerId in state.throwerIds()) {
+            for (throwerId in state.throwPhaseTurnOrder()) {
                 val thrower = state.player(throwerId) ?: continue
                 if (!controllable(thrower.isBot)) continue
                 if (throwerId in state.passedPlayerIds) continue
@@ -102,6 +109,62 @@ class BotAI {
                 if (throwCard != null && state.canAddMoreSafe()) {
                     return Action.AddCard(attackerId, throwCard)
                 }
+            }
+        }
+
+        return null
+    }
+
+    private fun chooseActionForActor(state: GameState, actorId: String): Action? {
+        val perms = state.permissionsFor(actorId)
+        val attackerId = state.attackerId
+
+        if (actorId == state.defenderId && state.unbeatenPairs.isNotEmpty()) {
+            val trump = state.trumpSuit ?: return Action.Pass(actorId)
+            val unbeaten = state.unbeatenPairs.first()
+            val beating = state.player(actorId)?.hand
+                ?.filter { Rules.beats(it, unbeaten.attack, trump) }
+                ?.minWithOrNull(lowestFirst(trump))
+            return if (beating != null) {
+                Action.PlayCard(actorId, beating, unbeaten.id)
+            } else {
+                Action.Pass(actorId)
+            }
+        }
+
+        if (perms.canBito) {
+            return Action.Bito(actorId)
+        }
+
+        if (state.tablePairs.isNotEmpty() && state.allBeaten) {
+            if (actorId in state.passedPlayerIds) return null
+            if (perms.canPass || state.canThrowSomething(actorId)) {
+                val throwCard = state.player(actorId)?.hand
+                    ?.filter { Rules.canThrow(it, state.tableRanks) }
+                    ?.minWithOrNull(lowestFirst(state.trumpSuit))
+                return if (throwCard != null && state.canAddMoreSafe()) {
+                    Action.AddCard(actorId, throwCard)
+                } else if (perms.canPass) {
+                    Action.Pass(actorId)
+                } else {
+                    null
+                }
+            }
+        }
+
+        if (state.tablePairs.isEmpty() && actorId == attackerId) {
+            val card = state.player(actorId)?.hand
+                ?.minWithOrNull(lowestFirst(state.trumpSuit))
+                ?: return null
+            return Action.PlayCard(actorId, card, targetPairId = null)
+        }
+
+        if (state.tablePairs.isNotEmpty() && !state.allBeaten && actorId == attackerId) {
+            val throwCard = state.player(actorId)?.hand
+                ?.filter { Rules.canThrow(it, state.tableRanks) }
+                ?.minWithOrNull(lowestFirst(state.trumpSuit))
+            if (throwCard != null && state.canAddMoreSafe()) {
+                return Action.AddCard(actorId, throwCard)
             }
         }
 

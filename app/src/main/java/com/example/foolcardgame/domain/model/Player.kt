@@ -43,6 +43,7 @@ data class GameConfig(
         const val DEFAULT_HUMAN_ID = "local"
         const val DEFAULT_SEED = 42L
         const val TURN_TIMEOUT_MS = 60_000L
+        const val THROW_TIMEOUT_MS = 30_000L
         const val DEFAULT_BOT_THINK_MIN_MS = 1_000L
         const val DEFAULT_BOT_THINK_MAX_MS = 5_000L
         const val BOT_CONNECT_MIN_MS = 1_000L
