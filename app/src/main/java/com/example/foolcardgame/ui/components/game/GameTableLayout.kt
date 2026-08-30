@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -115,6 +116,7 @@ private fun InProgressGameLayout(
 ) {
     var dragState by remember { mutableStateOf<HandDragState?>(null) }
     var tableBounds by remember { mutableStateOf(Rect.Zero) }
+    var playAreaBounds by remember { mutableStateOf(Rect.Zero) }
     var layoutBounds by remember { mutableStateOf(Rect.Zero) }
     var handBounds by remember { mutableStateOf(Rect.Zero) }
     val opponentAvatarBounds = remember { mutableStateMapOf<String, Rect>() }
@@ -126,6 +128,10 @@ private fun InProgressGameLayout(
     val density = LocalDensity.current
     val isDiscardAnimating = discardFlyaway.isNotEmpty()
     val visibleTablePairs = if (suppressTableCards) emptyList() else uiState.tablePairs
+    val livePairIds = visibleTablePairs.map { it.id }.toSet()
+    SideEffect {
+        attackCardBounds.keys.filter { it !in livePairIds }.forEach { attackCardBounds.remove(it) }
+    }
 
     fun startFlyaway(
         pairs: List<TablePairUi>,
@@ -208,7 +214,10 @@ private fun InProgressGameLayout(
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        playAreaBounds = coordinates.boundsInRoot()
+                    },
             ) {
                 val deckShiftRight = maxWidth * 0.05f
                 val tableStartPadding = 100.dp + deckShiftRight + 20.dp
@@ -280,15 +289,29 @@ private fun InProgressGameLayout(
                     val current = dragState
                     dragState = null
                     if (current == null) return@PlayerHandView
-                    resolveDrop(
-                        position = current.positionInRoot,
-                        cardId = current.cardId,
-                        tablePairs = uiState.tablePairs,
-                        tableBounds = tableBounds,
-                        attackCardBounds = attackCardBounds,
-                        onAttackDrop = onAttackDrop,
-                        onDefendDrop = onDefendDrop,
-                    )
+                    val cardWidthPx = with(density) { 56.dp.toPx() }
+                    val cardHeightPx = with(density) { 80.dp.toPx() }
+                    when (
+                        val action = resolveTableDrop(
+                            position = current.positionInRoot,
+                            tablePairs = uiState.tablePairs,
+                            tableBounds = tableDropZone(
+                                playAreaBounds = playAreaBounds,
+                                handBounds = handBounds,
+                                layoutBounds = layoutBounds,
+                            ),
+                            attackCardBounds = attackCardBounds,
+                            cardSize = DraggedCardSizePx(
+                                width = cardWidthPx,
+                                height = cardHeightPx,
+                            ),
+                            handTop = if (handBounds.height > 1f) handBounds.top else Float.NaN,
+                        )
+                    ) {
+                        is TableDropAction.Defend -> onDefendDrop(current.cardId, action.pairId)
+                        TableDropAction.Attack -> onAttackDrop(current.cardId)
+                        null -> Unit
+                    }
                 },
                 onDragCancel = { dragState = null },
                 modifier = Modifier
@@ -424,34 +447,3 @@ private fun syntheticCardRect(
     return Rect(left, top, left + cardWidthPx, top + cardHeightPx)
 }
 
-private const val AttackHitSlopPx = 48f
-
-private fun resolveDrop(
-    position: Offset,
-    cardId: String,
-    tablePairs: List<TablePairUi>,
-    tableBounds: Rect,
-    attackCardBounds: Map<Int, Rect>,
-    onAttackDrop: (String) -> Unit,
-    onDefendDrop: (String, Int) -> Unit,
-) {
-    val nearestUndefended = tablePairs
-        .asSequence()
-        .filter { it.defense == null }
-        .mapNotNull { pair ->
-            val bounds = attackCardBounds[pair.id] ?: return@mapNotNull null
-            val hitArea = bounds.inflate(AttackHitSlopPx)
-            if (!hitArea.contains(position)) return@mapNotNull null
-            pair to (position - bounds.center).getDistance()
-        }
-        .minByOrNull { it.second }
-        ?.first
-
-    if (nearestUndefended != null) {
-        onDefendDrop(cardId, nearestUndefended.id)
-        return
-    }
-    if (tableBounds.contains(position)) {
-        onAttackDrop(cardId)
-    }
-}

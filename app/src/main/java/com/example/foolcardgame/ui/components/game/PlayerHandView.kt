@@ -9,12 +9,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.game.CardUi
@@ -65,39 +65,41 @@ private fun DraggableHandCard(
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
 ) {
-    var boundsInRoot by remember { mutableStateOf(Rect.Zero) }
-    var fingerInRoot by remember { mutableStateOf(Offset.Zero) }
+    var layoutCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val layoutCoordinatesState = rememberUpdatedState(layoutCoordinates)
+    val onCardClickState = rememberUpdatedState(onCardClick)
+    val onDragStartState = rememberUpdatedState(onDragStart)
+    val onDragState = rememberUpdatedState(onDrag)
+    val onDragEndState = rememberUpdatedState(onDragEnd)
+    val onDragCancelState = rememberUpdatedState(onDragCancel)
 
     CardFace(
         card = card,
         selected = selected,
         onClick = {
-            if (interactive && !isDragging) onCardClick(card.id)
+            if (interactive && !isDragging) onCardClickState.value(card.id)
         },
         modifier = Modifier
             .onGloballyPositioned { coordinates ->
-                boundsInRoot = coordinates.boundsInRoot()
+                layoutCoordinates = coordinates
             }
             .then(
                 if (interactive) {
                     Modifier.pointerInput(card.id) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = { localOffset ->
-                                val start = Offset(
-                                    x = boundsInRoot.left + localOffset.x,
-                                    y = boundsInRoot.top + localOffset.y,
-                                )
-                                fingerInRoot = start
-                                onDragStart(card.id, start)
+                                val start = layoutCoordinatesState.value.toRootOrNull(localOffset)
+                                    ?: localOffset
+                                onDragStartState.value(card.id, start)
                             },
-                            onDrag = { change, dragAmount ->
+                            onDrag = { change, _ ->
                                 change.consume()
-                                val next = fingerInRoot + dragAmount
-                                fingerInRoot = next
-                                onDrag(next)
+                                val next = layoutCoordinatesState.value.toRootOrNull(change.position)
+                                    ?: change.position
+                                onDragState.value(next)
                             },
-                            onDragEnd = onDragEnd,
-                            onDragCancel = onDragCancel,
+                            onDragEnd = { onDragEndState.value() },
+                            onDragCancel = { onDragCancelState.value() },
                         )
                     }
                 } else {
@@ -105,4 +107,10 @@ private fun DraggableHandCard(
                 },
             ),
     )
+}
+
+private fun LayoutCoordinates?.toRootOrNull(local: Offset): Offset? {
+    val coords = this ?: return null
+    if (!coords.isAttached) return null
+    return coords.localToRoot(local)
 }

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -96,14 +95,26 @@ fun TableCardsView(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 tablePairs.chunked(TableColumnCount).forEach { rowPairs ->
+                    val centerShortRow = rowPairs.size < TableColumnCount
                     Row(
                         modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (centerShortRow) {
+                            Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                        } else {
+                            Arrangement.Start
+                        },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         rowPairs.forEachIndexed { indexInRow, pair ->
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .then(
+                                        if (centerShortRow) {
+                                            Modifier
+                                        } else {
+                                            Modifier.weight(1f)
+                                        },
+                                    )
                                     .zIndex(indexInRow.toFloat()),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -116,9 +127,6 @@ fun TableCardsView(
                                     },
                                 )
                             }
-                        }
-                        repeat(TableColumnCount - rowPairs.size) {
-                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
