@@ -5,7 +5,7 @@ alwaysApply: true
 
 # FoolCardGame — Project Overview
 
-- Kotlin Android app, minSdk 34, Jetpack Compose + MVVM
+- Kotlin Android app, minSdk 33, Jetpack Compose + MVVM
 - Stack: Retrofit, OkHttp, Coroutines, Kotlinx Serialization, Compose Animation
 - UI language: **Russian**
 - Follow phased plan in `docs/phases/` — current phase README is source of truth

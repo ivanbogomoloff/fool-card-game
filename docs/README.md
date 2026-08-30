@@ -11,7 +11,7 @@ Android-клиент карточной игры «Подкидной дурак
 | Архитектура | MVVM |
 | Сеть | Retrofit, OkHttp, Kotlin Coroutines |
 | Сериализация | Kotlinx Serialization |
-| Мин. версия | Android 14 (API 34) |
+| Мин. версия | Android 13 (API 33) |
 
 ## Документация
 
