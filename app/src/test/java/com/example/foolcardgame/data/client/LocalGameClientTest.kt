@@ -32,6 +32,10 @@ class LocalGameClientTest {
         val sessionId = client.createSession(GameConfig(botCount = 2, seed = 42))
         val state = client.getState(sessionId)
         assertTrue(state.players.filter { it.id != state.localPlayerId }.all { !it.isConnected })
+        assertEquals(GamePhase.LOBBY_WAITING.name, state.phase.name)
+        assertEquals(6, state.localHand.size)
+        assertTrue(state.deckCount > 0)
+        assertTrue(state.trump != null)
         client.leaveSession(sessionId)
     }
 

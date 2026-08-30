@@ -16,7 +16,9 @@ class GameUiStateMapperTest {
 
         assertEquals(GamePhase.LOBBY_WAITING, uiState.phase)
         assertEquals(HandPrimaryAction.READY, uiState.actions.primary)
-        assertTrue(uiState.hand.isEmpty())
+        assertEquals(6, uiState.hand.size)
+        assertEquals("♥", uiState.trump?.suitSymbol)
+        assertEquals(18, uiState.deckCount)
         assertFalse(uiState.hasDisconnectedOpponent)
         assertTrue(uiState.opponents.all { !it.isReady })
         assertTrue(uiState.opponents.all { it.roleBanner == OpponentRoleBanner.NONE })
@@ -116,11 +118,22 @@ class GameUiStateMapperTest {
     }
 
     @Test
-    fun resolvePrimaryAction_passBeforeBito() {
+    fun resolvePrimaryAction_bitoBeforePass() {
         val dto = MockGameStates.inProgress().copy(
             canReady = false,
             canTake = false,
             canBito = true,
+            canPass = true,
+        )
+        assertEquals(HandPrimaryAction.BITO, GameUiStateMapper.resolvePrimaryAction(dto))
+    }
+
+    @Test
+    fun resolvePrimaryAction_helperPassWhenCannotBito() {
+        val dto = MockGameStates.inProgress().copy(
+            canReady = false,
+            canTake = false,
+            canBito = false,
             canPass = true,
         )
         assertEquals(HandPrimaryAction.PASS, GameUiStateMapper.resolvePrimaryAction(dto))

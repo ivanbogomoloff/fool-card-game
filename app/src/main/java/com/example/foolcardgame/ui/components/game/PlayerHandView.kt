@@ -31,6 +31,7 @@ fun PlayerHandView(
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    interactive: Boolean = true,
 ) {
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
@@ -41,6 +42,7 @@ fun PlayerHandView(
                 card = card,
                 selected = card.id == selectedCardId,
                 isDragging = card.id == draggingCardId,
+                interactive = interactive,
                 onCardClick = onCardClick,
                 onDragStart = onDragStart,
                 onDrag = onDrag,
@@ -56,6 +58,7 @@ private fun DraggableHandCard(
     card: CardUi,
     selected: Boolean,
     isDragging: Boolean,
+    interactive: Boolean,
     onCardClick: (String) -> Unit,
     onDragStart: (cardId: String, positionInRoot: Offset) -> Unit,
     onDrag: (positionInRoot: Offset) -> Unit,
@@ -69,31 +72,37 @@ private fun DraggableHandCard(
         card = card,
         selected = selected,
         onClick = {
-            if (!isDragging) onCardClick(card.id)
+            if (interactive && !isDragging) onCardClick(card.id)
         },
         modifier = Modifier
             .onGloballyPositioned { coordinates ->
                 boundsInRoot = coordinates.boundsInRoot()
             }
-            .pointerInput(card.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { localOffset ->
-                        val start = Offset(
-                            x = boundsInRoot.left + localOffset.x,
-                            y = boundsInRoot.top + localOffset.y,
+            .then(
+                if (interactive) {
+                    Modifier.pointerInput(card.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { localOffset ->
+                                val start = Offset(
+                                    x = boundsInRoot.left + localOffset.x,
+                                    y = boundsInRoot.top + localOffset.y,
+                                )
+                                fingerInRoot = start
+                                onDragStart(card.id, start)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                val next = fingerInRoot + dragAmount
+                                fingerInRoot = next
+                                onDrag(next)
+                            },
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
                         )
-                        fingerInRoot = start
-                        onDragStart(card.id, start)
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        val next = fingerInRoot + dragAmount
-                        fingerInRoot = next
-                        onDrag(next)
-                    },
-                    onDragEnd = onDragEnd,
-                    onDragCancel = onDragCancel,
-                )
-            },
+                    }
+                } else {
+                    Modifier
+                },
+            ),
     )
 }

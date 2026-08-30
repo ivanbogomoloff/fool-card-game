@@ -9,6 +9,7 @@ import com.example.foolcardgame.domain.model.PlayerStatus
 import com.example.foolcardgame.domain.model.Rank
 import com.example.foolcardgame.domain.model.Suit
 import com.example.foolcardgame.domain.model.TablePair
+import com.example.foolcardgame.domain.model.permissionsFor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -23,15 +24,19 @@ class GameEngineTest {
     @Test
     fun deal_gives6CardsEach_andTrumpFromDeckBottom() {
         val sessionId = engine.createSession(GameConfig(botCount = 2, seed = 42))
+        val lobby = engine.getState(sessionId)
+
+        assertEquals(GamePhase.LOBBY_WAITING, lobby.phase)
+        lobby.players.forEach { assertEquals(6, it.hand.size) }
+        assertEquals(36 - 3 * 6, lobby.deck.size)
+        assertNotNull(lobby.trumpCard)
+        assertEquals(lobby.deck.last(), lobby.trumpCard)
+        assertEquals(lobby.trumpCard?.suit, lobby.trumpSuit)
+        assertNull(lobby.attackerId)
+
         readyAll(sessionId)
         val state = engine.getState(sessionId)
-
         assertEquals(GamePhase.IN_PROGRESS, state.phase)
-        state.players.forEach { assertEquals(6, it.hand.size) }
-        assertEquals(36 - 3 * 6, state.deck.size)
-        assertNotNull(state.trumpCard)
-        assertEquals(state.deck.last(), state.trumpCard)
-        assertEquals(state.trumpCard?.suit, state.trumpSuit)
         assertNotNull(state.attackerId)
         assertNotNull(state.defenderId)
     }
@@ -199,7 +204,7 @@ class GameEngineTest {
             ),
         )
 
-        assertTrue(engine.pass(sessionId, "local").isSuccess)
+        assertTrue(engine.bito(sessionId, "local").isSuccess)
         val state = engine.getState(sessionId)
         assertTrue(state.tablePairs.isEmpty())
         // After bito, previous defender (bot-1) attacks; bot-2 empty → local defends
@@ -261,13 +266,12 @@ class GameEngineTest {
             ),
         )
 
-        assertTrue(engine.pass(sessionId, "local").isSuccess)
-        var state = engine.getState(sessionId)
-        assertEquals(1, state.tablePairs.size) // still open — helper has not passed
-        assertTrue("local" in state.passedPlayerIds)
-        assertEquals("bot-2", state.currentPlayerId)
-
         assertTrue(engine.pass(sessionId, "bot-2").isSuccess)
+        var state = engine.getState(sessionId)
+        assertEquals(1, state.tablePairs.size) // helper passed; attacker must bito
+        assertTrue("bot-2" in state.passedPlayerIds)
+
+        assertTrue(engine.bito(sessionId, "local").isSuccess)
         state = engine.getState(sessionId)
         assertTrue(state.tablePairs.isEmpty())
         assertEquals("bot-1", state.attackerId) // previous defender attacks after bito
@@ -352,7 +356,7 @@ class GameEngineTest {
             ),
         )
 
-        assertTrue(engine.pass(sessionId, "local").isSuccess)
+        assertTrue(engine.bito(sessionId, "local").isSuccess)
         val state = engine.getState(sessionId)
         assertEquals("bot-1", state.attackerId)
         assertEquals("local", state.defenderId)
@@ -527,6 +531,55 @@ class GameEngineTest {
         val ended = engine.getState(sessionId)
         assertEquals(GamePhase.FINISHED, ended.phase)
         assertEquals("bot-1", ended.loserId)
+    }
+
+    @Test
+    fun attacker_allBeaten_canBito_notPass() {
+        val sessionId = "s-perm-attacker"
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                defenderHandSizeAtRoundStart = 3,
+            ),
+        )
+        val perms = engine.getState(sessionId).permissionsFor("local")
+        assertTrue(perms.canBito)
+        assertFalse(perms.canPass)
+    }
+
+    @Test
+    fun helper_allBeaten_canPass_notBito() {
+        val sessionId = "s-perm-helper"
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                currentPlayerId = "bot-2",
+                helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                defenderHandSizeAtRoundStart = 3,
+            ),
+        )
+        val perms = engine.getState(sessionId).permissionsFor("bot-2")
+        assertTrue(perms.canPass)
+        assertFalse(perms.canBito)
     }
 
     private fun readyAll(sessionId: String) {

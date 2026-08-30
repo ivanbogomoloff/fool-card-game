@@ -203,10 +203,16 @@ private fun InProgressGameLayout(
             )
             PlayerHandView(
                 hand = uiState.hand,
-                selectedCardId = uiState.selectedCardId,
+                selectedCardId = if (uiState.phase == GamePhase.LOBBY_WAITING) {
+                    null
+                } else {
+                    uiState.selectedCardId
+                },
                 draggingCardId = dragState?.cardId,
+                interactive = uiState.phase != GamePhase.LOBBY_WAITING,
                 onCardClick = onCardClick,
                 onDragStart = { cardId, position ->
+                    if (uiState.phase == GamePhase.LOBBY_WAITING) return@PlayerHandView
                     val card = uiState.hand.firstOrNull { it.id == cardId } ?: return@PlayerHandView
                     dragState = HandDragState(cardId, card, position)
                 },

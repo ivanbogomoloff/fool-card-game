@@ -91,9 +91,8 @@ object GameUiStateMapper {
     fun resolvePrimaryAction(dto: GameStateDto): HandPrimaryAction = when {
         dto.canReady -> HandPrimaryAction.READY
         dto.canTake -> HandPrimaryAction.TAKE
-        // Pass before bito so the attacker can refuse to throw and auto-finish via engine.
-        dto.canPass -> HandPrimaryAction.PASS
         dto.canBito -> HandPrimaryAction.BITO
+        dto.canPass -> HandPrimaryAction.PASS
         else -> HandPrimaryAction.NONE
     }
 

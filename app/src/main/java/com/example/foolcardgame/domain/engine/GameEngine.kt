@@ -48,19 +48,22 @@ class GameEngine(
                 status = PlayerStatus.DISCONNECTED,
             )
         }
-        sessions[sessionId] = GameState(
-            sessionId = sessionId,
-            phase = GamePhase.LOBBY_WAITING,
-            players = listOf(human) + bots,
-            deck = emptyList(),
-            trumpCard = null,
-            trumpSuit = null,
-            tablePairs = emptyList(),
-            attackerId = null,
-            defenderId = null,
-            currentPlayerId = null,
-        )
         sessionSeeds[sessionId] = config.seed
+        sessions[sessionId] = dealForLobby(
+            GameState(
+                sessionId = sessionId,
+                phase = GamePhase.LOBBY_WAITING,
+                players = listOf(human) + bots,
+                deck = emptyList(),
+                trumpCard = null,
+                trumpSuit = null,
+                tablePairs = emptyList(),
+                attackerId = null,
+                defenderId = null,
+                currentPlayerId = null,
+            ),
+            config.seed,
+        )
         return sessionId
     }
 
@@ -85,7 +88,7 @@ class GameEngine(
         }.bumpTick()
 
         if (next.players.all { it.isReady }) {
-            next = dealAndStart(next, sessionSeeds[sessionId] ?: GameConfig.DEFAULT_SEED)
+            next = beginGame(next)
         }
         Result.success(next)
     }
@@ -325,38 +328,43 @@ class GameEngine(
             it.copy(isReady = true, isConnected = true, status = PlayerStatus.PLAYING)
         }.bumpTick()
         if (next.players.all { it.isReady }) {
-            next = dealAndStart(next, sessionSeeds[state.sessionId] ?: GameConfig.DEFAULT_SEED)
+            next = beginGame(next)
         }
         return Result.success(next)
     }
 
-    private fun dealAndStart(state: GameState, seed: Long): GameState {
+    /** Deal 6 cards and trump while staying in lobby so players can study hands before ready. */
+    private fun dealForLobby(state: GameState, seed: Long): GameState {
         var deck = Deck.shuffled(seed)
         val dealtPlayers = state.players.map { player ->
             val hand = deck.take(6)
             deck = deck.drop(6)
-            player.copy(
-                hand = hand,
-                status = PlayerStatus.PLAYING,
-                isReady = true,
-                isConnected = true,
-                isFinished = false,
-            )
+            player.copy(hand = hand, isFinished = false)
         }
         val trumpCard = deck.lastOrNull()
-        val trumpSuit = trumpCard?.suit
-        val attackerId = findFirstAttacker(dealtPlayers, trumpSuit)
-        val ordered = dealtPlayers
-        val attackerIndex = ordered.indexOfFirst { it.id == attackerId }
-        val defender = nextPlayerWithCards(ordered, attackerIndex) ?: ordered[(attackerIndex + 1) % ordered.size]
-
         return state.copy(
-            phase = GamePhase.IN_PROGRESS,
+            phase = GamePhase.LOBBY_WAITING,
             players = dealtPlayers,
             deck = deck,
             trumpCard = trumpCard,
-            trumpSuit = trumpSuit,
+            trumpSuit = trumpCard?.suit,
             tablePairs = emptyList(),
+            attackerId = null,
+            defenderId = null,
+            currentPlayerId = null,
+            passedPlayerIds = emptySet(),
+            defenderHandSizeAtRoundStart = 0,
+        )
+    }
+
+    private fun beginGame(state: GameState): GameState {
+        val players = state.players
+        val attackerId = findFirstAttacker(players, state.trumpSuit)
+        val attackerIndex = players.indexOfFirst { it.id == attackerId }
+        val defender = nextPlayerWithCards(players, attackerIndex)
+            ?: players[(attackerIndex + 1) % players.size]
+        return state.copy(
+            phase = GamePhase.IN_PROGRESS,
             attackerId = attackerId,
             defenderId = defender.id,
             currentPlayerId = attackerId,
