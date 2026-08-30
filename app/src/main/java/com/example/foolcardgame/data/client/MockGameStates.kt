@@ -135,11 +135,32 @@ object MockGameStates {
         canPass = false,
         canTake = false,
         canReady = false,
-        winnerName = "Игрок",
+        currentPlayerId = null,
+        winnerName = "Вы",
         loserName = "Бот 2",
-        localHand = emptyList(),
-        tablePairs = emptyList(),
+        loserId = "bot-2",
+        localHand = listOf(
+            card(SuitDto.HEARTS, RankDto.SIX),
+            card(SuitDto.SPADES, RankDto.SEVEN),
+        ),
+        tablePairs = listOf(
+            TablePairDto(
+                id = 1,
+                attack = card(SuitDto.DIAMONDS, RankDto.SEVEN),
+                defense = card(SuitDto.DIAMONDS, RankDto.TEN),
+            ),
+        ),
         deckCount = 0,
+        players = listOf(
+            localPlayer(isReady = true, handCount = 2, status = PlayerStatusDto.PLAYING),
+            botPlayer(id = "bot-1", name = "Бот 1", handCount = 0, isReady = true, status = PlayerStatusDto.PLAYING),
+            botPlayer(id = "bot-2", name = "Бот 2", handCount = 3, isReady = true, status = PlayerStatusDto.PLAYING),
+        ),
+        revealLoserCards = listOf(
+            card(SuitDto.CLUBS, RankDto.SIX),
+            card(SuitDto.HEARTS, RankDto.EIGHT),
+            card(SuitDto.SPADES, RankDto.NINE),
+        ),
     )
 
     private fun localPlayer(

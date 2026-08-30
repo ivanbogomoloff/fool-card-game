@@ -2,6 +2,7 @@ package com.example.foolcardgame.presentation.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.foolcardgame.data.api.dto.GamePhaseDto
 import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.api.dto.GameStateDto
 import com.example.foolcardgame.data.api.dto.RoundEventKindDto
@@ -60,7 +61,7 @@ open class GameViewModel(
                         val snapshotPairs = previousDto?.tablePairs
                             ?.let { GameUiStateMapper.mapTablePairs(it) }
                             .orEmpty()
-                        if (snapshotPairs.isNotEmpty()) {
+                        if (snapshotPairs.isNotEmpty() && dto.phase != GamePhaseDto.FINISHED) {
                             newFlyAnimation = TableFlyAnimationUi(
                                 pairs = snapshotPairs,
                                 targetOpponentId = event.playerId,
@@ -101,6 +102,7 @@ open class GameViewModel(
                         readySecondsLeft = current.readySecondsLeft,
                         turnSecondsLeft = current.turnSecondsLeft,
                         showLobbyTimeoutDialog = current.showLobbyTimeoutDialog,
+                        showLoserCards = current.showLoserCards,
                         opponentAction = newOpponentAction ?: current.opponentAction,
                         tableFlyAnimation = newFlyAnimation ?: current.tableFlyAnimation,
                         gameHistory = if (newHistoryEntry != null) {
@@ -167,6 +169,14 @@ open class GameViewModel(
     fun onReadyClick() {
         cancelReadyTimer(clearSeconds = true)
         viewModelScope.launch { gameClient.ready(sessionId) }
+    }
+
+    fun onToggleLoserCardsClick() {
+        _uiState.update { it.copy(showLoserCards = !it.showLoserCards) }
+    }
+
+    fun onExitClick() {
+        onLeaveConfirm()
     }
 
     fun onBackClick() {

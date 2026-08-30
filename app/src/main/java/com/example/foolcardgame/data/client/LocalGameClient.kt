@@ -300,6 +300,12 @@ internal fun GameState.toDto(localPlayerId: String): GameStateDto {
         canReady = perms.canReady,
         winnerName = winnerIds.firstOrNull()?.let { id -> players.find { it.id == id }?.displayName },
         loserName = loserId?.let { id -> players.find { it.id == id }?.displayName },
+        loserId = loserId,
+        revealLoserCards = if (phase == GamePhase.FINISHED) {
+            loserId?.let { id -> player(id)?.hand?.map { it.toDto() } }.orEmpty()
+        } else {
+            emptyList()
+        },
         turnDeadlineAtMs = turnDeadlineAtMs,
         roundEvent = lastRoundEvent?.let { event ->
             RoundEventDto(

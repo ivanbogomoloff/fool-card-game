@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -56,6 +54,8 @@ fun GameTableLayout(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onToggleLoserCardsClick: () -> Unit = {},
+    onExitClick: () -> Unit = {},
     onFlyAnimationFinished: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -69,36 +69,20 @@ fun GameTableLayout(
         return
     }
 
-    when (uiState.phase) {
-        GamePhase.FINISHED -> {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = uiState.resultMessage.orEmpty(),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
-        }
-        GamePhase.LOBBY_WAITING,
-        GamePhase.IN_PROGRESS,
-        -> {
-            InProgressGameLayout(
-                uiState = uiState,
-                onCardClick = onCardClick,
-                onAttackDrop = onAttackDrop,
-                onDefendDrop = onDefendDrop,
-                onBitoClick = onBitoClick,
-                onPassClick = onPassClick,
-                onTakeClick = onTakeClick,
-                onReadyClick = onReadyClick,
-                onFlyAnimationFinished = onFlyAnimationFinished,
-                modifier = modifier,
-            )
-        }
-    }
+    InProgressGameLayout(
+        uiState = uiState,
+        onCardClick = onCardClick,
+        onAttackDrop = onAttackDrop,
+        onDefendDrop = onDefendDrop,
+        onBitoClick = onBitoClick,
+        onPassClick = onPassClick,
+        onTakeClick = onTakeClick,
+        onReadyClick = onReadyClick,
+        onToggleLoserCardsClick = onToggleLoserCardsClick,
+        onExitClick = onExitClick,
+        onFlyAnimationFinished = onFlyAnimationFinished,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -111,6 +95,8 @@ private fun InProgressGameLayout(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onToggleLoserCardsClick: () -> Unit,
+    onExitClick: () -> Unit,
     onFlyAnimationFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -126,7 +112,9 @@ private fun InProgressGameLayout(
     var pendingAfterFlyaway by remember { mutableStateOf<(() -> Unit)?>(null) }
     var lastHandledFlyTick by remember { mutableStateOf(-1L) }
     val density = LocalDensity.current
-    val isDiscardAnimating = discardFlyaway.isNotEmpty()
+    val isGameFinished = uiState.phase == GamePhase.FINISHED
+    val isHandInteractive = uiState.phase == GamePhase.IN_PROGRESS
+    val isDiscardAnimating = discardFlyaway.isNotEmpty() && !isGameFinished
     val visibleTablePairs = if (suppressTableCards) emptyList() else uiState.tablePairs
     val livePairIds = visibleTablePairs.map { it.id }.toSet()
     SideEffect {
@@ -137,6 +125,7 @@ private fun InProgressGameLayout(
         pairs: List<TablePairUi>,
         direction: TableFlyawayDirection,
     ): Boolean {
+        if (isGameFinished) return false
         if (isDiscardAnimating || pairs.isEmpty()) return false
         val flyExtraPx = with(density) { 120.dp.toPx() }
         val cardWidthPx = with(density) { 56.dp.toPx() }
@@ -206,6 +195,10 @@ private fun InProgressGameLayout(
                 opponents = uiState.opponents,
                 phase = uiState.phase,
                 opponentAction = uiState.opponentAction,
+                loserId = uiState.loserId,
+                localPlayerId = uiState.localPlayerId,
+                showLoserCards = uiState.showLoserCards,
+                revealLoserCards = uiState.revealLoserCards,
                 onOpponentAvatarBoundsChanged = { id, bounds ->
                     opponentAvatarBounds[id] = bounds
                 },
@@ -247,10 +240,17 @@ private fun InProgressGameLayout(
                 isLocalPlayerTurn = uiState.isLocalPlayerTurn,
                 isLocalDefending = uiState.isLocalDefending,
                 isLocalAttacking = uiState.isLocalAttacking,
+                finishedSummary = uiState.finishedSummary,
+                canRevealLoserCards = uiState.canRevealLoserCards,
+                showLoserCards = uiState.showLoserCards,
                 onBitoClick = {
                     if (isDiscardAnimating) return@GameActionBar
-                    startTableFlyaway(TableFlyawayDirection.Right)
-                    onBitoClick()
+                    if (uiState.deckCount == 0) {
+                        onBitoClick()
+                    } else {
+                        startTableFlyaway(TableFlyawayDirection.Right)
+                        onBitoClick()
+                    }
                 },
                 onPassClick = onPassClick,
                 onTakeClick = {
@@ -266,19 +266,21 @@ private fun InProgressGameLayout(
                     }
                 },
                 onReadyClick = onReadyClick,
+                onToggleLoserCardsClick = onToggleLoserCardsClick,
+                onExitClick = onExitClick,
             )
             PlayerHandView(
                 hand = uiState.hand,
-                selectedCardId = if (uiState.phase == GamePhase.LOBBY_WAITING) {
-                    null
-                } else {
+                selectedCardId = if (isHandInteractive) {
                     uiState.selectedCardId
+                } else {
+                    null
                 },
                 draggingCardId = dragState?.cardId,
-                interactive = uiState.phase != GamePhase.LOBBY_WAITING,
+                interactive = isHandInteractive,
                 onCardClick = onCardClick,
                 onDragStart = { cardId, position ->
-                    if (uiState.phase == GamePhase.LOBBY_WAITING) return@PlayerHandView
+                    if (!isHandInteractive) return@PlayerHandView
                     val card = uiState.hand.firstOrNull { it.id == cardId } ?: return@PlayerHandView
                     dragState = HandDragState(cardId, card, position)
                 },

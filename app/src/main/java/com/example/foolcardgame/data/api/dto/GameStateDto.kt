@@ -119,6 +119,8 @@ data class GameStateDto(
     val canReady: Boolean = false,
     val winnerName: String? = null,
     val loserName: String? = null,
+    val loserId: String? = null,
+    val revealLoserCards: List<CardDto> = emptyList(),
     val turnDeadlineAtMs: Long? = null,
     val roundEvent: RoundEventDto? = null,
     val actionEvent: GameActionEventDto? = null,

@@ -15,6 +15,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.presentation.game.GameUiState
 import com.example.foolcardgame.ui.components.game.GameTableLayout
 import com.example.foolcardgame.ui.components.game.LeaveGameDialog
@@ -37,12 +38,16 @@ fun GameSessionScreen(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onToggleLoserCardsClick: () -> Unit = {},
+    onExitClick: () -> Unit = {},
     onFlyAnimationFinished: () -> Unit = {},
     onLobbyTimeoutDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     debugPanel: @Composable (() -> Unit)? = null,
 ) {
-    BackHandler(onBack = onBackClick)
+    val handleBack = if (uiState.phase == GamePhase.FINISHED) onExitClick else onBackClick
+
+    BackHandler(onBack = handleBack)
 
     LeaveGameDialog(
         visible = uiState.showLeaveDialog,
@@ -61,7 +66,7 @@ fun GameSessionScreen(
             TopAppBar(
                 title = { Text(text = title) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
@@ -91,6 +96,8 @@ fun GameSessionScreen(
                 onPassClick = onPassClick,
                 onTakeClick = onTakeClick,
                 onReadyClick = onReadyClick,
+                onToggleLoserCardsClick = onToggleLoserCardsClick,
+                onExitClick = onExitClick,
                 onFlyAnimationFinished = onFlyAnimationFinished,
                 modifier = Modifier.fillMaxSize(),
             )

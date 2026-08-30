@@ -64,6 +64,7 @@ enum class HandPrimaryAction {
     BITO,
     PASS,
     TAKE,
+    FINISHED,
     NONE,
 }
 
@@ -85,6 +86,14 @@ data class GameUiState(
     val showLeaveDialog: Boolean = false,
     val actions: GameActionsUi = GameActionsUi(),
     val resultMessage: String? = null,
+    val localPlayerId: String = "",
+    val loserId: String? = null,
+    val loserName: String? = null,
+    val revealLoserCards: List<CardUi> = emptyList(),
+    val showLoserCards: Boolean = false,
+    val canRevealLoserCards: Boolean = false,
+    val isLocalPlayerLoser: Boolean = false,
+    val finishedSummary: String? = null,
     val serverTick: Long? = null,
     val hasDisconnectedOpponent: Boolean = false,
     val readySecondsLeft: Int? = null,

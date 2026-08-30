@@ -602,22 +602,29 @@ class GameEngine(
     }
 
     private fun endRoundBito(state: GameState): GameState {
-        val discarded = state.tablePairs.flatMap { listOfNotNull(it.attack, it.defense) }
+        val lastRoundTable = state.tablePairs
+        val discarded = lastRoundTable.flatMap { listOfNotNull(it.attack, it.defense) }
         var next = state.copy(
             tablePairs = emptyList(),
             passedPlayerIds = emptySet(),
-            discardPile = state.discardPile + discarded,
         )
         next = drawUpToSix(next, skipDefenderDraw = false)
         next = next.markFinishedPlayers()
 
         val finishedCheck = next.checkGameEnd()
         if (finishedCheck.phase == GamePhase.FINISHED) {
-            return finishedCheck.copy(turnDeadlineAtMs = null, turnStartedAtMs = null)
+            return finishedCheck.copy(
+                tablePairs = lastRoundTable,
+                discardPile = state.discardPile,
+                turnDeadlineAtMs = null,
+                turnStartedAtMs = null,
+            )
         }
 
-        val oldDefenderId = state.defenderId ?: return finishedCheck
-        val players = finishedCheck.playersInGame().ifEmpty { finishedCheck.playersWithCards() }
+        next = next.copy(discardPile = state.discardPile + discarded)
+
+        val oldDefenderId = state.defenderId ?: return next
+        val players = next.playersInGame().ifEmpty { next.playersWithCards() }
         val defenderIndex = players.indexOfFirst { it.id == oldDefenderId }
         // After bito, previous defender becomes the attacker.
         val newAttacker = players.find { it.id == oldDefenderId && it.hand.isNotEmpty() }
@@ -627,15 +634,15 @@ class GameEngine(
                 null
             })
             ?: players.firstOrNull()
-            ?: return finishedCheck
+            ?: return next
         val newAttackerIndex = players.indexOfFirst { it.id == newAttacker.id }
         val newDefender = nextPlayerWithCards(players, newAttackerIndex) ?: players.first()
 
-        return finishedCheck.copy(
+        return next.copy(
             attackerId = newAttacker.id,
             defenderId = newDefender.id,
             currentPlayerId = newAttacker.id,
-            defenderHandSizeAtRoundStart = finishedCheck.player(newDefender.id)?.hand?.size ?: 0,
+            defenderHandSizeAtRoundStart = next.player(newDefender.id)?.hand?.size ?: 0,
         ).withTurnDeadline()
     }
 
@@ -753,10 +760,6 @@ class GameEngine(
                     currentPlayerId = null,
                     loserId = loser?.id,
                     winnerIds = players.map { it.id }.filter { it != loser?.id },
-                    tablePairs = emptyList(),
-                    discardPile = discardPile + tablePairs.flatMap {
-                        listOfNotNull(it.attack, it.defense)
-                    },
                 )
             }
             else -> copy(winnerIds = winners.filter { id ->

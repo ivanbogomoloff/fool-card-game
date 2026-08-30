@@ -42,6 +42,11 @@ fun GameDebugScreen(
         onPassClick = viewModel::onPassClick,
         onTakeClick = viewModel::onTakeClick,
         onReadyClick = viewModel::onReadyClick,
+        onToggleLoserCardsClick = viewModel::onToggleLoserCardsClick,
+        onExitClick = {
+            viewModel.onExitClick()
+            onBack()
+        },
         onFlyAnimationFinished = viewModel::onFlyAnimationFinished,
         onLobbyTimeoutDismiss = {
             viewModel.onLobbyTimeoutDismiss()

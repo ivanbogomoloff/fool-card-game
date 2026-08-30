@@ -533,6 +533,8 @@ class GameEngineTest {
         val ended = engine.getState(sessionId)
         assertEquals(GamePhase.FINISHED, ended.phase)
         assertEquals("bot-1", ended.loserId)
+        assertTrue(ended.tablePairs.isNotEmpty())
+        assertEquals(Rank.TEN, ended.tablePairs.first().defense?.rank)
     }
 
     @Test

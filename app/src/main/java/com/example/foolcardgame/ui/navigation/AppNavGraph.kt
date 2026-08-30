@@ -137,6 +137,14 @@ fun AppNavGraph(
                 onPassClick = viewModel::onPassClick,
                 onTakeClick = viewModel::onTakeClick,
                 onReadyClick = viewModel::onReadyClick,
+                onToggleLoserCardsClick = viewModel::onToggleLoserCardsClick,
+                onExitClick = {
+                    viewModel.onExitClick()
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.MAIN) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onFlyAnimationFinished = viewModel::onFlyAnimationFinished,
                 onLobbyTimeoutDismiss = {
                     viewModel.onLobbyTimeoutDismiss()

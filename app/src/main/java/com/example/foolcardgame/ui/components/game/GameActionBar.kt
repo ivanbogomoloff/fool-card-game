@@ -32,6 +32,11 @@ fun GameActionBar(
     isLocalPlayerTurn: Boolean = false,
     isLocalDefending: Boolean = false,
     isLocalAttacking: Boolean = false,
+    finishedSummary: String? = null,
+    canRevealLoserCards: Boolean = false,
+    showLoserCards: Boolean = false,
+    onToggleLoserCardsClick: () -> Unit = {},
+    onExitClick: () -> Unit = {},
 ) {
     val showStatusOnly = actions.primary == HandPrimaryAction.NONE &&
         (isLocalDefending || (isLocalAttacking && isLocalPlayerTurn))
@@ -98,6 +103,36 @@ fun GameActionBar(
                     )
                 },
             )
+            HandPrimaryAction.FINISHED -> {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (finishedSummary != null) {
+                        Text(
+                            text = finishedSummary,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = SoftCoral,
+                        )
+                    }
+                    if (canRevealLoserCards) {
+                        PrimaryButton(
+                            text = if (showLoserCards) {
+                                "Скрыть карты Дурака"
+                            } else {
+                                "Показать карты Дурака"
+                            },
+                            onClick = onToggleLoserCardsClick,
+                            fillWidth = false,
+                        )
+                    }
+                    PrimaryButton(
+                        text = "Выйти",
+                        onClick = onExitClick,
+                        fillWidth = false,
+                    )
+                }
+            }
             HandPrimaryAction.NONE -> {
                 when {
                     isLocalDefending -> TurnActionRow(

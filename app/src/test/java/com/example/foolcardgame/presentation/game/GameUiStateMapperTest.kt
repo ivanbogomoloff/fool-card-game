@@ -5,6 +5,7 @@ import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.ui.components.game.formatReadyTimer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -113,8 +114,28 @@ class GameUiStateMapperTest {
         val uiState = GameUiStateMapper.map(MockGameStates.finished())
 
         assertEquals(GamePhase.FINISHED, uiState.phase)
-        assertEquals(HandPrimaryAction.NONE, uiState.actions.primary)
+        assertEquals(HandPrimaryAction.FINISHED, uiState.actions.primary)
         assertTrue(uiState.resultMessage?.contains("Победитель") == true)
+        assertNull(uiState.finishedSummary)
+        assertTrue(uiState.canRevealLoserCards)
+        assertTrue(uiState.tablePairs.isNotEmpty())
+        assertEquals("bot-2", uiState.loserId)
+        assertEquals(3, uiState.revealLoserCards.size)
+    }
+
+    @Test
+    fun map_finished_localLoser_showsFinishedSummary() {
+        val uiState = GameUiStateMapper.map(
+            MockGameStates.finished().copy(
+                loserId = MockGameStates.LOCAL_PLAYER_ID,
+                loserName = "Вы",
+                revealLoserCards = emptyList(),
+            ),
+        )
+
+        assertEquals("Вы — дурак", uiState.finishedSummary)
+        assertFalse(uiState.canRevealLoserCards)
+        assertTrue(uiState.isLocalPlayerLoser)
     }
 
     @Test

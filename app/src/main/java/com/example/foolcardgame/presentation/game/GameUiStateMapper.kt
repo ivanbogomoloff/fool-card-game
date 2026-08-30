@@ -1,6 +1,7 @@
 package com.example.foolcardgame.presentation.game
 
 import com.example.foolcardgame.data.api.dto.CardDto
+import com.example.foolcardgame.data.api.dto.GamePhaseDto
 import com.example.foolcardgame.data.api.dto.GameStateDto
 import com.example.foolcardgame.data.api.dto.RankDto
 import com.example.foolcardgame.data.api.dto.TablePairDto
@@ -51,6 +52,11 @@ object GameUiStateMapper {
             hasUnbeaten = hasUnbeaten,
             allBeaten = allBeaten,
         )
+        val revealLoserCards = dto.revealLoserCards.map { it.toUi() }
+        val isLocalPlayerLoser = dto.loserId == dto.localPlayerId
+        val canRevealLoserCards = dto.loserId != null &&
+            !isLocalPlayerLoser &&
+            revealLoserCards.isNotEmpty()
         return GameUiState(
             phase = phase,
             isLoading = false,
@@ -66,6 +72,13 @@ object GameUiStateMapper {
                 GamePhase.FINISHED -> buildResultMessage(dto)
                 else -> null
             },
+            localPlayerId = dto.localPlayerId,
+            loserId = dto.loserId,
+            loserName = dto.loserName,
+            revealLoserCards = revealLoserCards,
+            canRevealLoserCards = canRevealLoserCards,
+            isLocalPlayerLoser = isLocalPlayerLoser,
+            finishedSummary = buildFinishedSummary(dto),
             serverTick = dto.serverTick,
             hasDisconnectedOpponent = opponents.any { !it.isConnected },
             isLocalPlayerTurn = dto.currentPlayerId != null &&
@@ -89,11 +102,17 @@ object GameUiStateMapper {
     }
 
     fun resolvePrimaryAction(dto: GameStateDto): HandPrimaryAction = when {
+        dto.phase == GamePhaseDto.FINISHED -> HandPrimaryAction.FINISHED
         dto.canReady -> HandPrimaryAction.READY
         dto.canTake -> HandPrimaryAction.TAKE
         dto.canBito -> HandPrimaryAction.BITO
         dto.canPass -> HandPrimaryAction.PASS
         else -> HandPrimaryAction.NONE
+    }
+
+    private fun buildFinishedSummary(dto: GameStateDto): String? {
+        if (dto.phase != GamePhaseDto.FINISHED) return null
+        return if (dto.loserId == dto.localPlayerId) "Вы — дурак" else null
     }
 
     private fun buildResultMessage(dto: GameStateDto): String {
