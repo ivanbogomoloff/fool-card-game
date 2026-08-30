@@ -1,6 +1,7 @@
 package com.example.foolcardgame.domain.engine
 
 import com.example.foolcardgame.domain.model.Card
+import com.example.foolcardgame.domain.model.GameActionKind
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.domain.model.GameState
@@ -10,6 +11,7 @@ import com.example.foolcardgame.domain.model.Rank
 import com.example.foolcardgame.domain.model.Suit
 import com.example.foolcardgame.domain.model.TablePair
 import com.example.foolcardgame.domain.model.permissionsFor
+import com.example.foolcardgame.domain.model.RoundEventKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -531,6 +533,162 @@ class GameEngineTest {
         val ended = engine.getState(sessionId)
         assertEquals(GamePhase.FINISHED, ended.phase)
         assertEquals("bot-1", ended.loserId)
+    }
+
+    @Test
+    fun createSession_differentSeeds_produceDifferentHands() {
+        val sessionA = engine.createSession(GameConfig(botCount = 1, seed = 1))
+        val sessionB = engine.createSession(GameConfig(botCount = 1, seed = 2))
+        val handA = engine.getState(sessionA).player("local")!!.hand
+        val handB = engine.getState(sessionB).player("local")!!.hand
+        assertFalse(handA == handB)
+    }
+
+    @Test
+    fun playCard_attack_emitsAttackActionEvent() {
+        val sessionId = "s-attack-event"
+        val attackCard = Card(Suit.HEARTS, Rank.SEVEN)
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(attackCard, Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.SPADES, Rank.ACE), Card(Suit.HEARTS, Rank.SIX)),
+            ),
+        )
+
+        assertTrue(engine.playCard(sessionId, "local", attackCard, targetPairId = null).isSuccess)
+        val event = engine.getState(sessionId).lastActionEvent
+        assertEquals(GameActionKind.ATTACK, event?.kind)
+        assertEquals("local", event?.playerId)
+    }
+
+    @Test
+    fun playCard_defense_emitsDefendActionEvent() {
+        val sessionId = "s-defend-event"
+        val attack = Card(Suit.SPADES, Rank.SEVEN)
+        val defense = Card(Suit.SPADES, Rank.TEN)
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(defense, Card(Suit.HEARTS, Rank.SIX)),
+                tablePairs = listOf(TablePair(id = 1, attack = attack)),
+                currentPlayerId = "bot-1",
+            ),
+        )
+
+        assertTrue(engine.playCard(sessionId, "bot-1", defense, targetPairId = 1).isSuccess)
+        val event = engine.getState(sessionId).lastActionEvent
+        assertEquals(GameActionKind.DEFEND, event?.kind)
+        assertEquals("bot-1", event?.playerId)
+    }
+
+    @Test
+    fun addCard_emitsThrowInActionEvent() {
+        val sessionId = "s-throw-event"
+        val onTable = Card(Suit.SPADES, Rank.SEVEN)
+        val throwCard = Card(Suit.CLUBS, Rank.SEVEN)
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(throwCard, Card(Suit.DIAMONDS, Rank.SIX)),
+                defenderHand = listOf(
+                    Card(Suit.SPADES, Rank.ACE),
+                    Card(Suit.CLUBS, Rank.ACE),
+                    Card(Suit.DIAMONDS, Rank.ACE),
+                ),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = onTable,
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                currentPlayerId = "local",
+            ),
+        )
+
+        assertTrue(engine.addCard(sessionId, "local", throwCard).isSuccess)
+        val event = engine.getState(sessionId).lastActionEvent
+        assertEquals(GameActionKind.THROW_IN, event?.kind)
+        assertEquals("local", event?.playerId)
+    }
+
+    @Test
+    fun pass_emitsPassActionEvent() {
+        val sessionId = "s-pass-event"
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                currentPlayerId = "bot-2",
+                helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                defenderHandSizeAtRoundStart = 3,
+            ),
+        )
+
+        assertTrue(engine.pass(sessionId, "bot-2").isSuccess)
+        val event = engine.getState(sessionId).lastActionEvent
+        assertEquals(GameActionKind.PASS, event?.kind)
+        assertEquals("bot-2", event?.playerId)
+    }
+
+    @Test
+    fun defenderTake_emitsTookRoundEvent() {
+        val sessionId = "s-take-event"
+        val attack = Card(Suit.SPADES, Rank.ACE)
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.CLUBS, Rank.SEVEN)),
+                tablePairs = listOf(TablePair(id = 1, attack = attack)),
+                currentPlayerId = "bot-1",
+            ),
+        )
+        assertTrue(engine.pass(sessionId, "bot-1").isSuccess)
+        val event = engine.getState(sessionId).lastRoundEvent
+        assertEquals(RoundEventKind.TOOK, event?.kind)
+        assertEquals("bot-1", event?.playerId)
+        val action = engine.getState(sessionId).lastActionEvent
+        assertEquals(GameActionKind.TOOK, action?.kind)
+        assertEquals("bot-1", action?.playerId)
+    }
+
+    @Test
+    fun bito_emitsBitoRoundEvent() {
+        val sessionId = "s-bito-event"
+        engine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                helperHand = emptyList(),
+                defenderHandSizeAtRoundStart = 3,
+            ),
+        )
+        assertTrue(engine.bito(sessionId, "local").isSuccess)
+        val event = engine.getState(sessionId).lastRoundEvent
+        assertEquals(RoundEventKind.BITO, event?.kind)
+        assertEquals("local", event?.playerId)
+        val action = engine.getState(sessionId).lastActionEvent
+        assertEquals(GameActionKind.BITO, action?.kind)
+        assertEquals("local", action?.playerId)
     }
 
     @Test

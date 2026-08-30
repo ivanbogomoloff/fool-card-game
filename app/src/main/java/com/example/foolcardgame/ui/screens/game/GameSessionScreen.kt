@@ -37,6 +37,7 @@ fun GameSessionScreen(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onFlyAnimationFinished: () -> Unit = {},
     onLobbyTimeoutDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     debugPanel: @Composable (() -> Unit)? = null,
@@ -90,6 +91,7 @@ fun GameSessionScreen(
                 onPassClick = onPassClick,
                 onTakeClick = onTakeClick,
                 onReadyClick = onReadyClick,
+                onFlyAnimationFinished = onFlyAnimationFinished,
                 modifier = Modifier.fillMaxSize(),
             )
         }

@@ -1,7 +1,12 @@
 package com.example.foolcardgame.presentation.game
 
+import com.example.foolcardgame.data.api.dto.GameActionEventDto
+import com.example.foolcardgame.data.api.dto.GameActionKindDto
 import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.api.dto.GameStateDto
+import com.example.foolcardgame.data.api.dto.RoundEventDto
+import com.example.foolcardgame.data.api.dto.RoundEventKindDto
+import com.example.foolcardgame.data.api.dto.TablePairDto
 import com.example.foolcardgame.data.api.dto.PlayerStatusDto
 import com.example.foolcardgame.data.client.DebugScenario
 import com.example.foolcardgame.data.client.GameClient
@@ -10,6 +15,7 @@ import com.example.foolcardgame.data.client.toMockState
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.domain.model.RoundEventKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +31,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -111,6 +118,138 @@ class GameViewModelTest {
             viewModel.disposeForTest()
         }
     }
+
+    @Test
+    fun opponentRoundEvent_showsToastAndFlyAnimation() = runTest {
+        val table = MockGameStates.inProgress().tablePairs
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitRoundEvent(
+                RoundEventDto(
+                    kind = RoundEventKindDto.TOOK,
+                    playerId = "bot-1",
+                    atTick = 99L,
+                ),
+                clearedTable = true,
+                previousTable = table,
+            )
+            runCurrent()
+
+            val action = viewModel.uiState.value.opponentAction
+            assertNotNull(action)
+            assertEquals("bot-1", action?.opponentId)
+            assertEquals("Взял", action?.message)
+            assertNotNull(viewModel.uiState.value.tableFlyAnimation)
+            assertEquals(RoundEventKind.TOOK, viewModel.uiState.value.tableFlyAnimation?.kind)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun opponentBitoEvent_showsToastEvenWithoutTableSnapshot() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.clearTable()
+            runCurrent()
+            client.emitRoundEvent(
+                RoundEventDto(
+                    kind = RoundEventKindDto.BITO,
+                    playerId = "bot-1",
+                    atTick = 101L,
+                ),
+                clearedTable = true,
+                previousTable = emptyList(),
+            )
+            runCurrent()
+
+            val action = viewModel.uiState.value.opponentAction
+            assertNotNull(action)
+            assertEquals("Бито!", action?.message)
+            assertNull(viewModel.uiState.value.tableFlyAnimation)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun opponentToast_clearsAfterThreeSeconds() = runTest {
+        val table = MockGameStates.inProgress().tablePairs
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitRoundEvent(
+                RoundEventDto(
+                    kind = RoundEventKindDto.BITO,
+                    playerId = "bot-1",
+                    atTick = 102L,
+                ),
+                clearedTable = true,
+                previousTable = table,
+            )
+            runCurrent()
+            assertNotNull(viewModel.uiState.value.opponentAction)
+
+            advanceTimeBy(GameViewModel.OPPONENT_TOAST_MS_FOR_TEST)
+            runCurrent()
+
+            assertNull(viewModel.uiState.value.opponentAction)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun actionEvent_appendsGameHistory() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.ATTACK,
+                    playerId = "bot-1",
+                    atTick = 50L,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(1, viewModel.uiState.value.gameHistory.size)
+            assertTrue(viewModel.uiState.value.gameHistory.single().text.contains("Бот 1"))
+            assertTrue(viewModel.uiState.value.gameHistory.single().text.contains("атакует"))
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun localRoundEvent_doesNotShowOpponentFx() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitRoundEvent(
+                RoundEventDto(
+                    kind = RoundEventKindDto.BITO,
+                    playerId = MockGameStates.LOCAL_PLAYER_ID,
+                    atTick = 100L,
+                ),
+                clearedTable = true,
+                previousTable = MockGameStates.inProgress().tablePairs,
+            )
+            runCurrent()
+
+            assertNull(viewModel.uiState.value.opponentAction)
+            assertNull(viewModel.uiState.value.tableFlyAnimation)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
 }
 
 class GameDebugViewModelTest {
@@ -187,5 +326,32 @@ private class LobbyTestClient(
 
     override suspend fun leaveSession(sessionId: GameSessionId) {
         state.update { it.copy(canReady = false) }
+    }
+
+    fun clearTable() {
+        state.update { it.copy(tablePairs = emptyList()) }
+    }
+
+    fun emitRoundEvent(
+        event: RoundEventDto,
+        clearedTable: Boolean,
+        previousTable: List<TablePairDto>,
+    ) {
+        state.update { current ->
+            current.copy(
+                tablePairs = if (clearedTable) emptyList() else previousTable,
+                roundEvent = event,
+                serverTick = event.atTick,
+            )
+        }
+    }
+
+    fun emitActionEvent(event: GameActionEventDto) {
+        state.update { current ->
+            current.copy(
+                actionEvent = event,
+                serverTick = event.atTick,
+            )
+        }
     }
 }

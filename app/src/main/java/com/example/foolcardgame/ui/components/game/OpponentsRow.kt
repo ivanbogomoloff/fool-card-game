@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -17,7 +18,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.foolcardgame.domain.model.GamePhase
@@ -33,6 +37,7 @@ import com.example.foolcardgame.ui.theme.SoftCoral
 fun OpponentsRow(
     opponents: List<OpponentUi>,
     phase: GamePhase,
+    onOpponentAvatarBoundsChanged: (String, Rect) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -46,6 +51,9 @@ fun OpponentsRow(
             OpponentItem(
                 opponent = opponent,
                 showNotReadyOutline = phase == GamePhase.LOBBY_WAITING && !opponent.isReady,
+                onAvatarBoundsChanged = { bounds ->
+                    onOpponentAvatarBoundsChanged(opponent.id, bounds)
+                },
             )
         }
     }
@@ -55,6 +63,7 @@ fun OpponentsRow(
 private fun OpponentItem(
     opponent: OpponentUi,
     showNotReadyOutline: Boolean,
+    onAvatarBoundsChanged: (Rect) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val avatar = AvatarPresets.get(opponent.avatarId)
@@ -79,7 +88,16 @@ private fun OpponentItem(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { coordinates ->
+                        onAvatarBoundsChanged(coordinates.boundsInRoot())
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = avatar.emoji, style = MaterialTheme.typography.headlineSmall)
+            }
         }
         Text(
             text = label,

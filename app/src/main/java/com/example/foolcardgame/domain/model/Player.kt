@@ -27,9 +27,14 @@ data class GameConfig(
     val humanDisplayName: String = UserProfile.DEFAULT_DISPLAY_NAME,
     val humanAvatarId: Int = UserProfile.DEFAULT_AVATAR_ID,
     val seed: Long = DEFAULT_SEED,
+    val botThinkMinMs: Long = DEFAULT_BOT_THINK_MIN_MS,
+    val botThinkMaxMs: Long = DEFAULT_BOT_THINK_MAX_MS,
 ) {
     init {
         require(botCount in 1..3) { "botCount must be 1..3, was $botCount" }
+        require(botThinkMinMs in DEFAULT_BOT_THINK_MIN_MS..botThinkMaxMs) {
+            "botThinkMinMs must be in $DEFAULT_BOT_THINK_MIN_MS..botThinkMaxMs, was $botThinkMinMs"
+        }
     }
 
     val playerCount: Int get() = botCount + 1
@@ -38,8 +43,8 @@ data class GameConfig(
         const val DEFAULT_HUMAN_ID = "local"
         const val DEFAULT_SEED = 42L
         const val TURN_TIMEOUT_MS = 60_000L
-        const val BOT_THINK_MIN_MS = 5_000L
-        const val BOT_THINK_MAX_MS = 15_000L
+        const val DEFAULT_BOT_THINK_MIN_MS = 1_000L
+        const val DEFAULT_BOT_THINK_MAX_MS = 5_000L
         const val BOT_CONNECT_MIN_MS = 1_000L
         const val BOT_CONNECT_MAX_MS = 3_000L
         const val BOT_READY_MIN_MS = 2_000L

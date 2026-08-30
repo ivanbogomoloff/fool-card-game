@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.domain.model.RoundEventKind
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.presentation.game.GameUiState
 import com.example.foolcardgame.presentation.game.TablePairUi
@@ -53,6 +56,7 @@ fun GameTableLayout(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onFlyAnimationFinished: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (uiState.isLoading) {
@@ -90,6 +94,7 @@ fun GameTableLayout(
                 onPassClick = onPassClick,
                 onTakeClick = onTakeClick,
                 onReadyClick = onReadyClick,
+                onFlyAnimationFinished = onFlyAnimationFinished,
                 modifier = modifier,
             )
         }
@@ -106,34 +111,83 @@ private fun InProgressGameLayout(
     onPassClick: () -> Unit,
     onTakeClick: () -> Unit,
     onReadyClick: () -> Unit,
+    onFlyAnimationFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var dragState by remember { mutableStateOf<HandDragState?>(null) }
     var tableBounds by remember { mutableStateOf(Rect.Zero) }
     var layoutBounds by remember { mutableStateOf(Rect.Zero) }
     var handBounds by remember { mutableStateOf(Rect.Zero) }
+    val opponentAvatarBounds = remember { mutableStateMapOf<String, Rect>() }
+    val cachedAvatarBounds = remember { mutableStateMapOf<String, Rect>() }
     val attackCardBounds = remember { mutableStateMapOf<Int, Rect>() }
     var discardFlyaway by remember { mutableStateOf<List<FlyingDiscardCard>>(emptyList()) }
     var suppressTableCards by remember { mutableStateOf(false) }
     var pendingAfterFlyaway by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var lastHandledFlyTick by remember { mutableStateOf(-1L) }
     val density = LocalDensity.current
     val isDiscardAnimating = discardFlyaway.isNotEmpty()
     val visibleTablePairs = if (suppressTableCards) emptyList() else uiState.tablePairs
 
-    fun startTableFlyaway(direction: TableFlyawayDirection): Boolean {
-        if (isDiscardAnimating) return false
-        if (uiState.tablePairs.isEmpty()) return false
+    fun startFlyaway(
+        pairs: List<TablePairUi>,
+        direction: TableFlyawayDirection,
+    ): Boolean {
+        if (isDiscardAnimating || pairs.isEmpty()) return false
         val flyExtraPx = with(density) { 120.dp.toPx() }
+        val cardWidthPx = with(density) { 56.dp.toPx() }
+        val cardHeightPx = with(density) { 80.dp.toPx() }
+        val fallbackBounds = if (tableBounds.width > 1f) {
+            tableBounds
+        } else {
+            layoutBounds
+        }
         discardFlyaway = snapshotDiscardCards(
-            pairs = uiState.tablePairs,
+            pairs = pairs,
             attackBounds = attackCardBounds,
             direction = direction,
             layoutBounds = layoutBounds,
             handBounds = handBounds,
             flyExtraPx = flyExtraPx,
+            fallbackTableBounds = fallbackBounds,
+            cardWidthPx = cardWidthPx,
+            cardHeightPx = cardHeightPx,
         )
-        attackCardBounds.clear()
+        if (discardFlyaway.isNotEmpty()) {
+            attackCardBounds.clear()
+        }
         return discardFlyaway.isNotEmpty()
+    }
+
+    fun startTableFlyaway(direction: TableFlyawayDirection): Boolean =
+        startFlyaway(uiState.tablePairs, direction)
+
+    LaunchedEffect(uiState.tableFlyAnimation?.atTick) {
+        val animation = uiState.tableFlyAnimation ?: return@LaunchedEffect
+        if (animation.atTick == lastHandledFlyTick) return@LaunchedEffect
+        lastHandledFlyTick = animation.atTick
+        val direction = when (animation.kind) {
+            RoundEventKind.TOOK -> {
+                val target = opponentAvatarBounds[animation.targetOpponentId]?.center
+                    ?: layoutBounds.center
+                TableFlyawayDirection.ToTarget(
+                    end = Offset(
+                        x = target.x,
+                        y = target.y,
+                    ),
+                )
+            }
+            RoundEventKind.BITO -> TableFlyawayDirection.Right
+        }
+        if (startFlyaway(animation.pairs, direction)) {
+            suppressTableCards = true
+            pendingAfterFlyaway = {
+                suppressTableCards = false
+                onFlyAnimationFinished()
+            }
+        } else {
+            onFlyAnimationFinished()
+        }
     }
 
     Box(
@@ -147,6 +201,10 @@ private fun InProgressGameLayout(
             OpponentsRow(
                 opponents = uiState.opponents,
                 phase = uiState.phase,
+                onOpponentAvatarBoundsChanged = { id, bounds ->
+                    opponentAvatarBounds[id] = bounds
+                    cachedAvatarBounds[id] = bounds
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             BoxWithConstraints(
@@ -168,9 +226,11 @@ private fun InProgressGameLayout(
                         .padding(start = tableStartPadding),
                 )
                 DeckAndTrumpView(
+                    deckCount = uiState.deckCount,
                     trump = uiState.trump,
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
+                        .align(Alignment.TopStart)
+                        .padding(top = 8.dp)
                         .offset(x = (-28).dp + deckShiftRight),
                 )
             }
@@ -255,6 +315,45 @@ private fun InProgressGameLayout(
             )
         }
 
+        val opponentAction = uiState.opponentAction
+        var cachedToastMessage by remember { mutableStateOf("") }
+        if (opponentAction != null) {
+            cachedToastMessage = opponentAction.message
+        }
+        val toastVisible = opponentAction != null
+        val avatarBounds = opponentAction?.opponentId?.let { id ->
+            opponentAvatarBounds[id] ?: cachedAvatarBounds[id]
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(40f),
+        ) {
+            val anchor = avatarBounds
+                ?: opponentAction?.opponentId?.let { cachedAvatarBounds[it] }
+            if (anchor != null || toastVisible) {
+                val target = anchor ?: Rect(
+                    left = layoutBounds.center.x - 24f,
+                    top = layoutBounds.top + with(density) { 56.dp.toPx() },
+                    right = layoutBounds.center.x + 24f,
+                    bottom = layoutBounds.top + with(density) { 104.dp.toPx() },
+                )
+                OpponentActionToast(
+                    visible = toastVisible,
+                    message = cachedToastMessage,
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                x = (target.center.x - layoutBounds.left).roundToInt(),
+                                y = (target.top - layoutBounds.top - with(density) { 40.dp.roundToPx() })
+                                    .roundToInt(),
+                            )
+                        }
+                        .wrapContentSize(unbounded = true, align = Alignment.BottomCenter),
+                )
+            }
+        }
+
         val activeDrag = dragState
         if (activeDrag != null) {
             val cardWidthPx = with(density) { 56.dp.toPx() }
@@ -284,10 +383,19 @@ private fun snapshotDiscardCards(
     layoutBounds: Rect,
     handBounds: Rect,
     flyExtraPx: Float,
+    fallbackTableBounds: Rect,
+    cardWidthPx: Float,
+    cardHeightPx: Float,
 ): List<FlyingDiscardCard> {
     val starts = mutableListOf<Triple<String, CardUi?, Rect>>()
-    pairs.forEach { pair ->
-        val attackRect = attackBounds[pair.id] ?: return@forEach
+    pairs.forEachIndexed { index, pair ->
+        val attackRect = attackBounds[pair.id] ?: syntheticCardRect(
+            tableBounds = fallbackTableBounds,
+            index = index,
+            totalPairs = pairs.size,
+            cardWidthPx = cardWidthPx,
+            cardHeightPx = cardHeightPx,
+        )
         starts += Triple("attack-${pair.id}", pair.attack, attackRect)
         val defense = pair.defense
         if (defense != null) {
@@ -323,6 +431,10 @@ private fun snapshotDiscardCards(
                     )
                 }
             }
+            is TableFlyawayDirection.ToTarget -> Offset(
+                x = direction.end.x - rect.width / 2f,
+                y = direction.end.y - rect.height / 2f,
+            )
         }
         FlyingDiscardCard(
             id = id,
@@ -334,6 +446,24 @@ private fun snapshotDiscardCards(
             staggerIndex = index,
         )
     }
+}
+
+private fun syntheticCardRect(
+    tableBounds: Rect,
+    index: Int,
+    totalPairs: Int,
+    cardWidthPx: Float,
+    cardHeightPx: Float,
+): Rect {
+    val center = if (tableBounds.width > 1f && tableBounds.height > 1f) {
+        tableBounds.center
+    } else {
+        Offset.Zero
+    }
+    val fan = (index - (totalPairs - 1) / 2f) * (cardWidthPx * 0.55f)
+    val left = center.x - cardWidthPx / 2f + fan
+    val top = center.y - cardHeightPx / 2f
+    return Rect(left, top, left + cardWidthPx, top + cardHeightPx)
 }
 
 private const val AttackHitSlopPx = 48f

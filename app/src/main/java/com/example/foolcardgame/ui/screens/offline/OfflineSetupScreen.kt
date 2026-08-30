@@ -13,6 +13,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -24,12 +25,14 @@ import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.offline.OfflineSetupUiState
 import com.example.foolcardgame.ui.components.common.PrimaryButton
 import com.example.foolcardgame.ui.theme.FoolCardGameTheme
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OfflineSetupScreen(
     uiState: OfflineSetupUiState,
     onBotCountSelected: (Int) -> Unit,
+    onBotReactionRangeChanged: (Int, Int) -> Unit,
     onStartClick: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -83,6 +86,30 @@ fun OfflineSetupScreen(
                     )
                 }
             }
+            Text(
+                text = "Время реакции ботов",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 32.dp, bottom = 8.dp),
+            )
+            Text(
+                text = "от ${uiState.botReactionMinSec} до ${uiState.botReactionMaxSec} сек",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            RangeSlider(
+                value = uiState.botReactionMinSec.toFloat()..uiState.botReactionMaxSec.toFloat(),
+                onValueChange = { range ->
+                    onBotReactionRangeChanged(
+                        range.start.roundToInt(),
+                        range.endInclusive.roundToInt(),
+                    )
+                },
+                valueRange = 1f..30f,
+                steps = 28,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
             uiState.errorMessage?.let { message ->
                 Text(
                     text = message,
@@ -106,6 +133,7 @@ private fun OfflineSetupScreenPreview() {
         OfflineSetupScreen(
             uiState = OfflineSetupUiState(botCount = 2),
             onBotCountSelected = {},
+            onBotReactionRangeChanged = { _, _ -> },
             onStartClick = {},
             onBack = {},
         )

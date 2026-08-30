@@ -3,11 +3,15 @@ package com.example.foolcardgame.domain.engine
 import com.example.foolcardgame.domain.bot.BotAI
 import com.example.foolcardgame.domain.model.ActionPermissions
 import com.example.foolcardgame.domain.model.Card
+import com.example.foolcardgame.domain.model.GameActionEvent
+import com.example.foolcardgame.domain.model.GameActionKind
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.domain.model.GameState
 import com.example.foolcardgame.domain.model.Player
 import com.example.foolcardgame.domain.model.PlayerStatus
+import com.example.foolcardgame.domain.model.RoundEvent
+import com.example.foolcardgame.domain.model.RoundEventKind
 import com.example.foolcardgame.domain.model.Suit
 import com.example.foolcardgame.domain.model.TablePair
 import com.example.foolcardgame.domain.model.canAddMoreAttacks
@@ -158,7 +162,13 @@ class GameEngine(
         if (!state.permissionsFor(playerId).canBito) {
             return@mutate Result.failure(IllegalStateException("Bito not allowed"))
         }
-        Result.success(endRoundBito(state).withTurnDeadline().bumpTick())
+        Result.success(
+            endRoundBito(state)
+                .withTurnDeadline()
+                .bumpTick()
+                .recordRoundEvent(RoundEventKind.BITO, playerId)
+                .recordActionEvent(GameActionKind.BITO, playerId),
+        )
     }
 
     /** Test-only: inject a fully prepared state. */
@@ -240,19 +250,27 @@ class GameEngine(
     }
 
     private fun skipDefenderTimeout(state: GameState): GameState {
-        // Table discarded (not taken by defender), then roles like after bito
+        // Table discarded (not taken by defender), then roles like after bito — no UI event.
         return endRoundBito(state).withTurnDeadline().bumpTick()
     }
 
     private fun skipThrowPhase(state: GameState, playerId: String): GameState {
         var next = state.copy(passedPlayerIds = state.passedPlayerIds + playerId)
         if (next.throwingClosed()) {
-            return endRoundBito(next).withTurnDeadline().bumpTick()
+            val attackerId = next.attackerId ?: playerId
+            return endRoundBito(next)
+                .withTurnDeadline()
+                .bumpTick()
+                .recordRoundEvent(RoundEventKind.BITO, attackerId)
+                .recordActionEvent(GameActionKind.BITO, attackerId)
         }
         val nextActor = next.throwerIds()
             .firstOrNull { it !in next.passedPlayerIds }
             ?: next.attackerId
-        return next.copy(currentPlayerId = nextActor).withTurnDeadline().bumpTick()
+        return next.copy(currentPlayerId = nextActor)
+            .withTurnDeadline()
+            .bumpTick()
+            .recordActionEvent(GameActionKind.PASS, playerId)
     }
 
     private fun mutate(
@@ -261,7 +279,7 @@ class GameEngine(
     ): Result<GameState> {
         val current = sessions[sessionId]
             ?: return Result.failure(IllegalArgumentException("Unknown session"))
-        val result = block(current)
+        val result = block(current.copy(lastRoundEvent = null, lastActionEvent = null))
         result.onSuccess { sessions[sessionId] = it }
         return result
     }
@@ -314,7 +332,13 @@ class GameEngine(
                 if (!state.permissionsFor(action.playerId).canBito) {
                     Result.failure(IllegalStateException("Bot bito invalid"))
                 } else {
-                    Result.success(endRoundBito(state).withTurnDeadline().bumpTick())
+                    Result.success(
+                        endRoundBito(state)
+                            .withTurnDeadline()
+                            .bumpTick()
+                            .recordRoundEvent(RoundEventKind.BITO, action.playerId)
+                            .recordActionEvent(GameActionKind.BITO, action.playerId),
+                    )
                 }
             }
         }
@@ -422,6 +446,7 @@ class GameEngine(
             .markFinishedPlayers()
             .withTurnDeadline()
             .bumpTick()
+            .recordActionEvent(GameActionKind.ATTACK, playerId)
         return Result.success(next.checkGameEnd())
     }
 
@@ -458,6 +483,7 @@ class GameEngine(
             .markFinishedPlayers()
             .withTurnDeadline()
             .bumpTick()
+            .recordActionEvent(GameActionKind.THROW_IN, playerId)
         return Result.success(next.checkGameEnd())
     }
 
@@ -499,13 +525,22 @@ class GameEngine(
         next = if (next.allBeaten) {
             if (next.throwingClosed()) {
                 // Limit reached or no throwers — round ends as bito immediately.
-                return Result.success(endRoundBito(next).withTurnDeadline().bumpTick())
+                val attackerId = next.attackerId ?: playerId
+                return Result.success(
+                    endRoundBito(next)
+                        .withTurnDeadline()
+                        .bumpTick()
+                        .recordRoundEvent(RoundEventKind.BITO, attackerId)
+                        .recordActionEvent(GameActionKind.BITO, attackerId),
+                )
             }
             next.copy(currentPlayerId = next.attackerId)
         } else {
             next.copy(currentPlayerId = next.defenderId)
         }
-        return Result.success(next.withTurnDeadline().bumpTick().checkGameEnd())
+        return Result.success(
+            next.withTurnDeadline().bumpTick().recordActionEvent(GameActionKind.DEFEND, playerId).checkGameEnd(),
+        )
     }
 
     private fun defenderTakes(state: GameState, playerId: String): Result<GameState> {
@@ -535,6 +570,8 @@ class GameEngine(
             currentPlayerId = newAttacker.id,
             defenderHandSizeAtRoundStart = next.player(newDefender.id)?.hand?.size ?: 0,
         ).markFinishedPlayers().checkGameEnd().withTurnDeadline().bumpTick()
+            .recordRoundEvent(RoundEventKind.TOOK, playerId)
+            .recordActionEvent(GameActionKind.TOOK, playerId)
         return Result.success(next)
     }
 
@@ -543,12 +580,24 @@ class GameEngine(
             passedPlayerIds = state.passedPlayerIds + playerId,
         )
         return if (next.throwingClosed() && next.allBeaten) {
-            Result.success(endRoundBito(next).withTurnDeadline().bumpTick())
+            val attackerId = next.attackerId ?: playerId
+            Result.success(
+                endRoundBito(next)
+                    .withTurnDeadline()
+                    .bumpTick()
+                    .recordRoundEvent(RoundEventKind.BITO, attackerId)
+                    .recordActionEvent(GameActionKind.BITO, attackerId),
+            )
         } else {
             val nextActor = next.throwerIds()
                 .firstOrNull { it !in next.passedPlayerIds }
                 ?: next.attackerId
-            Result.success(next.copy(currentPlayerId = nextActor).withTurnDeadline().bumpTick())
+            Result.success(
+                next.copy(currentPlayerId = nextActor)
+                    .withTurnDeadline()
+                    .bumpTick()
+                    .recordActionEvent(GameActionKind.PASS, playerId),
+            )
         }
     }
 
@@ -715,4 +764,10 @@ class GameEngine(
             })
         }
     }
+
+    private fun GameState.recordRoundEvent(kind: RoundEventKind, playerId: String): GameState =
+        copy(lastRoundEvent = RoundEvent(kind = kind, playerId = playerId, atTick = tick))
+
+    private fun GameState.recordActionEvent(kind: GameActionKind, playerId: String): GameState =
+        copy(lastActionEvent = GameActionEvent(kind = kind, playerId = playerId, atTick = tick))
 }

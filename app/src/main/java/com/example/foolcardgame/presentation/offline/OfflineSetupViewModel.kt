@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.client.LocalGameClient
 import com.example.foolcardgame.data.repository.ProfileRepository
 import com.example.foolcardgame.domain.model.GameConfig
+import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -31,17 +32,35 @@ class OfflineSetupViewModel(
         _uiState.update { it.copy(botCount = count, errorMessage = null) }
     }
 
+    fun onBotReactionRangeChanged(minSec: Int, maxSec: Int) {
+        val min = minSec.coerceIn(1, 30)
+        val max = maxSec.coerceIn(1, 30)
+        if (min > max) return
+        _uiState.update {
+            it.copy(
+                botReactionMinSec = min,
+                botReactionMaxSec = max,
+                errorMessage = null,
+            )
+        }
+    }
+
     fun onStartClick() {
         if (_uiState.value.isStarting) return
         viewModelScope.launch {
             _uiState.update { it.copy(isStarting = true, errorMessage = null) }
             runCatching {
                 val profile = profileRepository.observeProfile().first()
+                val reactionMinSec = _uiState.value.botReactionMinSec
+                val reactionMaxSec = _uiState.value.botReactionMaxSec
                 val sessionId = gameClient.createSession(
                     GameConfig(
                         botCount = _uiState.value.botCount,
                         humanDisplayName = profile.displayName,
                         humanAvatarId = profile.avatarId,
+                        seed = Random.Default.nextLong(),
+                        botThinkMinMs = reactionMinSec * 1_000L,
+                        botThinkMaxMs = reactionMaxSec * 1_000L,
                     ),
                 )
                 _navigateToGame.emit(sessionId)

@@ -113,6 +113,9 @@ object GameUiStateMapper {
             suit == com.example.foolcardgame.data.api.dto.SuitDto.DIAMONDS,
     )
 
+    fun mapTablePairs(pairs: List<TablePairDto>): List<TablePairUi> =
+        pairs.map { it.toUi() }
+
     private fun TablePairDto.toUi(): TablePairUi = TablePairUi(
         id = id,
         attack = attack.toUi(),

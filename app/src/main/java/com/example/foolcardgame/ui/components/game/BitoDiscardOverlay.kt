@@ -26,9 +26,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-enum class TableFlyawayDirection {
-    Right,
-    Down,
+sealed class TableFlyawayDirection {
+    data object Right : TableFlyawayDirection()
+    data object Down : TableFlyawayDirection()
+    data class ToTarget(val end: Offset) : TableFlyawayDirection()
 }
 
 data class FlyingDiscardCard(

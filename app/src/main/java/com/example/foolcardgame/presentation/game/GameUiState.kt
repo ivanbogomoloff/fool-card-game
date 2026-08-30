@@ -1,6 +1,26 @@
 package com.example.foolcardgame.presentation.game
 
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.domain.model.RoundEventKind
+
+data class GameHistoryEntryUi(
+    val id: String,
+    val text: String,
+    val timestampMs: Long,
+)
+
+data class OpponentActionUi(
+    val opponentId: String,
+    val message: String,
+    val atTick: Long,
+)
+
+data class TableFlyAnimationUi(
+    val pairs: List<TablePairUi>,
+    val targetOpponentId: String,
+    val kind: RoundEventKind,
+    val atTick: Long,
+)
 
 data class CardUi(
     val id: String,
@@ -73,4 +93,7 @@ data class GameUiState(
     val isLocalPlayerTurn: Boolean = false,
     val isLocalDefending: Boolean = false,
     val isLocalAttacking: Boolean = false,
+    val opponentAction: OpponentActionUi? = null,
+    val tableFlyAnimation: TableFlyAnimationUi? = null,
+    val gameHistory: List<GameHistoryEntryUi> = emptyList(),
 )

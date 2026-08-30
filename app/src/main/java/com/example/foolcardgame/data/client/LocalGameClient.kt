@@ -1,6 +1,10 @@
 package com.example.foolcardgame.data.client
 
 import com.example.foolcardgame.data.api.dto.GamePhaseDto
+import com.example.foolcardgame.data.api.dto.GameActionEventDto
+import com.example.foolcardgame.data.api.dto.GameActionKindDto
+import com.example.foolcardgame.data.api.dto.RoundEventDto
+import com.example.foolcardgame.data.api.dto.RoundEventKindDto
 import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.api.dto.GameStateDto
 import com.example.foolcardgame.data.api.dto.PlayerStateDto
@@ -10,6 +14,8 @@ import com.example.foolcardgame.data.api.dto.toDto
 import com.example.foolcardgame.domain.engine.GameEngine
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameConfig
+import com.example.foolcardgame.domain.model.GameActionKind
+import com.example.foolcardgame.domain.model.RoundEventKind
 import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.domain.model.GameState
 import com.example.foolcardgame.domain.model.permissionsFor
@@ -37,8 +43,6 @@ import kotlinx.coroutines.sync.withLock
 class LocalGameClient(
     private val engine: GameEngine = GameEngine(),
     private val defaultHumanId: String = GameConfig.DEFAULT_HUMAN_ID,
-    private val botThinkDelayRange: LongRange =
-        GameConfig.BOT_THINK_MIN_MS..GameConfig.BOT_THINK_MAX_MS,
     private val botConnectDelayRange: LongRange =
         GameConfig.BOT_CONNECT_MIN_MS..GameConfig.BOT_CONNECT_MAX_MS,
     private val botReadyDelayRange: LongRange =
@@ -53,9 +57,12 @@ class LocalGameClient(
     private var humanId: String = defaultHumanId
     private var sessionScope: CoroutineScope? = null
     private var schedulerJob: Job? = null
+    private var activeBotThinkDelayRange: LongRange =
+        GameConfig.DEFAULT_BOT_THINK_MIN_MS..GameConfig.DEFAULT_BOT_THINK_MAX_MS
 
     override suspend fun createSession(config: GameConfig): GameSessionId = mutex.withLock {
         stopSchedulerLocked()
+        activeBotThinkDelayRange = config.botThinkMinMs..config.botThinkMaxMs
         val id = engine.createSession(config)
         humanId = config.humanId
         activeSessionId = id
@@ -211,7 +218,7 @@ class LocalGameClient(
 
             // Emit current state so UI can show «Ходит» before the delay.
             updates.tryEmit(state.toDto(humanId))
-            delay(randomIn(botThinkDelayRange))
+            delay(randomIn(activeBotThinkDelayRange))
             if (!coroutineActive(sessionId)) return
 
             mutex.withLock {
@@ -294,5 +301,29 @@ internal fun GameState.toDto(localPlayerId: String): GameStateDto {
         winnerName = winnerIds.firstOrNull()?.let { id -> players.find { it.id == id }?.displayName },
         loserName = loserId?.let { id -> players.find { it.id == id }?.displayName },
         turnDeadlineAtMs = turnDeadlineAtMs,
+        roundEvent = lastRoundEvent?.let { event ->
+            RoundEventDto(
+                kind = when (event.kind) {
+                    RoundEventKind.TOOK -> RoundEventKindDto.TOOK
+                    RoundEventKind.BITO -> RoundEventKindDto.BITO
+                },
+                playerId = event.playerId,
+                atTick = event.atTick,
+            )
+        },
+        actionEvent = lastActionEvent?.let { event ->
+            GameActionEventDto(
+                kind = when (event.kind) {
+                    GameActionKind.ATTACK -> GameActionKindDto.ATTACK
+                    GameActionKind.DEFEND -> GameActionKindDto.DEFEND
+                    GameActionKind.THROW_IN -> GameActionKindDto.THROW_IN
+                    GameActionKind.PASS -> GameActionKindDto.PASS
+                    GameActionKind.TOOK -> GameActionKindDto.TOOK
+                    GameActionKind.BITO -> GameActionKindDto.BITO
+                },
+                playerId = event.playerId,
+                atTick = event.atTick,
+            )
+        },
     )
 }

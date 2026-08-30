@@ -42,6 +42,7 @@ fun GameDebugScreen(
         onPassClick = viewModel::onPassClick,
         onTakeClick = viewModel::onTakeClick,
         onReadyClick = viewModel::onReadyClick,
+        onFlyAnimationFinished = viewModel::onFlyAnimationFinished,
         onLobbyTimeoutDismiss = {
             viewModel.onLobbyTimeoutDismiss()
             onBack()

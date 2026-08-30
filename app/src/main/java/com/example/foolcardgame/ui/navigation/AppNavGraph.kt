@@ -74,6 +74,7 @@ fun AppNavGraph(
             OfflineSetupScreen(
                 uiState = uiState,
                 onBotCountSelected = viewModel::onBotCountSelected,
+                onBotReactionRangeChanged = viewModel::onBotReactionRangeChanged,
                 onStartClick = viewModel::onStartClick,
                 onBack = { navController.popBackStack() },
             )
@@ -133,6 +134,7 @@ fun AppNavGraph(
                 onPassClick = viewModel::onPassClick,
                 onTakeClick = viewModel::onTakeClick,
                 onReadyClick = viewModel::onReadyClick,
+                onFlyAnimationFinished = viewModel::onFlyAnimationFinished,
                 onLobbyTimeoutDismiss = {
                     viewModel.onLobbyTimeoutDismiss()
                     navController.popBackStack(Routes.MAIN, inclusive = false)

@@ -3,10 +3,13 @@ package com.example.foolcardgame.presentation.game
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.api.dto.GameSessionId
+import com.example.foolcardgame.data.api.dto.GameStateDto
+import com.example.foolcardgame.data.api.dto.RoundEventKindDto
 import com.example.foolcardgame.data.client.GameClient
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.Rank
+import com.example.foolcardgame.domain.model.RoundEventKind
 import com.example.foolcardgame.domain.model.Suit
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -29,11 +32,65 @@ open class GameViewModel(
     private var turnTimerJob: Job? = null
     private var observeJob: Job? = null
     private var lastTurnPlayerId: String? = null
+    private var previousDto: GameStateDto? = null
+    private var lastHandledEventTick: Long = -1L
+    private var lastHandledActionKey: String? = null
+    private var opponentToastJob: Job? = null
 
     init {
         observeJob = viewModelScope.launch {
             gameClient.observeState(sessionId).collect { dto ->
                 val mapped = GameUiStateMapper.map(dto)
+                var newOpponentAction: OpponentActionUi? = null
+                var newFlyAnimation: TableFlyAnimationUi? = null
+                var newHistoryEntry: GameHistoryEntryUi? = null
+
+                dto.roundEvent?.let { event ->
+                    if (event.playerId != dto.localPlayerId &&
+                        event.atTick > lastHandledEventTick
+                    ) {
+                        lastHandledEventTick = event.atTick
+                        val kind = when (event.kind) {
+                            RoundEventKindDto.TOOK -> RoundEventKind.TOOK
+                            RoundEventKindDto.BITO -> RoundEventKind.BITO
+                        }
+                        val message = when (kind) {
+                            RoundEventKind.TOOK -> "Взял"
+                            RoundEventKind.BITO -> "Бито!"
+                        }
+                        newOpponentAction = OpponentActionUi(
+                            opponentId = event.playerId,
+                            message = message,
+                            atTick = event.atTick,
+                        )
+                        scheduleOpponentToastClear()
+
+                        val snapshotPairs = previousDto?.tablePairs
+                            ?.let { GameUiStateMapper.mapTablePairs(it) }
+                            .orEmpty()
+                        if (snapshotPairs.isNotEmpty()) {
+                            newFlyAnimation = TableFlyAnimationUi(
+                                pairs = snapshotPairs,
+                                targetOpponentId = event.playerId,
+                                kind = kind,
+                                atTick = event.atTick,
+                            )
+                        }
+                    }
+                }
+
+                dto.actionEvent?.let { event ->
+                    val key = event.historyKey()
+                    if (key != lastHandledActionKey) {
+                        lastHandledActionKey = key
+                        newHistoryEntry = event.toHistoryEntry(
+                            players = dto.players,
+                            timestampMs = System.currentTimeMillis(),
+                        )
+                    }
+                }
+                previousDto = dto
+
                 _uiState.update { current ->
                     mapped.copy(
                         selectedCardId = current.selectedCardId,
@@ -41,6 +98,13 @@ open class GameViewModel(
                         readySecondsLeft = current.readySecondsLeft,
                         turnSecondsLeft = current.turnSecondsLeft,
                         showLobbyTimeoutDialog = current.showLobbyTimeoutDialog,
+                        opponentAction = newOpponentAction ?: current.opponentAction,
+                        tableFlyAnimation = newFlyAnimation ?: current.tableFlyAnimation,
+                        gameHistory = if (newHistoryEntry != null) {
+                            current.gameHistory + newHistoryEntry
+                        } else {
+                            current.gameHistory
+                        },
                     )
                 }
                 syncReadyTimer(canReady = dto.canReady)
@@ -66,6 +130,7 @@ open class GameViewModel(
     /** Cancels observation/timer so coroutine tests can finish. */
     internal fun disposeForTest() {
         observeJob?.cancel()
+        opponentToastJob?.cancel()
         cancelReadyTimer(clearSeconds = true)
         cancelTurnTimer(clearSeconds = true)
     }
@@ -120,6 +185,18 @@ open class GameViewModel(
 
     fun onLobbyTimeoutDismiss() {
         _uiState.update { it.copy(showLobbyTimeoutDialog = false) }
+    }
+
+    fun onFlyAnimationFinished() {
+        _uiState.update { it.copy(tableFlyAnimation = null) }
+    }
+
+    private fun scheduleOpponentToastClear() {
+        opponentToastJob?.cancel()
+        opponentToastJob = viewModelScope.launch {
+            delay(OPPONENT_TOAST_MS)
+            _uiState.update { it.copy(opponentAction = null) }
+        }
     }
 
     /** Restarts lobby ready countdown (e.g. when debug scenario switches to lobby). */
@@ -218,6 +295,8 @@ open class GameViewModel(
     companion object {
         const val READY_TIMEOUT_SECONDS = 60
         const val TURN_TIMEOUT_SECONDS = (GameConfig.TURN_TIMEOUT_MS / 1_000L).toInt()
+        private const val OPPONENT_TOAST_MS = 3_000L
+        internal const val OPPONENT_TOAST_MS_FOR_TEST = OPPONENT_TOAST_MS
     }
 }
 

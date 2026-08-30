@@ -28,6 +28,10 @@ data class GameState(
     val turnStartedAtMs: Long? = null,
     /** When set, [currentPlayerId] must act before this epoch ms or the turn is skipped. */
     val turnDeadlineAtMs: Long? = null,
+    /** When set, UI may show take/bito feedback; cleared at the start of the next mutate. */
+    val lastRoundEvent: RoundEvent? = null,
+    /** When set, UI may append an action to game history; cleared at the start of the next mutate. */
+    val lastActionEvent: GameActionEvent? = null,
 ) {
     fun player(id: String): Player? = players.find { it.id == id }
 

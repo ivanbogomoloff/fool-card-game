@@ -70,6 +70,36 @@ data class PlayerStateDto(
 )
 
 @Serializable
+enum class RoundEventKindDto {
+    TOOK,
+    BITO,
+}
+
+@Serializable
+data class RoundEventDto(
+    val kind: RoundEventKindDto,
+    val playerId: String,
+    val atTick: Long,
+)
+
+@Serializable
+enum class GameActionKindDto {
+    ATTACK,
+    DEFEND,
+    THROW_IN,
+    PASS,
+    TOOK,
+    BITO,
+}
+
+@Serializable
+data class GameActionEventDto(
+    val kind: GameActionKindDto,
+    val playerId: String,
+    val atTick: Long,
+)
+
+@Serializable
 data class GameStateDto(
     val sessionId: String,
     val phase: GamePhaseDto,
@@ -90,6 +120,8 @@ data class GameStateDto(
     val winnerName: String? = null,
     val loserName: String? = null,
     val turnDeadlineAtMs: Long? = null,
+    val roundEvent: RoundEventDto? = null,
+    val actionEvent: GameActionEventDto? = null,
 )
 
 fun CardDto.toDomain(): Card = Card(suit = suit.toDomain(), rank = rank.toDomain())

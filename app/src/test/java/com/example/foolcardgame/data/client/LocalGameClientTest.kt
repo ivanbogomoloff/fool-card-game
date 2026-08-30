@@ -18,10 +18,13 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocalGameClientTest {
 
-    private fun client(dispatcher: CoroutineDispatcher) = LocalGameClient(
-        botThinkDelayRange = 0L..0L,
-        botConnectDelayRange = 0L..0L,
-        botReadyDelayRange = 0L..0L,
+    private fun client(
+        dispatcher: CoroutineDispatcher,
+        connectDelay: LongRange = 0L..0L,
+        readyDelay: LongRange = 0L..0L,
+    ) = LocalGameClient(
+        botConnectDelayRange = connectDelay,
+        botReadyDelayRange = readyDelay,
         schedulerDispatcher = dispatcher,
     )
 
@@ -42,11 +45,10 @@ class LocalGameClientTest {
     @Test
     fun lobby_connectThenReady_afterDelays() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val client = LocalGameClient(
-            botThinkDelayRange = 0L..0L,
-            botConnectDelayRange = 100L..100L,
-            botReadyDelayRange = 100L..100L,
-            schedulerDispatcher = dispatcher,
+        val client = client(
+            dispatcher = dispatcher,
+            connectDelay = 100L..100L,
+            readyDelay = 100L..100L,
         )
         val sessionId = client.createSession(GameConfig(botCount = 1, seed = 42))
         assertFalse(client.getState(sessionId).players.first { it.id == "bot-1" }.isConnected)
@@ -67,13 +69,15 @@ class LocalGameClientTest {
     @Test
     fun playCard_doesNotAdvanceBotsSynchronously() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val client = LocalGameClient(
-            botThinkDelayRange = 5_000L..5_000L,
-            botConnectDelayRange = 0L..0L,
-            botReadyDelayRange = 0L..0L,
-            schedulerDispatcher = dispatcher,
+        val client = client(dispatcher)
+        val sessionId = client.createSession(
+            GameConfig(
+                botCount = 1,
+                seed = 42,
+                botThinkMinMs = 5_000,
+                botThinkMaxMs = 5_000,
+            ),
         )
-        val sessionId = client.createSession(GameConfig(botCount = 1, seed = 42))
         advanceTimeBy(1)
         runCurrent()
         client.ready(sessionId)
@@ -83,16 +87,13 @@ class LocalGameClientTest {
         var state = client.getState(sessionId)
         assertEquals(GamePhase.IN_PROGRESS.name, state.phase.name)
 
-        // Ensure local is attacker for a clean play
         if (state.currentPlayerId == state.localPlayerId && state.localHand.isNotEmpty()) {
             val card = state.localHand.first().toDomain()
             val tickBefore = state.serverTick
             client.playCard(sessionId, card, targetPairId = null)
             state = client.getState(sessionId)
-            // Bot should not have moved yet (think delay 5s)
             assertTrue(state.serverTick != null)
             assertTrue((state.serverTick ?: 0) >= (tickBefore ?: 0))
-            // After human attack, current should be defender bot — still no bot card played until delay
             if (state.currentPlayerId == "bot-1") {
                 assertTrue(state.tablePairs.all { it.defense == null })
             }
@@ -101,10 +102,58 @@ class LocalGameClientTest {
     }
 
     @Test
+    fun playCard_botThinkDelayRespectsGameConfigMax() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val client = client(dispatcher)
+        val sessionId = client.createSession(
+            GameConfig(
+                botCount = 1,
+                seed = 42,
+                botThinkMinMs = 3_000,
+                botThinkMaxMs = 3_000,
+            ),
+        )
+        advanceTimeBy(1)
+        runCurrent()
+        client.ready(sessionId)
+        advanceTimeBy(1)
+        runCurrent()
+
+        var state = client.getState(sessionId)
+        if (state.currentPlayerId != state.localPlayerId || state.localHand.isEmpty()) {
+            client.leaveSession(sessionId)
+            return@runTest
+        }
+
+        val card = state.localHand.first().toDomain()
+        client.playCard(sessionId, card, targetPairId = null)
+        state = client.getState(sessionId)
+        if (state.currentPlayerId != "bot-1") {
+            client.leaveSession(sessionId)
+            return@runTest
+        }
+
+        advanceTimeBy(2_999)
+        runCurrent()
+        assertTrue(client.getState(sessionId).tablePairs.all { it.defense == null })
+
+        advanceTimeBy(1)
+        runCurrent()
+        client.leaveSession(sessionId)
+    }
+
+    @Test
     fun observeState_emitsAfterAction() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val client = client(dispatcher)
-        val sessionId = client.createSession(GameConfig(botCount = 1, seed = 11))
+        val sessionId = client.createSession(
+            GameConfig(
+                botCount = 1,
+                seed = 11,
+                botThinkMinMs = 1_000,
+                botThinkMaxMs = 1_000,
+            ),
+        )
         advanceTimeBy(1)
         runCurrent()
 
@@ -122,7 +171,14 @@ class LocalGameClientTest {
     fun observeState_ticksCallOnTick() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val client = client(dispatcher)
-        val sessionId = client.createSession(GameConfig(botCount = 1, seed = 5))
+        val sessionId = client.createSession(
+            GameConfig(
+                botCount = 1,
+                seed = 5,
+                botThinkMinMs = 1_000,
+                botThinkMaxMs = 1_000,
+            ),
+        )
         advanceTimeBy(1)
         runCurrent()
         client.ready(sessionId)

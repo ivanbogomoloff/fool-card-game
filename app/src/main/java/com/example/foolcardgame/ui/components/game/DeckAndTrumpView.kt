@@ -13,6 +13,7 @@ import com.example.foolcardgame.ui.components.card.CardFace
 
 @Composable
 fun DeckAndTrumpView(
+    deckCount: Int,
     trump: CardUi?,
     modifier: Modifier = Modifier,
 ) {
@@ -20,20 +21,34 @@ fun DeckAndTrumpView(
         modifier = modifier.size(width = 100.dp, height = 100.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (trump != null) {
-            CardFace(
-                card = trump,
-                faceUp = true,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(x = 28.dp)
-                    .rotate(90f),
-            )
+        when (deckDisplayMode(deckCount)) {
+            DeckDisplayMode.Hidden -> Unit
+            DeckDisplayMode.TrumpOnly -> {
+                if (trump != null) {
+                    CardFace(
+                        card = trump,
+                        faceUp = true,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
+            }
+            DeckDisplayMode.StackWithTrump -> {
+                if (trump != null) {
+                    CardFace(
+                        card = trump,
+                        faceUp = true,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(x = 28.dp)
+                            .rotate(90f),
+                    )
+                }
+                CardFace(
+                    card = null,
+                    faceUp = false,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
+            }
         }
-        CardFace(
-            card = null,
-            faceUp = false,
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
     }
 }
