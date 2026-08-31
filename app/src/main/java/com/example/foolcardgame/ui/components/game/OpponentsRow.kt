@@ -33,7 +33,6 @@ import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.screens.profile.AvatarPresets
 import com.example.foolcardgame.ui.theme.ReadyGreen
-import com.example.foolcardgame.ui.theme.SoftCharcoal
 import com.example.foolcardgame.ui.theme.SoftCoral
 
 @Composable
@@ -209,8 +208,9 @@ private fun OpponentCardsRow(
     }
 }
 
+@Composable
 private fun opponentRoleLabel(opponent: OpponentUi): Pair<String, Color> = when (opponent.roleBanner) {
     OpponentRoleBanner.ATTACKING -> "Ходит ${opponent.displayName}" to ReadyGreen
     OpponentRoleBanner.DEFENDING -> "Отбивается ${opponent.displayName}" to SoftCoral
-    OpponentRoleBanner.NONE -> opponent.displayName to SoftCharcoal
+    OpponentRoleBanner.NONE -> opponent.displayName to MaterialTheme.colorScheme.onBackground
 }

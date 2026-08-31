@@ -27,9 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.ui.theme.AccentTeal
-import com.example.foolcardgame.ui.theme.CardCream
 import com.example.foolcardgame.ui.theme.FoolCardGameTheme
-import com.example.foolcardgame.ui.theme.SoftCharcoal
 import com.example.foolcardgame.ui.theme.TrumpGold
 
 @Composable
@@ -40,15 +38,18 @@ fun CardFace(
     selected: Boolean = false,
     width: Dp = 56.dp,
     height: Dp = 80.dp,
+    scaleOverride: Float? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
+        targetValue = scaleOverride ?: if (selected) 1.08f else 1f,
         label = "cardScale",
     )
     val shape = RoundedCornerShape(8.dp)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val backgroundModifier = if (faceUp) {
-        Modifier.background(CardCream)
+        Modifier.background(surfaceColor)
     } else {
         Modifier.background(cardBackBrush())
     }
@@ -75,13 +76,13 @@ fun CardFace(
                     text = card.rankLabel,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (card.isRed) Color(0xFFC75050) else SoftCharcoal,
+                    color = if (card.isRed) Color(0xFFC75050) else onSurfaceColor,
                     fontSize = (height.value * 0.22f).sp,
                 )
                 Text(
                     text = card.suitSymbol,
                     style = MaterialTheme.typography.titleLarge,
-                    color = if (card.isRed) Color(0xFFC75050) else SoftCharcoal,
+                    color = if (card.isRed) Color(0xFFC75050) else onSurfaceColor,
                     fontSize = (height.value * 0.28f).sp,
                 )
             }

@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.foolcardgame.ui.theme.SoftCharcoal
 
 @Composable
 fun OpponentActionBadge(
@@ -22,7 +21,7 @@ fun OpponentActionBadge(
     Box(
         modifier = modifier
             .background(
-                color = Color.White.copy(alpha = 0.95f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                 shape = RoundedCornerShape(8.dp),
             )
             .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -31,7 +30,7 @@ fun OpponentActionBadge(
         Text(
             text = message,
             style = MaterialTheme.typography.labelMedium,
-            color = SoftCharcoal,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
     }

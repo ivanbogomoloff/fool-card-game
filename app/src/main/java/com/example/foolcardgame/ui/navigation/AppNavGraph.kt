@@ -99,6 +99,7 @@ fun AppNavGraph(
                 onDisplayNameChange = viewModel::onDisplayNameChange,
                 onAvatarSelected = viewModel::onAvatarSelected,
                 onSoundsEnabledChange = viewModel::onSoundsEnabledChange,
+                onThemeModeChange = viewModel::onThemeModeChange,
                 onSaveClick = viewModel::saveProfile,
                 onBack = { navController.popBackStack() },
                 onSnackbarShown = viewModel::consumeSnackbarMessage,

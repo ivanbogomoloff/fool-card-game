@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.foolcardgame.ui.theme.AccentTeal
 import com.example.foolcardgame.ui.theme.FoolCardGameTheme
-import com.example.foolcardgame.ui.theme.TableGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,13 +42,13 @@ fun PlaceholderScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = TableGreen,
+                    containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
                     navigationIconContentColor = AccentTeal,
                 ),
             )
         },
-        containerColor = TableGreen,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
         Box(
             modifier = Modifier

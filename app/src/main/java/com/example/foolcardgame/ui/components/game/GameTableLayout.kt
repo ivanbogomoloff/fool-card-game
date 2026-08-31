@@ -43,6 +43,7 @@ private data class HandDragState(
 
 private const val DefenseOverlapXFraction = 0.70f
 private const val DefenseOverlapYFraction = 0.20f
+private const val DragCardScale = 1.6f
 
 @Composable
 fun GameTableLayout(
@@ -295,8 +296,8 @@ private fun InProgressGameLayout(
                     val current = dragState
                     dragState = null
                     if (current == null) return@PlayerHandView
-                    val cardWidthPx = with(density) { 56.dp.toPx() }
-                    val cardHeightPx = with(density) { 80.dp.toPx() }
+                    val cardWidthPx = with(density) { 56.dp.toPx() } * DragCardScale
+                    val cardHeightPx = with(density) { 80.dp.toPx() } * DragCardScale
                     when (
                         val action = resolveTableDrop(
                             position = current.positionInRoot,
@@ -350,6 +351,7 @@ private fun InProgressGameLayout(
             CardFace(
                 card = activeDrag.card,
                 selected = true,
+                scaleOverride = DragCardScale,
                 modifier = Modifier
                     .zIndex(10f)
                     .offset {

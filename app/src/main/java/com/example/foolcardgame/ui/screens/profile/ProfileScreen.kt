@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +40,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.presentation.profile.ProfileUiState
 import com.example.foolcardgame.ui.components.common.PrimaryButton
 import com.example.foolcardgame.ui.theme.AccentTeal
 import com.example.foolcardgame.ui.theme.FoolCardGameTheme
-import com.example.foolcardgame.ui.theme.TableGreen
 import com.example.foolcardgame.ui.theme.TrumpGold
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +54,7 @@ fun ProfileScreen(
     onDisplayNameChange: (String) -> Unit,
     onAvatarSelected: (Int) -> Unit,
     onSoundsEnabledChange: (Boolean) -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit,
     onSaveClick: () -> Unit,
     onBack: () -> Unit,
     onSnackbarShown: () -> Unit,
@@ -81,14 +83,14 @@ fun ProfileScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = TableGreen,
+                    containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
                     navigationIconContentColor = AccentTeal,
                 ),
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = TableGreen,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
         if (uiState.isLoading) {
             Box(
@@ -140,6 +142,31 @@ fun ProfileScreen(
                     { Text(text = error) }
                 },
             )
+
+            Text(
+                text = "Тема",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ThemeMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = uiState.themeMode == mode,
+                        onClick = { onThemeModeChange(mode) },
+                        label = {
+                            Text(
+                                text = when (mode) {
+                                    ThemeMode.SYSTEM -> "Системная"
+                                    ThemeMode.LIGHT -> "Светлая"
+                                    ThemeMode.DARK -> "Тёмная"
+                                },
+                            )
+                        },
+                    )
+                }
+            }
 
             Text(
                 text = "Игра",
@@ -209,6 +236,7 @@ private fun ProfileScreenPreview() {
             onDisplayNameChange = {},
             onAvatarSelected = {},
             onSoundsEnabledChange = {},
+            onThemeModeChange = {},
             onSaveClick = {},
             onBack = {},
             onSnackbarShown = {},

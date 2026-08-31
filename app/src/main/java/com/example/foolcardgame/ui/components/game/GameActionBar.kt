@@ -16,7 +16,6 @@ import com.example.foolcardgame.presentation.game.GameActionsUi
 import com.example.foolcardgame.presentation.game.HandPrimaryAction
 import com.example.foolcardgame.ui.components.common.PrimaryButton
 import com.example.foolcardgame.ui.theme.ReadyGreen
-import com.example.foolcardgame.ui.theme.SoftCharcoal
 import com.example.foolcardgame.ui.theme.SoftCoral
 
 @Composable
@@ -64,7 +63,7 @@ fun GameActionBar(
                         Text(
                             text = formatReadyTimer(readySecondsLeft),
                             style = MaterialTheme.typography.titleMedium,
-                            color = SoftCharcoal,
+                            color = MaterialTheme.colorScheme.onBackground,
                         )
                     }
                 }
@@ -176,7 +175,7 @@ private fun TurnActionRow(
             Text(
                 text = formatReadyTimer(turnSecondsLeft),
                 style = MaterialTheme.typography.titleMedium,
-                color = SoftCharcoal,
+                color = MaterialTheme.colorScheme.onBackground,
             )
         }
     }

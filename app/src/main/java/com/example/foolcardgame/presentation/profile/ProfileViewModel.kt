@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.repository.ProfileRepository
 import com.example.foolcardgame.data.repository.SaveProfileResult
+import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.domain.model.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,7 @@ class ProfileViewModel(
                         displayName = profile.displayName,
                         avatarId = profile.avatarId,
                         soundsEnabled = profile.soundsEnabled,
+                        themeMode = profile.themeMode,
                         isLoading = false,
                     )
                 }
@@ -44,14 +46,14 @@ class ProfileViewModel(
     fun onSoundsEnabledChange(enabled: Boolean) {
         _uiState.update { it.copy(soundsEnabled = enabled, error = null) }
         viewModelScope.launch {
-            val state = _uiState.value
-            repository.saveProfile(
-                UserProfile(
-                    displayName = state.displayName.trim().ifEmpty { UserProfile.DEFAULT_DISPLAY_NAME },
-                    avatarId = state.avatarId,
-                    soundsEnabled = enabled,
-                ),
-            )
+            repository.saveProfile(_uiState.value.toUserProfile(soundsEnabled = enabled))
+        }
+    }
+
+    fun onThemeModeChange(mode: ThemeMode) {
+        _uiState.update { it.copy(themeMode = mode, error = null) }
+        viewModelScope.launch {
+            repository.saveProfile(_uiState.value.toUserProfile(themeMode = mode))
         }
     }
 
@@ -66,10 +68,8 @@ class ProfileViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null, snackbarMessage = null) }
             val result = repository.saveProfile(
-                UserProfile(
+                _uiState.value.toUserProfile(
                     displayName = trimmedName,
-                    avatarId = state.avatarId,
-                    soundsEnabled = state.soundsEnabled,
                 ),
             )
             _uiState.update {
@@ -91,4 +91,16 @@ class ProfileViewModel(
     fun consumeSnackbarMessage() {
         _uiState.update { it.copy(snackbarMessage = null) }
     }
+
+    private fun ProfileUiState.toUserProfile(
+        displayName: String? = null,
+        avatarId: Int? = null,
+        soundsEnabled: Boolean? = null,
+        themeMode: ThemeMode? = null,
+    ): UserProfile = UserProfile(
+        displayName = displayName ?: this.displayName.trim().ifEmpty { UserProfile.DEFAULT_DISPLAY_NAME },
+        avatarId = avatarId ?: this.avatarId,
+        soundsEnabled = soundsEnabled ?: this.soundsEnabled,
+        themeMode = themeMode ?: this.themeMode,
+    )
 }

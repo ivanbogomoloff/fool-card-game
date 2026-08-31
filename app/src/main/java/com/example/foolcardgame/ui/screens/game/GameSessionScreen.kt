@@ -20,8 +20,8 @@ import com.example.foolcardgame.presentation.game.GameUiState
 import com.example.foolcardgame.ui.components.game.GameTableLayout
 import com.example.foolcardgame.ui.components.game.LeaveGameDialog
 import com.example.foolcardgame.ui.components.game.LobbyTimeoutDialog
+import androidx.compose.material3.MaterialTheme
 import com.example.foolcardgame.ui.theme.AccentTeal
-import com.example.foolcardgame.ui.theme.TableGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,12 +74,13 @@ fun GameSessionScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = TableGreen,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
                     navigationIconContentColor = AccentTeal,
                 ),
             )
         },
-        containerColor = TableGreen,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
         Column(
             modifier = Modifier

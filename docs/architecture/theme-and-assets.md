@@ -13,6 +13,24 @@
 | Trump highlight | Muted gold | `#C9A962` |
 | Ошибка / выход | Soft coral | `#D4847C` |
 
+### Тёмная тема
+
+| Роль | Hex |
+|------|-----|
+| Фон стола | `#1E2824` |
+| Поверхности / карты | `#2F3834` |
+| Текст на тёмном | `#E8EDE3` |
+
+## Настройка темы
+
+`ThemeMode` в `domain/model/ThemeMode.kt`, сохранение в DataStore (`theme_mode`):
+
+- `SYSTEM` — по умолчанию, следует системной теме
+- `LIGHT` — светлая
+- `DARK` — тёмная
+
+Применение через `AppTheme` в `MainActivity`; выбор в экране настроек (ProfileScreen).
+
 ## Карты
 
 ### MVP (Phase 3) — программный рендер

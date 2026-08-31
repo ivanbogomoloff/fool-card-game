@@ -29,7 +29,6 @@ import androidx.compose.ui.zIndex
 import com.example.foolcardgame.presentation.game.TablePairUi
 import com.example.foolcardgame.ui.components.card.CardFace
 import com.example.foolcardgame.ui.theme.AccentTeal
-import com.example.foolcardgame.ui.theme.CardCream
 
 private val MaxTableCardWidth = 56.dp
 private val MaxTableCardHeight = 80.dp
@@ -66,7 +65,7 @@ fun TableCardsView(
                             shape = RoundedCornerShape(12.dp),
                         )
                         .background(
-                            CardCream.copy(alpha = 0.35f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
                             RoundedCornerShape(12.dp),
                         )
                 } else {

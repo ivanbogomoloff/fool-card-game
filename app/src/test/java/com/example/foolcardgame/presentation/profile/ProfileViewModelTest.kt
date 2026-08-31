@@ -3,6 +3,7 @@ package com.example.foolcardgame.presentation.profile
 import com.example.foolcardgame.data.api.FakeProfileApi
 import com.example.foolcardgame.data.local.InMemoryProfileLocalStore
 import com.example.foolcardgame.data.repository.ProfileRepository
+import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.domain.model.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -113,5 +114,19 @@ class ProfileViewModelTest {
 
         assertEquals(false, viewModel.uiState.value.soundsEnabled)
         assertEquals(false, localStore.observeProfile().first().soundsEnabled)
+    }
+
+    @Test
+    fun onThemeModeChange_savesImmediately() = runTest {
+        val localStore = InMemoryProfileLocalStore()
+        val repository = ProfileRepository(localStore, FakeProfileApi())
+        val viewModel = ProfileViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.onThemeModeChange(ThemeMode.DARK)
+        advanceUntilIdle()
+
+        assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
+        assertEquals(ThemeMode.DARK, localStore.observeProfile().first().themeMode)
     }
 }

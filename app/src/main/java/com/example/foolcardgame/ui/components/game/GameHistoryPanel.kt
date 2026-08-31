@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.game.GameHistoryEntryUi
-import com.example.foolcardgame.ui.theme.SoftCharcoal
 
 @Composable
 fun GameHistoryPanel(
@@ -37,7 +36,7 @@ fun GameHistoryPanel(
             .fillMaxWidth()
             .heightIn(max = 140.dp)
             .background(
-                color = Color.White.copy(alpha = 0.88f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
                 shape = RoundedCornerShape(8.dp),
             )
             .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -46,7 +45,7 @@ fun GameHistoryPanel(
             Text(
                 text = entry.text,
                 style = MaterialTheme.typography.labelSmall,
-                color = SoftCharcoal,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 2.dp),
             )
         }

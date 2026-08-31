@@ -4,6 +4,7 @@ data class UserProfile(
     val displayName: String = DEFAULT_DISPLAY_NAME,
     val avatarId: Int = DEFAULT_AVATAR_ID,
     val soundsEnabled: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
     companion object {
         const val DEFAULT_DISPLAY_NAME = "Игрок"
