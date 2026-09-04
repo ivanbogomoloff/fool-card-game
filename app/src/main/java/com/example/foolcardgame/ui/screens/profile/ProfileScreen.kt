@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.foolcardgame.domain.model.CardTheme
 import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.presentation.profile.ProfileUiState
 import com.example.foolcardgame.ui.components.common.PrimaryButton
@@ -55,6 +56,7 @@ fun ProfileScreen(
     onAvatarSelected: (Int) -> Unit,
     onSoundsEnabledChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onCardThemeChange: (CardTheme) -> Unit,
     onSaveClick: () -> Unit,
     onBack: () -> Unit,
     onSnackbarShown: () -> Unit,
@@ -169,6 +171,30 @@ fun ProfileScreen(
             }
 
             Text(
+                text = "Колода",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CardTheme.entries.forEach { theme ->
+                    FilterChip(
+                        selected = uiState.cardTheme == theme,
+                        onClick = { onCardThemeChange(theme) },
+                        label = {
+                            Text(
+                                text = when (theme) {
+                                    CardTheme.ILLUSTRATED -> "Классическая"
+                                    CardTheme.MINIMAL -> "Простая"
+                                },
+                            )
+                        },
+                    )
+                }
+            }
+
+            Text(
                 text = "Игра",
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -237,6 +263,7 @@ private fun ProfileScreenPreview() {
             onAvatarSelected = {},
             onSoundsEnabledChange = {},
             onThemeModeChange = {},
+            onCardThemeChange = {},
             onSaveClick = {},
             onBack = {},
             onSnackbarShown = {},

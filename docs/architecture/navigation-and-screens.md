@@ -171,38 +171,31 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph gameScreen [GameSessionScreen]
-        subgraph top [Top]
-            OpponentsRow[OpponentsRow avatars plus card counts]
+        Chrome[Home and Settings overlay]
+        subgraph table [Felt table]
+            Opponents[Opponents left top right]
+            Deck[DeckAndTrumpView top center]
+            Pairs[TableCardsView center]
+            Actions[GameActionBar indicator plus button]
         end
-        subgraph center [Center]
-            DeckLeft[Deck half visible left]
-            TableCenter[TableCardsView attack defense pairs]
-            TrumpUnder[Trump card under deck]
-        end
-        subgraph bottom [Bottom]
-            PlayerHand[PlayerHandView vertical scroll]
-            ActionBar[GameActionBar Bito Pass Gotov]
-        end
+        Hand[PlayerHandView fan]
     end
-    top --> center --> bottom
+    Chrome --> table --> Hand
 ```
 
 ### ASCII layout
 
 ```
 ┌─────────────────────────────────────┐
-│  [Avatar1]  [Avatar2]  [Avatar3]    │  ← OpponentsRow
-│    5 kart     3 kart     6 kart     │
-├─────────────────────────────────────┤
-│ [Deck]                              │
-│  12    ┌───┐ ┌───┐                   │  ← Table + Deck
-│ [Trump]│ A │ │ K │  ...              │
-│        └───┘ └───┘                   │
-├─────────────────────────────────────┤
-│  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐          │  ← PlayerHand (scroll)
-│  │6 │ │7 │ │K │ │A │ │9 │          │
-│  └──┘ └──┘ └──┘ └──┘ └──┘          │
-│  [ Бито ]  [ Пас ]  [ Готов ]       │  ← ActionBar
+│ [дом]                         [⚙]   │
+│  Бот 1        Бот 2         Бот 3   │
+│  веер         веер          веер    │
+│              [колода 12]            │
+│              [козырь]               │
+│         пары атаки/защиты           │
+│            · · ·  щит               │
+│                          [ Беру ]   │
+│     рука игрока веером              │
 └─────────────────────────────────────┘
 ```
 
@@ -212,13 +205,12 @@ flowchart TB
 flowchart TB
     GameSessionScreen --> GameTableLayout
     GameTableLayout --> OpponentsRow
-    GameTableLayout --> GameCenter
-    GameTableLayout --> PlayerHandView
+    GameTableLayout --> DeckAndTrumpView
+    GameTableLayout --> TableCardsView
     GameTableLayout --> GameActionBar
-    GameCenter --> DeckAndTrumpView
-    GameCenter --> TableCardsView
+    GameTableLayout --> PlayerHandView
     GameSessionScreen --> LeaveGameDialog
-    OpponentsRow --> PlayerAvatar
+    OpponentsRow --> OpponentSeat
     PlayerHandView --> CardFace
     TableCardsView --> CardPair
     CardPair --> CardFace

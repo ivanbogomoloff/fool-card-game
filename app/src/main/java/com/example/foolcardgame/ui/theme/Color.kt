@@ -4,6 +4,10 @@ import androidx.compose.ui.graphics.Color
 
 val TableGreen = Color(0xFFE8EDE3)
 val CardCream = Color(0xFFF5F0E8)
+val FeltGreenCenter = Color(0xFF2F7A4A)
+val FeltGreenEdge = Color(0xFF163A28)
+val GameActionBlue = Color(0xFF3B7ADB)
+val OpponentPlate = Color(0xCC1A1A1A)
 val DarkTableGreen = Color(0xFF1E2824)
 val DarkCardSurface = Color(0xFF2F3834)
 val LightOnDark = Color(0xFFE8EDE3)

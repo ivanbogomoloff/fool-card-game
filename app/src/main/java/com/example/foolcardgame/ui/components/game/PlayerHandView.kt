@@ -17,6 +17,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.ui.components.card.CardFace
 
@@ -35,9 +36,9 @@ fun PlayerHandView(
 ) {
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy((-32).dp),
     ) {
-        hand.forEach { card ->
+        hand.forEachIndexed { index, card ->
             DraggableHandCard(
                 card = card,
                 selected = card.id == selectedCardId,
@@ -48,6 +49,7 @@ fun PlayerHandView(
                 onDrag = onDrag,
                 onDragEnd = onDragEnd,
                 onDragCancel = onDragCancel,
+                modifier = Modifier.zIndex(index.toFloat()),
             )
         }
     }
@@ -64,6 +66,7 @@ private fun DraggableHandCard(
     onDrag: (positionInRoot: Offset) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var layoutCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val layoutCoordinatesState = rememberUpdatedState(layoutCoordinates)
@@ -76,10 +79,12 @@ private fun DraggableHandCard(
     CardFace(
         card = card,
         selected = selected,
+        width = 72.dp,
+        height = 104.dp,
         onClick = {
             if (interactive && !isDragging) onCardClickState.value(card.id)
         },
-        modifier = Modifier
+        modifier = modifier
             .onGloballyPositioned { coordinates ->
                 layoutCoordinates = coordinates
             }

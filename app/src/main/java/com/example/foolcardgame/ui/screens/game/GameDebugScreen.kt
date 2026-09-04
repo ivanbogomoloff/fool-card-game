@@ -28,7 +28,6 @@ fun GameDebugScreen(
 
     GameSessionScreen(
         uiState = uiState,
-        title = "Debug: игра",
         onBackClick = viewModel::onBackClick,
         onLeaveConfirm = {
             viewModel.onLeaveConfirm()

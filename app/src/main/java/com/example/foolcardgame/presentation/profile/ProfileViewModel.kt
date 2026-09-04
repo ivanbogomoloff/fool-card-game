@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.repository.ProfileRepository
 import com.example.foolcardgame.data.repository.SaveProfileResult
+import com.example.foolcardgame.domain.model.CardTheme
 import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.domain.model.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ class ProfileViewModel(
                         avatarId = profile.avatarId,
                         soundsEnabled = profile.soundsEnabled,
                         themeMode = profile.themeMode,
+                        cardTheme = profile.cardTheme,
                         isLoading = false,
                     )
                 }
@@ -54,6 +56,13 @@ class ProfileViewModel(
         _uiState.update { it.copy(themeMode = mode, error = null) }
         viewModelScope.launch {
             repository.saveProfile(_uiState.value.toUserProfile(themeMode = mode))
+        }
+    }
+
+    fun onCardThemeChange(theme: CardTheme) {
+        _uiState.update { it.copy(cardTheme = theme, error = null) }
+        viewModelScope.launch {
+            repository.saveProfile(_uiState.value.toUserProfile(cardTheme = theme))
         }
     }
 
@@ -97,10 +106,12 @@ class ProfileViewModel(
         avatarId: Int? = null,
         soundsEnabled: Boolean? = null,
         themeMode: ThemeMode? = null,
+        cardTheme: CardTheme? = null,
     ): UserProfile = UserProfile(
         displayName = displayName ?: this.displayName.trim().ifEmpty { UserProfile.DEFAULT_DISPLAY_NAME },
         avatarId = avatarId ?: this.avatarId,
         soundsEnabled = soundsEnabled ?: this.soundsEnabled,
         themeMode = themeMode ?: this.themeMode,
+        cardTheme = cardTheme ?: this.cardTheme,
     )
 }

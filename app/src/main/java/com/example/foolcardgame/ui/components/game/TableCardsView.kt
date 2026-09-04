@@ -1,7 +1,5 @@
 package com.example.foolcardgame.ui.components.game
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,9 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,10 +23,9 @@ import androidx.compose.ui.unit.min
 import androidx.compose.ui.zIndex
 import com.example.foolcardgame.presentation.game.TablePairUi
 import com.example.foolcardgame.ui.components.card.CardFace
-import com.example.foolcardgame.ui.theme.AccentTeal
 
-private val MaxTableCardWidth = 56.dp
-private val MaxTableCardHeight = 80.dp
+private val MaxTableCardWidth = 64.dp
+private val MaxTableCardHeight = 90.dp
 private const val TableColumnCount = 3
 private val TableRowSpacing = 10.dp
 
@@ -55,35 +49,10 @@ fun TableCardsView(
             .padding(8.dp)
             .onGloballyPositioned { coordinates ->
                 onTableBoundsChanged(coordinates.boundsInRoot())
-            }
-            .then(
-                if (tablePairs.isEmpty() && showEmptyHint) {
-                    Modifier
-                        .border(
-                            width = 1.dp,
-                            color = AccentTeal.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp),
-                        )
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
-                            RoundedCornerShape(12.dp),
-                        )
-                } else {
-                    Modifier
-                },
-            ),
+            },
         contentAlignment = Alignment.Center,
     ) {
-        if (tablePairs.isEmpty()) {
-            if (showEmptyHint) {
-                Text(
-                    text = "Перетащите карту на стол",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AccentTeal,
-                )
-            }
-        } else {
-            // Equal column slots; pair stacks may overflow and overlap neighbors.
+        if (tablePairs.isNotEmpty()) {
             val cellWidth = maxWidth / TableColumnCount
             val cardWidth = min(MaxTableCardWidth, cellWidth)
             val cardHeight = cardWidth * (MaxTableCardHeight.value / MaxTableCardWidth.value)

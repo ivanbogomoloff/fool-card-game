@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.foolcardgame.domain.model.CardTheme
 import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +31,9 @@ class ProfileDataStore(
                 themeMode = preferences[KEY_THEME_MODE]?.let { stored ->
                     ThemeMode.entries.firstOrNull { it.name == stored }
                 } ?: ThemeMode.SYSTEM,
+                cardTheme = preferences[KEY_CARD_THEME]?.let { stored ->
+                    CardTheme.entries.firstOrNull { it.name == stored }
+                } ?: CardTheme.ILLUSTRATED,
             )
         }
     }
@@ -40,6 +44,7 @@ class ProfileDataStore(
             preferences[KEY_AVATAR_ID] = profile.avatarId
             preferences[KEY_SOUNDS_ENABLED] = profile.soundsEnabled
             preferences[KEY_THEME_MODE] = profile.themeMode.name
+            preferences[KEY_CARD_THEME] = profile.cardTheme.name
         }
     }
 
@@ -48,5 +53,6 @@ class ProfileDataStore(
         private val KEY_AVATAR_ID = intPreferencesKey("avatar_id")
         private val KEY_SOUNDS_ENABLED = booleanPreferencesKey("sounds_enabled")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        private val KEY_CARD_THEME = stringPreferencesKey("card_theme")
     }
 }

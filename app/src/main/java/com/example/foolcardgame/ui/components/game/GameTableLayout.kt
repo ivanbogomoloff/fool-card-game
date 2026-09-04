@@ -1,10 +1,10 @@
 package com.example.foolcardgame.ui.components.game
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,6 +44,8 @@ private data class HandDragState(
 private const val DefenseOverlapXFraction = 0.70f
 private const val DefenseOverlapYFraction = 0.20f
 private const val DragCardScale = 1.6f
+private val HandCardWidth = 72.dp
+private val HandCardHeight = 104.dp
 
 @Composable
 fun GameTableLayout(
@@ -130,8 +132,8 @@ private fun InProgressGameLayout(
         if (isGameFinished) return false
         if (isDiscardAnimating || pairs.isEmpty()) return false
         val flyExtraPx = with(density) { 120.dp.toPx() }
-        val cardWidthPx = with(density) { 56.dp.toPx() }
-        val cardHeightPx = with(density) { 80.dp.toPx() }
+        val cardWidthPx = with(density) { HandCardWidth.toPx() }
+        val cardHeightPx = with(density) { HandCardHeight.toPx() }
         val fallbackBounds = if (tableBounds.width > 1f) {
             tableBounds
         } else {
@@ -193,20 +195,7 @@ private fun InProgressGameLayout(
             },
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            OpponentsRow(
-                opponents = uiState.opponents,
-                phase = uiState.phase,
-                opponentAction = uiState.opponentAction,
-                loserId = uiState.loserId,
-                localPlayerId = uiState.localPlayerId,
-                showLoserCards = uiState.showLoserCards,
-                revealLoserCards = uiState.revealLoserCards,
-                onOpponentAvatarBoundsChanged = { id, bounds ->
-                    opponentAvatarBounds[id] = bounds
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -214,66 +203,80 @@ private fun InProgressGameLayout(
                         playAreaBounds = coordinates.boundsInRoot()
                     },
             ) {
-                val deckShiftRight = maxWidth * 0.05f
-                val tableStartPadding = 100.dp + deckShiftRight + 20.dp
                 TableCardsView(
                     tablePairs = visibleTablePairs,
                     onTableBoundsChanged = { tableBounds = it },
                     onAttackCardBoundsChanged = { pairId, bounds ->
                         attackCardBounds[pairId] = bounds
                     },
-                    showEmptyHint = !isDiscardAnimating,
+                    showEmptyHint = false,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = tableStartPadding),
+                        .padding(start = 72.dp, end = 72.dp, top = 168.dp, bottom = 8.dp),
                 )
+                val hasTopOpponent = uiState.opponents.size == 1 || uiState.opponents.size >= 3
                 DeckAndTrumpView(
                     deckCount = uiState.deckCount,
                     trump = uiState.trump,
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset(x = (-28).dp + deckShiftRight),
+                        .align(Alignment.TopCenter)
+                        .padding(top = if (hasTopOpponent) 132.dp else 64.dp),
+                )
+                OpponentsRow(
+                    opponents = uiState.opponents,
+                    phase = uiState.phase,
+                    opponentAction = uiState.opponentAction,
+                    loserId = uiState.loserId,
+                    localPlayerId = uiState.localPlayerId,
+                    showLoserCards = uiState.showLoserCards,
+                    revealLoserCards = uiState.revealLoserCards,
+                    onOpponentAvatarBoundsChanged = { id, bounds ->
+                        opponentAvatarBounds[id] = bounds
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                GameActionBar(
+                    actions = uiState.actions,
+                    readySecondsLeft = uiState.readySecondsLeft,
+                    turnSecondsLeft = uiState.turnSecondsLeft,
+                    isLocalPlayerTurn = uiState.isLocalPlayerTurn,
+                    isLocalDefending = uiState.isLocalDefending,
+                    isLocalAttacking = uiState.isLocalAttacking,
+                    finishedSummary = uiState.finishedSummary,
+                    canRevealLoserCards = uiState.canRevealLoserCards,
+                    showLoserCards = uiState.showLoserCards,
+                    onBitoClick = {
+                        if (isDiscardAnimating) return@GameActionBar
+                        if (uiState.deckCount == 0) {
+                            onBitoClick()
+                        } else {
+                            startTableFlyaway(TableFlyawayDirection.Right)
+                            onBitoClick()
+                        }
+                    },
+                    onPassClick = onPassClick,
+                    onTakeClick = {
+                        if (isDiscardAnimating) return@GameActionBar
+                        if (startTableFlyaway(TableFlyawayDirection.Down)) {
+                            suppressTableCards = true
+                            pendingAfterFlyaway = {
+                                onTakeClick()
+                                suppressTableCards = false
+                            }
+                        } else {
+                            onTakeClick()
+                        }
+                    },
+                    onReadyClick = onReadyClick,
+                    onToggleLoserCardsClick = onToggleLoserCardsClick,
+                    onExitClick = onExitClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .onGloballyPositioned { coordinates ->
+                            actionBarBounds = coordinates.boundsInRoot()
+                        },
                 )
             }
-            GameActionBar(
-                actions = uiState.actions,
-                readySecondsLeft = uiState.readySecondsLeft,
-                turnSecondsLeft = uiState.turnSecondsLeft,
-                isLocalPlayerTurn = uiState.isLocalPlayerTurn,
-                isLocalDefending = uiState.isLocalDefending,
-                isLocalAttacking = uiState.isLocalAttacking,
-                finishedSummary = uiState.finishedSummary,
-                canRevealLoserCards = uiState.canRevealLoserCards,
-                showLoserCards = uiState.showLoserCards,
-                onBitoClick = {
-                    if (isDiscardAnimating) return@GameActionBar
-                    if (uiState.deckCount == 0) {
-                        onBitoClick()
-                    } else {
-                        startTableFlyaway(TableFlyawayDirection.Right)
-                        onBitoClick()
-                    }
-                },
-                onPassClick = onPassClick,
-                onTakeClick = {
-                    if (isDiscardAnimating) return@GameActionBar
-                    if (startTableFlyaway(TableFlyawayDirection.Down)) {
-                        suppressTableCards = true
-                        pendingAfterFlyaway = {
-                            onTakeClick()
-                            suppressTableCards = false
-                        }
-                    } else {
-                        onTakeClick()
-                    }
-                },
-                onReadyClick = onReadyClick,
-                onToggleLoserCardsClick = onToggleLoserCardsClick,
-                onExitClick = onExitClick,
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    actionBarBounds = coordinates.boundsInRoot()
-                },
-            )
             PlayerHandView(
                 hand = uiState.hand,
                 selectedCardId = if (isHandInteractive) {
@@ -296,8 +299,8 @@ private fun InProgressGameLayout(
                     val current = dragState
                     dragState = null
                     if (current == null) return@PlayerHandView
-                    val cardWidthPx = with(density) { 56.dp.toPx() } * DragCardScale
-                    val cardHeightPx = with(density) { 80.dp.toPx() } * DragCardScale
+                    val cardWidthPx = with(density) { HandCardWidth.toPx() } * DragCardScale
+                    val cardHeightPx = with(density) { HandCardHeight.toPx() } * DragCardScale
                     when (
                         val action = resolveTableDrop(
                             position = current.positionInRoot,
@@ -325,6 +328,7 @@ private fun InProgressGameLayout(
                 onDragCancel = { dragState = null },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .onGloballyPositioned { coordinates ->
                         handBounds = coordinates.boundsInRoot()
@@ -346,11 +350,13 @@ private fun InProgressGameLayout(
 
         val activeDrag = dragState
         if (activeDrag != null) {
-            val cardWidthPx = with(density) { 56.dp.toPx() }
-            val cardHeightPx = with(density) { 80.dp.toPx() }
+            val cardWidthPx = with(density) { HandCardWidth.toPx() }
+            val cardHeightPx = with(density) { HandCardHeight.toPx() }
             CardFace(
                 card = activeDrag.card,
                 selected = true,
+                width = HandCardWidth,
+                height = HandCardHeight,
                 scaleOverride = DragCardScale,
                 modifier = Modifier
                     .zIndex(10f)

@@ -33,23 +33,45 @@
 
 ## Карты
 
-### MVP (Phase 3) — программный рендер
+### Темы колоды (`CardTheme`)
 
-`Composable CardFace` на Canvas:
+`CardTheme` в `domain/model/CardTheme.kt`, сохранение в DataStore (`card_theme`):
+
+- `ILLUSTRATED` — по умолчанию, WebP из atlas (`IllustratedCardFace`)
+- `MINIMAL` — программный рендер символов (`MinimalCardFace`)
+
+Выбор в ProfileScreen (секция «Колода»). Тема пробрасывается через `LocalCardTheme` в `AppTheme`; все call-site'ы используют единый `CardFace`.
+
+### Illustrated — drawable/WebP
+
+- 36 лиц + рубашка в `res/drawable-nodpi/`
+- Naming: `card_{suit}_{rank}.webp` (совпадает с `Card.id`, напр. `HEARTS_ACE` → `card_hearts_ace.webp`)
+- Рубашка: `card_back.webp`
+- Маппер: `CardDrawableMapper.kt` (`cardFaceDrawableRes`, `cardBackDrawableRes`)
+- Имена ассетов (JVM-тест): `cardAssetName()` в `CardAssetNames.kt`
+
+#### Pipeline нарезки
+
+Исходники (вне репозитория) → скрипт `tools/slice_card_assets.py`:
+
+```bash
+python3 tools/slice_card_assets.py \
+  --faces ~/Pictures/fool-card-game/card-setup.png \
+  --back ~/Pictures/fool-card-game/card-deck.png \
+  --output app/src/main/res/drawable-nodpi/
+```
+
+Atlas: 4×13 (HEARTS, DIAMONDS, CLUBS, SPADES × A..K). Экспортируются колонки 6–K и Ace (36 карт).
+
+### Minimal — программный рендер
+
+`MinimalCardFace`:
 
 - Масть: ♠ ♥ ♦ ♣
 - Ранг: 6–10, В, Д, К, Т
 - Фон cream, рамка soft charcoal
 - Красные масти: hearts, diamonds
-- Рубашка: паттерн на warm cream
-
-### Эволюция (Phase 4+)
-
-Опционально заменить на drawable/webp:
-
-- AI-генерация: 36 лиц + рубашка
-- Naming: `card_spades_6.webp`, `card_back.webp`
-- Экспорт 2x/3x в `res/drawable-*`
+- Рубашка: градиент AccentTeal
 
 ## Аватары
 

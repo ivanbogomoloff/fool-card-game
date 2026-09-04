@@ -100,6 +100,7 @@ fun AppNavGraph(
                 onAvatarSelected = viewModel::onAvatarSelected,
                 onSoundsEnabledChange = viewModel::onSoundsEnabledChange,
                 onThemeModeChange = viewModel::onThemeModeChange,
+                onCardThemeChange = viewModel::onCardThemeChange,
                 onSaveClick = viewModel::saveProfile,
                 onBack = { navController.popBackStack() },
                 onSnackbarShown = viewModel::consumeSnackbarMessage,
@@ -121,7 +122,6 @@ fun AppNavGraph(
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             GameSessionScreen(
                 uiState = uiState,
-                title = "Игра",
                 onBackClick = viewModel::onBackClick,
                 onLeaveConfirm = {
                     viewModel.onLeaveConfirm()
@@ -138,6 +138,7 @@ fun AppNavGraph(
                 onPassClick = viewModel::onPassClick,
                 onTakeClick = viewModel::onTakeClick,
                 onReadyClick = viewModel::onReadyClick,
+                onSettingsClick = { navController.navigate(Routes.PROFILE) },
                 onToggleLoserCardsClick = viewModel::onToggleLoserCardsClick,
                 onExitClick = {
                     viewModel.onExitClick()
