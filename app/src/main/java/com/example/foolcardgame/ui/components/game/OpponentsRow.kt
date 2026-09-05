@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.foolcardgame.domain.model.GamePhase
-import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.presentation.game.OpponentActionUi
 import com.example.foolcardgame.presentation.game.OpponentPulseUi
 import com.example.foolcardgame.presentation.game.OpponentRoleBanner
@@ -73,7 +72,6 @@ fun OpponentsRow(
     loserId: String? = null,
     localPlayerId: String = "",
     showLoserCards: Boolean = false,
-    revealLoserCards: List<CardUi> = emptyList(),
     onOpponentAvatarBoundsChanged: (String, Rect) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
@@ -101,7 +99,6 @@ fun OpponentsRow(
                 loserId = loserId,
                 localPlayerId = localPlayerId,
                 showLoserCards = showLoserCards,
-                revealLoserCards = revealLoserCards,
                 opponentAction = opponentAction,
                 opponentPulse = opponentPulse,
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
@@ -118,7 +115,6 @@ fun OpponentsRow(
                 loserId = loserId,
                 localPlayerId = localPlayerId,
                 showLoserCards = showLoserCards,
-                revealLoserCards = revealLoserCards,
                 opponentAction = opponentAction,
                 opponentPulse = opponentPulse,
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
@@ -135,7 +131,6 @@ fun OpponentsRow(
                 loserId = loserId,
                 localPlayerId = localPlayerId,
                 showLoserCards = showLoserCards,
-                revealLoserCards = revealLoserCards,
                 opponentAction = opponentAction,
                 opponentPulse = opponentPulse,
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
@@ -155,7 +150,6 @@ private fun OpponentSeatView(
     loserId: String?,
     localPlayerId: String,
     showLoserCards: Boolean,
-    revealLoserCards: List<CardUi>,
     opponentAction: OpponentActionUi?,
     opponentPulse: OpponentPulseUi?,
     onOpponentAvatarBoundsChanged: (String, Rect) -> Unit,
@@ -164,9 +158,7 @@ private fun OpponentSeatView(
     val isLoserMarked = phase == GamePhase.FINISHED &&
         opponent.id == loserId &&
         loserId != localPlayerId
-    val showRevealed = showLoserCards &&
-        opponent.id == loserId &&
-        revealLoserCards.isNotEmpty()
+    val cardsOnTable = showLoserCards && opponent.id == loserId
     val actionMessage = if (opponentAction?.opponentId == opponent.id) {
         opponentAction.message
     } else {
@@ -177,7 +169,11 @@ private fun OpponentSeatView(
     } else {
         null
     }
-    val visibleBacks = opponent.cardCount.coerceIn(0, 6)
+    val visibleBacks = if (cardsOnTable) {
+        0
+    } else {
+        opponent.cardCount.coerceIn(0, 6)
+    }
     val horizontalFan = seat == OpponentSeat.Top
 
     Column(
@@ -193,6 +189,7 @@ private fun OpponentSeatView(
                 actionMessage = actionMessage,
                 pulseAtTick = pulseAtTick,
                 singleLineName = seat == OpponentSeat.Top,
+                hideCardCount = cardsOnTable,
                 onBoundsChanged = { bounds ->
                     onOpponentAvatarBoundsChanged(opponent.id, bounds)
                 },
@@ -206,8 +203,6 @@ private fun OpponentSeatView(
             )
         }
         OpponentCardsFan(
-            showRevealedCards = showRevealed,
-            revealLoserCards = revealLoserCards,
             visibleBacks = visibleBacks,
             horizontal = horizontalFan,
         )
@@ -236,6 +231,7 @@ private fun OpponentNamePlate(
     actionMessage: String?,
     pulseAtTick: Long?,
     singleLineName: Boolean,
+    hideCardCount: Boolean = false,
     onBoundsChanged: (Rect) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -265,7 +261,10 @@ private fun OpponentNamePlate(
     } else {
         (actionMessage ?: "Дурак") to null
     }
-    val showCardCount = opponent.cardCount > 0 && actionMessage == null && !isLoserMarked
+    val showCardCount = opponent.cardCount > 0 &&
+        actionMessage == null &&
+        !isLoserMarked &&
+        !hideCardCount
     val avatar = AvatarPresets.get(opponent.avatarId)
 
     Column(
@@ -333,57 +332,37 @@ private fun OpponentNamePlate(
 
 @Composable
 private fun OpponentCardsFan(
-    showRevealedCards: Boolean,
-    revealLoserCards: List<CardUi>,
     visibleBacks: Int,
     horizontal: Boolean,
 ) {
-    val cardCount = if (showRevealedCards) revealLoserCards.size else visibleBacks
-    if (cardCount == 0) return
+    if (visibleBacks == 0) return
 
     val cardWidth = 28.dp
     val cardHeight = 40.dp
     val step = 10.dp
     val boxModifier = if (horizontal) {
-        Modifier.width(cardWidth + step * (cardCount - 1).coerceAtLeast(0))
+        Modifier.width(cardWidth + step * (visibleBacks - 1).coerceAtLeast(0))
     } else {
         Modifier.size(
             width = cardWidth,
-            height = cardHeight + step * (cardCount - 1).coerceAtLeast(0),
+            height = cardHeight + step * (visibleBacks - 1).coerceAtLeast(0),
         )
     }
 
     Box(modifier = boxModifier) {
-        if (showRevealedCards) {
-            revealLoserCards.forEachIndexed { index, card ->
-                CardFace(
-                    card = card,
-                    faceUp = true,
-                    width = cardWidth,
-                    height = cardHeight,
-                    modifier = Modifier
-                        .offset(
-                            x = if (horizontal) step * index else 0.dp,
-                            y = if (horizontal) 0.dp else step * index,
-                        )
-                        .zIndex(index.toFloat()),
-                )
-            }
-        } else {
-            repeat(visibleBacks) { index ->
-                CardFace(
-                    card = null,
-                    faceUp = false,
-                    width = cardWidth,
-                    height = cardHeight,
-                    modifier = Modifier
-                        .offset(
-                            x = if (horizontal) step * index else 0.dp,
-                            y = if (horizontal) 0.dp else step * index,
-                        )
-                        .zIndex(index.toFloat()),
-                )
-            }
+        repeat(visibleBacks) { index ->
+            CardFace(
+                card = null,
+                faceUp = false,
+                width = cardWidth,
+                height = cardHeight,
+                modifier = Modifier
+                    .offset(
+                        x = if (horizontal) step * index else 0.dp,
+                        y = if (horizontal) 0.dp else step * index,
+                    )
+                    .zIndex(index.toFloat()),
+            )
         }
     }
 }

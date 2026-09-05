@@ -15,7 +15,7 @@ data class OpponentActionUi(
     val atTick: Long,
 )
 
-/** One-shot scale pulse on opponent name plate (e.g. after THROW_IN). */
+/** One-shot scale pulse on opponent name plate (after ATTACK / DEFEND / THROW_IN). */
 data class OpponentPulseUi(
     val opponentId: String,
     val atTick: Long,

@@ -42,6 +42,9 @@ data class FlyingDiscardCard(
     val heightPx: Float,
     val staggerIndex: Int,
     val shrink: Boolean = false,
+    val flipDuringFlight: Boolean = true,
+    val startScale: Float = 1f,
+    val endScale: Float = 1f,
 )
 
 private const val FlyDurationMs = 700
@@ -103,6 +106,17 @@ private fun FlyingDiscardCardItem(
             ) {
                 progress = value
             }
+        } else if (!flying.flipDuringFlight) {
+            val anim = Animatable(0f)
+            anim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = durationMs,
+                    easing = LinearOutSlowInEasing,
+                ),
+            ) {
+                progress = value
+            }
         } else {
             coroutineScope {
                 launch {
@@ -133,7 +147,11 @@ private fun FlyingDiscardCardItem(
         }
     }
 
-    val faceUp = if (flying.shrink) true else rotationY <= 90f
+    val faceUp = when {
+        flying.shrink -> true
+        !flying.flipDuringFlight -> true
+        else -> rotationY <= 90f
+    }
     val displayRotation = if (faceUp) rotationY else rotationY - 180f
     val currentTopLeft = Offset(
         x = flying.startTopLeftInRoot.x +
@@ -155,17 +173,26 @@ private fun FlyingDiscardCardItem(
                 )
             }
             .graphicsLayer {
-                if (flying.shrink) {
-                    val scale = 1f - progress
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = 1f - progress
-                } else {
-                    this.rotationY = displayRotation
-                    this.cameraDistance = cameraDistance
-                    val scale = 1f - 0.15f * progress
-                    scaleX = scale
-                    scaleY = scale
+                when {
+                    flying.shrink -> {
+                        val scale = 1f - progress
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = 1f - progress
+                    }
+                    !flying.flipDuringFlight -> {
+                        val scale = flying.startScale +
+                            (flying.endScale - flying.startScale) * progress
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    else -> {
+                        this.rotationY = displayRotation
+                        this.cameraDistance = cameraDistance
+                        val scale = 1f - 0.15f * progress
+                        scaleX = scale
+                        scaleY = scale
+                    }
                 }
             },
     )

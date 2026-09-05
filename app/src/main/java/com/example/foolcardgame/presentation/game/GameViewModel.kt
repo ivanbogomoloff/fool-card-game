@@ -92,7 +92,10 @@ open class GameViewModel(
                                 )
                                 scheduleOpponentToastClear()
                             }
-                            if (event.kind == GameActionKindDto.THROW_IN) {
+                            if (event.kind == GameActionKindDto.ATTACK ||
+                                event.kind == GameActionKindDto.DEFEND ||
+                                event.kind == GameActionKindDto.THROW_IN
+                            ) {
                                 newOpponentPulse = OpponentPulseUi(
                                     opponentId = event.playerId,
                                     atTick = event.atTick,

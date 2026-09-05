@@ -46,6 +46,9 @@ private const val DefenseOverlapYFraction = 0.20f
 private const val DragCardScale = 1.6f
 private val HandCardWidth = 80.dp
 private val HandCardHeight = 116.dp
+private val LoserRevealTableCardWidth = 64.dp
+private val LoserRevealTableCardHeight = 90.dp
+private const val LoserRevealSlotScale = 0.45f
 
 @Composable
 fun GameTableLayout(
@@ -113,16 +116,72 @@ private fun InProgressGameLayout(
     val attackCardBounds = remember { mutableStateMapOf<Int, Rect>() }
     var discardFlyaway by remember { mutableStateOf<List<FlyingDiscardCard>>(emptyList()) }
     var suppressTableCards by remember { mutableStateOf(false) }
+    var suppressRoundTableForLoserReveal by remember { mutableStateOf(false) }
+    var loserCardsSettledOnTable by remember { mutableStateOf(false) }
+    var loserRevealBusy by remember { mutableStateOf(false) }
+    var lastShowLoserCards by remember { mutableStateOf(uiState.showLoserCards) }
     var pendingAfterFlyaway by remember { mutableStateOf<(() -> Unit)?>(null) }
     var lastHandledFlyTick by remember { mutableStateOf(-1L) }
     val density = LocalDensity.current
     val isGameFinished = uiState.phase == GamePhase.FINISHED
     val isHandInteractive = uiState.phase == GamePhase.IN_PROGRESS
-    val isDiscardAnimating = discardFlyaway.isNotEmpty() && !isGameFinished
-    val visibleTablePairs = if (suppressTableCards) emptyList() else uiState.tablePairs
+    val isDiscardAnimating = discardFlyaway.isNotEmpty()
+    val loserTablePairs = remember(uiState.revealLoserCards) {
+        revealLoserCardsToTablePairs(uiState.revealLoserCards)
+    }
+    val visibleTablePairs = when {
+        loserCardsSettledOnTable -> loserTablePairs
+        suppressTableCards || suppressRoundTableForLoserReveal -> emptyList()
+        else -> uiState.tablePairs
+    }
     val livePairIds = visibleTablePairs.map { it.id }.toSet()
     SideEffect {
         attackCardBounds.keys.filter { it !in livePairIds }.forEach { attackCardBounds.remove(it) }
+    }
+
+    fun buildLoserRevealFlyaway(toTable: Boolean): List<FlyingDiscardCard> {
+        val cards = uiState.revealLoserCards
+        if (cards.isEmpty()) return emptyList()
+        val loserId = uiState.loserId ?: return emptyList()
+        val cardWidthPx = with(density) { LoserRevealTableCardWidth.toPx() }
+        val cardHeightPx = with(density) { LoserRevealTableCardHeight.toPx() }
+        val tableArea = if (tableBounds.width > 1f) tableBounds else playAreaBounds
+        val slotTops = loserRevealTableSlotTops(
+            tableBounds = tableArea,
+            count = cards.size,
+            cardWidthPx = cardWidthPx,
+            cardHeightPx = cardHeightPx,
+        )
+        val avatar = opponentAvatarBounds[loserId]
+        val avatarCenter = when {
+            avatar != null && avatar.width > 1f -> avatar.center
+            else -> Offset(
+                x = layoutBounds.center.x,
+                y = layoutBounds.top + with(density) { 96.dp.toPx() },
+            )
+        }
+        val slotTopLeft = Offset(
+            x = avatarCenter.x - cardWidthPx / 2f,
+            y = avatarCenter.y - cardHeightPx / 2f,
+        )
+        return cards.mapIndexed { index, card ->
+            val tableTop = slotTops.getOrElse(index) { slotTopLeft }
+            val start = if (toTable) slotTopLeft else tableTop
+            val end = if (toTable) tableTop else slotTopLeft
+            FlyingDiscardCard(
+                id = "loser-reveal-${card.id}-$index",
+                card = card,
+                startTopLeftInRoot = start,
+                endTopLeftInRoot = end,
+                widthPx = cardWidthPx,
+                heightPx = cardHeightPx,
+                staggerIndex = index,
+                shrink = false,
+                flipDuringFlight = false,
+                startScale = if (toTable) LoserRevealSlotScale else 1f,
+                endScale = if (toTable) 1f else LoserRevealSlotScale,
+            )
+        }
     }
 
     fun startFlyaway(
@@ -154,6 +213,49 @@ private fun InProgressGameLayout(
             attackCardBounds.clear()
         }
         return discardFlyaway.isNotEmpty()
+    }
+
+    LaunchedEffect(uiState.showLoserCards) {
+        if (loserRevealBusy || isDiscardAnimating) return@LaunchedEffect
+        if (uiState.showLoserCards == lastShowLoserCards) return@LaunchedEffect
+        val showing = uiState.showLoserCards
+        lastShowLoserCards = showing
+
+        if (uiState.revealLoserCards.isEmpty() || uiState.loserId == null) {
+            suppressRoundTableForLoserReveal = showing
+            loserCardsSettledOnTable = showing
+            return@LaunchedEffect
+        }
+
+        loserRevealBusy = true
+        if (showing) {
+            suppressRoundTableForLoserReveal = true
+            loserCardsSettledOnTable = false
+            val fly = buildLoserRevealFlyaway(toTable = true)
+            if (fly.isEmpty()) {
+                loserCardsSettledOnTable = true
+                loserRevealBusy = false
+                return@LaunchedEffect
+            }
+            discardFlyaway = fly
+            pendingAfterFlyaway = {
+                loserCardsSettledOnTable = true
+                loserRevealBusy = false
+            }
+        } else {
+            loserCardsSettledOnTable = false
+            val fly = buildLoserRevealFlyaway(toTable = false)
+            if (fly.isEmpty()) {
+                suppressRoundTableForLoserReveal = false
+                loserRevealBusy = false
+                return@LaunchedEffect
+            }
+            discardFlyaway = fly
+            pendingAfterFlyaway = {
+                suppressRoundTableForLoserReveal = false
+                loserRevealBusy = false
+            }
+        }
     }
 
     LaunchedEffect(uiState.tableFlyAnimation?.atTick) {
@@ -242,8 +344,9 @@ private fun InProgressGameLayout(
                     opponentPulse = uiState.opponentPulse,
                     loserId = uiState.loserId,
                     localPlayerId = uiState.localPlayerId,
-                    showLoserCards = uiState.showLoserCards,
-                    revealLoserCards = uiState.revealLoserCards,
+                    showLoserCards = uiState.showLoserCards ||
+                        suppressRoundTableForLoserReveal ||
+                        loserCardsSettledOnTable,
                     onOpponentAvatarBoundsChanged = { id, bounds ->
                         opponentAvatarBounds[id] = bounds
                     },
@@ -269,7 +372,10 @@ private fun InProgressGameLayout(
                         onTakeClick()
                     },
                     onReadyClick = onReadyClick,
-                    onToggleLoserCardsClick = onToggleLoserCardsClick,
+                    onToggleLoserCardsClick = {
+                        if (loserRevealBusy || isDiscardAnimating) return@GameActionBar
+                        onToggleLoserCardsClick()
+                    },
                     onExitClick = onExitClick,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
