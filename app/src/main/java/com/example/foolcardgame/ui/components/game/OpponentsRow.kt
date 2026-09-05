@@ -192,6 +192,7 @@ private fun OpponentSeatView(
                 isLoserMarked = isLoserMarked,
                 actionMessage = actionMessage,
                 pulseAtTick = pulseAtTick,
+                singleLineName = seat == OpponentSeat.Top,
                 onBoundsChanged = { bounds ->
                     onOpponentAvatarBoundsChanged(opponent.id, bounds)
                 },
@@ -234,6 +235,7 @@ private fun OpponentNamePlate(
     isLoserMarked: Boolean,
     actionMessage: String?,
     pulseAtTick: Long?,
+    singleLineName: Boolean,
     onBoundsChanged: (Rect) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -259,7 +261,7 @@ private fun OpponentNamePlate(
 
     val useCompactName = actionMessage == null && !isLoserMarked
     val (line1, line2) = if (useCompactName) {
-        formatCompactOpponentName(opponent.displayName)
+        formatCompactOpponentName(opponent.displayName, singleLine = singleLineName)
     } else {
         (actionMessage ?: "Дурак") to null
     }

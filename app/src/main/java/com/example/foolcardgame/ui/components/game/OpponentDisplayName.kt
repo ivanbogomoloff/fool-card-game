@@ -4,12 +4,21 @@ private const val CompactLineLimit = 8
 private const val Ellipsis = "…"
 
 /**
- * Compact opponent name for the table plate: at most two lines, 8 chars each.
- * Splits on the first space when present; truncates with ellipsis.
+ * Compact opponent name for the table plate.
+ *
+ * Default: at most two lines, 8 chars each (split on the first space).
+ * [singleLine]: one line up to 16 chars, spaces preserved.
  */
-fun formatCompactOpponentName(full: String): Pair<String, String?> {
+fun formatCompactOpponentName(
+    full: String,
+    singleLine: Boolean = false,
+): Pair<String, String?> {
     val trimmed = full.trim()
     if (trimmed.isEmpty()) return "" to null
+
+    if (singleLine) {
+        return truncateWithEllipsis(trimmed, CompactLineLimit * 2) to null
+    }
 
     val spaceIndex = trimmed.indexOf(' ')
     if (spaceIndex < 0) {

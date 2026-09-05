@@ -32,4 +32,17 @@ class OpponentDisplayNameTest {
         assertEquals("" to null, formatCompactOpponentName("   "))
         assertNull(formatCompactOpponentName("   ").second)
     }
+
+    @Test
+    fun singleLine_keepsSpaceWithoutSecondLine() {
+        assertEquals("Том Хэнкс" to null, formatCompactOpponentName("Том Хэнкс", singleLine = true))
+    }
+
+    @Test
+    fun singleLine_longName_truncatesTo16WithEllipsis() {
+        assertEquals(
+            "Роберт Дауни-мл…" to null,
+            formatCompactOpponentName("Роберт Дауни-младший", singleLine = true),
+        )
+    }
 }
