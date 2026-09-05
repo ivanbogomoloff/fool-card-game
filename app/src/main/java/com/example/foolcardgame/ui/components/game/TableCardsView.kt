@@ -28,18 +28,26 @@ import androidx.compose.ui.zIndex
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.presentation.game.TablePairUi
 import com.example.foolcardgame.ui.components.card.CardFace
+import kotlin.math.ceil
 
 private val MaxTableCardWidth = 64.dp
 private val MaxTableCardHeight = 90.dp
 private const val TableColumnCount = 3
-private val TableRowSpacing = 10.dp
+private val TableRowSpacingComfortable = 10.dp
+private val TableRowSpacingCrowded = 5.dp
 private val BeatenCardDim = Color.Black.copy(alpha = 0.42f)
+private const val CrowdedPairThreshold = 4
 
-/** Horizontal overlap of defense over attack: 30% → shift by 70% of width. */
-private const val DefenseOverlapXFraction = 0.70f
+/** Horizontal overlap of defense over attack (comfortable). */
+private const val DefenseOverlapXComfortable = 0.70f
 
-/** Vertical overlap of defense over attack: 80% → shift by 20% of height. */
+/** Horizontal overlap when many pairs — stacks sit closer. */
+private const val DefenseOverlapXCrowded = 0.55f
+
+/** Vertical overlap of defense over attack. */
 private const val DefenseOverlapYFraction = 0.20f
+
+private val CardAspect = MaxTableCardHeight / MaxTableCardWidth
 
 @Composable
 fun TableCardsView(
@@ -49,23 +57,34 @@ fun TableCardsView(
     modifier: Modifier = Modifier,
     showEmptyHint: Boolean = true,
 ) {
+    val crowded = tablePairs.size >= CrowdedPairThreshold
+    val contentPadding = if (crowded) 4.dp else 8.dp
+    val rowSpacing = if (crowded) TableRowSpacingCrowded else TableRowSpacingComfortable
+    val overlapX = if (crowded) DefenseOverlapXCrowded else DefenseOverlapXComfortable
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .padding(8.dp)
+            .padding(contentPadding)
             .onGloballyPositioned { coordinates ->
                 onTableBoundsChanged(coordinates.boundsInRoot())
             },
         contentAlignment = Alignment.Center,
     ) {
         if (tablePairs.isNotEmpty()) {
+            val rowCount = ceil(tablePairs.size / TableColumnCount.toFloat()).toInt().coerceAtLeast(1)
             val cellWidth = maxWidth / TableColumnCount
-            val cardWidth = min(MaxTableCardWidth, cellWidth)
-            val cardHeight = cardWidth * (MaxTableCardHeight.value / MaxTableCardWidth.value)
+            val spacingTotal = rowSpacing * (rowCount - 1).coerceAtLeast(0)
+            val stackHeightFactor = 1f + DefenseOverlapYFraction
+            val maxCardHeightFromRows = (maxHeight - spacingTotal) / (rowCount * stackHeightFactor)
+            val widthCap = min(MaxTableCardWidth, cellWidth)
+            val heightCap = min(MaxTableCardHeight, maxCardHeightFromRows)
+            val cardWidth = min(widthCap, heightCap / CardAspect)
+            val cardHeight = cardWidth * CardAspect
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(TableRowSpacing),
+                verticalArrangement = Arrangement.spacedBy(rowSpacing),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 tablePairs.chunked(TableColumnCount).forEach { rowPairs ->
@@ -96,6 +115,8 @@ fun TableCardsView(
                                     pair = pair,
                                     cardWidth = cardWidth,
                                     cardHeight = cardHeight,
+                                    overlapXFraction = overlapX,
+                                    overlapYFraction = DefenseOverlapYFraction,
                                     onAttackCardBoundsChanged = { bounds ->
                                         onAttackCardBoundsChanged(pair.id, bounds)
                                     },
@@ -114,12 +135,14 @@ private fun TablePairView(
     pair: TablePairUi,
     cardWidth: Dp,
     cardHeight: Dp,
+    overlapXFraction: Float,
+    overlapYFraction: Float,
     onAttackCardBoundsChanged: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasDefense = pair.defense != null
-    val defenseOffsetX = cardWidth * DefenseOverlapXFraction
-    val defenseOffsetY = cardHeight * DefenseOverlapYFraction
+    val defenseOffsetX = cardWidth * overlapXFraction
+    val defenseOffsetY = cardHeight * overlapYFraction
     val stackWidth = if (hasDefense) cardWidth + defenseOffsetX else cardWidth
     val stackHeight = if (hasDefense) cardHeight + defenseOffsetY else cardHeight
 

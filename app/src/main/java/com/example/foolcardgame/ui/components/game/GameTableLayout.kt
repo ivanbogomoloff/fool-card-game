@@ -44,8 +44,8 @@ private data class HandDragState(
 private const val DefenseOverlapXFraction = 0.70f
 private const val DefenseOverlapYFraction = 0.20f
 private const val DragCardScale = 1.6f
-private val HandCardWidth = 72.dp
-private val HandCardHeight = 104.dp
+private val HandCardWidth = 80.dp
+private val HandCardHeight = 116.dp
 
 @Composable
 fun GameTableLayout(
@@ -206,6 +206,7 @@ private fun InProgressGameLayout(
                     },
             ) {
                 val hasTopOpponent = uiState.opponents.size == 1 || uiState.opponents.size >= 3
+                val crowdedTable = visibleTablePairs.size >= 4
                 TableCardsView(
                     tablePairs = visibleTablePairs,
                     onTableBoundsChanged = { tableBounds = it },
@@ -216,9 +217,14 @@ private fun InProgressGameLayout(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(
-                            start = 72.dp,
-                            end = 72.dp,
-                            top = if (hasTopOpponent) 220.dp else 120.dp,
+                            start = if (crowdedTable) 56.dp else 72.dp,
+                            end = if (crowdedTable) 56.dp else 72.dp,
+                            top = when {
+                                crowdedTable && hasTopOpponent -> 160.dp
+                                crowdedTable -> 90.dp
+                                hasTopOpponent -> 220.dp
+                                else -> 120.dp
+                            },
                             bottom = 8.dp,
                         ),
                 )
@@ -305,6 +311,7 @@ private fun InProgressGameLayout(
                                 actionBarBounds = actionBarBounds,
                                 handBounds = handBounds,
                                 layoutBounds = layoutBounds,
+                                attackCardBounds = attackCardBounds,
                             ),
                             attackCardBounds = attackCardBounds,
                             cardSize = DraggedCardSizePx(
@@ -325,7 +332,8 @@ private fun InProgressGameLayout(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 0.dp, bottom = 2.dp)
                     .onGloballyPositioned { coordinates ->
                         handBounds = coordinates.boundsInRoot()
                     },

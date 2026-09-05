@@ -26,9 +26,9 @@ import androidx.compose.ui.zIndex
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.ui.components.card.CardFace
 
-private val HandCardWidth = 72.dp
-private val HandCardHeight = 104.dp
-private val PreferredStep = 40.dp
+private val HandCardWidth = 80.dp
+private val HandCardHeight = 116.dp
+private val PreferredStep = 44.dp
 private val MinStep = 18.dp
 
 @Composable

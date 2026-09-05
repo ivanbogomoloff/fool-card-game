@@ -3,6 +3,8 @@ package com.example.foolcardgame.ui.components.game
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.example.foolcardgame.presentation.game.TablePairUi
+import kotlin.math.max
+import kotlin.math.min
 
 sealed class TableDropAction {
     data class Defend(val pairId: Int) : TableDropAction()
@@ -52,6 +54,7 @@ fun tableDropZone(
     actionBarBounds: Rect,
     handBounds: Rect,
     layoutBounds: Rect,
+    attackCardBounds: Map<Int, Rect> = emptyMap(),
 ): Rect {
     val left = if (layoutBounds.width > 1f) layoutBounds.left else playAreaBounds.left
     val right = if (layoutBounds.width > 1f) layoutBounds.right else playAreaBounds.right
@@ -62,12 +65,19 @@ fun tableDropZone(
     } else {
         0f
     }
-    val bottom = when {
+    val baseBottom = when {
         actionBarBounds.height > 1f -> actionBarBounds.top
         handBounds.height > 1f -> handBounds.top
         playAreaBounds.height > 1f -> playAreaBounds.bottom
         layoutBounds.height > 1f -> layoutBounds.bottom
         else -> 0f
+    }
+    // Include table cards that visually overflow into the action-bar band.
+    val cardsBottom = attackCardBounds.values.maxOfOrNull { it.bottom + AttackHitSlopPx }
+        ?: baseBottom
+    var bottom = max(baseBottom, cardsBottom)
+    if (handBounds.height > 1f) {
+        bottom = min(bottom, handBounds.top)
     }
     if (right <= left || bottom <= top) {
         return playAreaBounds
@@ -86,24 +96,21 @@ fun resolveTableDrop(
     isLocalDefender: Boolean = true,
 ): TableDropAction? {
     val unbeaten = tablePairs.filter { it.defense == null }
+    val onPairSlop = tablePairs.any { pair ->
+        attackCardBounds[pair.id]?.let { bounds ->
+            hitsRect(position, bounds, cardSize)
+        } == true
+    }
     val onTable = isDropOnTable(
         position = position,
         zone = tableBounds,
         playAreaBounds = playAreaBounds,
         cardSize = cardSize,
         handTop = handTop,
-    )
+    ) || onPairSlop
     if (unbeaten.isNotEmpty()) {
         if (!isLocalDefender) {
-            return if (onTable || tablePairs.any { pair ->
-                attackCardBounds[pair.id]?.let { bounds ->
-                    hitsRect(position, bounds, cardSize)
-                } == true
-            }) {
-                TableDropAction.Attack
-            } else {
-                null
-            }
+            return if (onTable) TableDropAction.Attack else null
         }
         return resolveDefendDrop(
             position = position,
@@ -113,12 +120,7 @@ fun resolveTableDrop(
             cardSize = cardSize,
         )
     }
-    val onPairSlop = tablePairs.any { pair ->
-        attackCardBounds[pair.id]?.let { bounds ->
-            hitsRect(position, bounds, cardSize)
-        } == true
-    }
-    return if (onTable || onPairSlop) TableDropAction.Attack else null
+    return if (onTable) TableDropAction.Attack else null
 }
 
 private fun resolveDefendDrop(

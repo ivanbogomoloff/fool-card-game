@@ -193,6 +193,42 @@ class TableDropResolverTest {
     }
 
     @Test
+    fun tableDropZone_extendsToCoverOverflowingTableCards() {
+        val overflowCard = Rect(100f, 350f, 160f, 430f) // straddles actionBar.top=400
+        val zone = tableDropZone(
+            playAreaBounds = playArea,
+            actionBarBounds = actionBar,
+            handBounds = hand,
+            layoutBounds = layout,
+            attackCardBounds = mapOf(1 to overflowCard),
+        )
+        assertTrue(zone.bottom > actionBar.top)
+        assertTrue(zone.bottom <= hand.top)
+        assertTrue(zone.bottom >= overflowCard.bottom)
+    }
+
+    @Test
+    fun dropOnOverflowingTableCard_belowActionBarTop_isAttackWhenNotDefender() {
+        val overflowCard = Rect(100f, 380f, 160f, 450f)
+        val zone = tableDropZone(
+            playAreaBounds = playArea,
+            actionBarBounds = actionBar,
+            handBounds = hand,
+            layoutBounds = layout,
+            attackCardBounds = mapOf(1 to overflowCard),
+        )
+        val action = resolveTableDrop(
+            position = Offset(130f, 420f),
+            tablePairs = listOf(unbeatenPair(id = 1)),
+            tableBounds = zone,
+            attackCardBounds = mapOf(1 to overflowCard),
+            playAreaBounds = playArea,
+            isLocalDefender = false,
+        )
+        assertEquals(TableDropAction.Attack, action)
+    }
+
+    @Test
     fun dropOnActionBar_allBeaten_isIgnored() {
         val action = resolveTableDrop(
             position = Offset(40f, 450f),
