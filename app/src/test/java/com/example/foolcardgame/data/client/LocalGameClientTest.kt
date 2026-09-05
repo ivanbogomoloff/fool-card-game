@@ -2,8 +2,16 @@ package com.example.foolcardgame.data.client
 
 import app.cash.turbine.test
 import com.example.foolcardgame.data.api.dto.toDomain
+import com.example.foolcardgame.domain.engine.GameEngine
+import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.GamePhase
+import com.example.foolcardgame.domain.model.GameState
+import com.example.foolcardgame.domain.model.Player
+import com.example.foolcardgame.domain.model.PlayerStatus
+import com.example.foolcardgame.domain.model.Rank
+import com.example.foolcardgame.domain.model.Suit
+import com.example.foolcardgame.domain.model.TablePair
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -22,7 +30,9 @@ class LocalGameClientTest {
         dispatcher: CoroutineDispatcher,
         connectDelay: LongRange = 0L..0L,
         readyDelay: LongRange = 0L..0L,
+        engine: GameEngine = GameEngine(),
     ) = LocalGameClient(
+        engine = engine,
         botConnectDelayRange = connectDelay,
         botReadyDelayRange = readyDelay,
         schedulerDispatcher = dispatcher,
@@ -214,6 +224,84 @@ class LocalGameClientTest {
         advanceTimeBy(300)
         runCurrent()
         assertTrue(client.getState(sessionId).players.first { it.id == "bot-1" }.isConnected)
+        client.leaveSession(sessionId)
+    }
+
+    @Test
+    fun humanFullDefend_holdsBeforeBotThinkThenBito() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val engine = GameEngine()
+        val client = client(dispatcher = dispatcher, engine = engine)
+        val sessionId = client.createSession(
+            GameConfig(
+                botCount = 1,
+                seed = 42,
+                botThinkMinMs = 1_000,
+                botThinkMaxMs = 1_000,
+            ),
+        )
+        advanceTimeBy(1)
+        runCurrent()
+
+        val defense = Card(Suit.SPADES, Rank.TEN)
+        val attack = Card(Suit.SPADES, Rank.SEVEN)
+        engine.loadStateForTest(
+            GameState(
+                sessionId = sessionId,
+                phase = GamePhase.IN_PROGRESS,
+                players = listOf(
+                    Player(
+                        id = "local",
+                        displayName = "Вы",
+                        avatarId = 0,
+                        isBot = false,
+                        hand = listOf(defense, Card(Suit.CLUBS, Rank.NINE)),
+                        isReady = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                    Player(
+                        id = "bot-1",
+                        displayName = "Бот 1",
+                        avatarId = 1,
+                        isBot = true,
+                        // Empty hand → no parallel throw-in while human still defends
+                        hand = emptyList(),
+                        isReady = true,
+                        isConnected = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                ),
+                deck = listOf(
+                    Card(Suit.HEARTS, Rank.ACE),
+                    Card(Suit.HEARTS, Rank.KING),
+                    Card(Suit.DIAMONDS, Rank.QUEEN),
+                    Card(Suit.CLUBS, Rank.JACK),
+                    Card(Suit.SPADES, Rank.EIGHT),
+                    Card(Suit.DIAMONDS, Rank.SEVEN),
+                    Card(Suit.CLUBS, Rank.SIX),
+                ),
+                trumpCard = Card(Suit.CLUBS, Rank.SIX),
+                trumpSuit = Suit.CLUBS,
+                tablePairs = listOf(TablePair(id = 1, attack = attack)),
+                attackerId = "bot-1",
+                defenderId = "local",
+                currentPlayerId = "local",
+                defenderHandSizeAtRoundStart = 1,
+            ),
+        )
+
+        assertTrue(client.playCard(sessionId, defense, targetPairId = 1).isSuccess)
+        assertEquals(1, client.getState(sessionId).tablePairs.size)
+        assertEquals("bot-1", client.getState(sessionId).currentPlayerId)
+
+        // Poll (~150) + hold (1000) + think (1000). Without hold, bito would land ~1150ms.
+        advanceTimeBy(1_500)
+        runCurrent()
+        assertEquals(1, client.getState(sessionId).tablePairs.size)
+
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertTrue(client.getState(sessionId).tablePairs.isEmpty())
         client.leaveSession(sessionId)
     }
 }

@@ -104,10 +104,11 @@ class GameEngineTest {
 
         assertTrue(engine.playCard(sessionId, "bot-1", defense, targetPairId = 1).isSuccess)
         val state = engine.getState(sessionId)
-        // Limit was 1 attack → throwing closed after defense → auto bito
-        assertTrue(state.tablePairs.isEmpty())
-        assertTrue(state.discardPile.contains(defense))
-        assertTrue(state.discardPile.contains(attack))
+        // Limit was 1 attack → throwing closed, but round waits for attacker «Бито»
+        assertEquals(1, state.tablePairs.size)
+        assertEquals(defense, state.tablePairs.single().defense)
+        assertEquals("local", state.currentPlayerId)
+        assertTrue(state.permissionsFor("local").canBito)
     }
 
     @Test

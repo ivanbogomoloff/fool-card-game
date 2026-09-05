@@ -523,18 +523,8 @@ class GameEngine(
             .markFinishedPlayers()
 
         next = if (next.allBeaten) {
-            if (next.throwingClosed()) {
-                // Limit reached — round ends as bito immediately.
-                val attackerId = next.attackerId ?: playerId
-                return Result.success(
-                    endRoundBito(next)
-                        .withTurnDeadline()
-                        .bumpTick()
-                        .recordRoundEvent(RoundEventKind.BITO, attackerId)
-                        .recordActionEvent(GameActionKind.BITO, attackerId),
-                )
-            }
             // Attacker may declare «Бито»; others may still throw in parallel.
+            // Do not auto-close here — client applies a short hold so the table stays visible.
             next.copy(currentPlayerId = next.attackerId)
         } else {
             next.copy(currentPlayerId = next.defenderId)

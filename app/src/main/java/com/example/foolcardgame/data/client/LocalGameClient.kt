@@ -63,6 +63,9 @@ class LocalGameClient(
     private var paused: Boolean = false
     private var pausedAtMs: Long? = null
     private var pendingDeadlineShiftMs: Long = 0L
+    /** After local full defense, bots wait this hold before their think delay. */
+    @Volatile
+    private var postDefendHoldPending: Boolean = false
     private val clock: () -> Long = { System.currentTimeMillis() }
 
     override suspend fun createSession(config: GameConfig): GameSessionId = mutex.withLock {
@@ -70,6 +73,7 @@ class LocalGameClient(
         paused = false
         pausedAtMs = null
         pendingDeadlineShiftMs = 0L
+        postDefendHoldPending = false
         activeBotThinkDelayRange = config.botThinkMinMs..config.botThinkMaxMs
         val id = engine.createSession(config)
         humanId = config.humanId
@@ -149,6 +153,7 @@ class LocalGameClient(
                 activeSessionId = null
                 paused = false
                 pausedAtMs = null
+                postDefendHoldPending = false
                 stopSchedulerLocked()
             }
         }
@@ -280,6 +285,13 @@ class LocalGameClient(
                 continue
             }
 
+            if (postDefendHoldPending) {
+                postDefendHoldPending = false
+                delay(POST_HUMAN_DEFEND_HOLD_MS)
+                awaitUnpaused(sessionId)
+                if (!coroutineActive(sessionId)) return
+            }
+
             // Emit current state so UI can show «Ходит» before the delay.
             updates.tryEmit(state.toDto(humanId))
             delay(randomIn(activeBotThinkDelayRange))
@@ -316,9 +328,24 @@ class LocalGameClient(
         applyPendingDeadlineShiftLocked()
         val result = block()
         result.onSuccess { state ->
+            if (shouldHoldBotsAfterHumanDefend(state)) {
+                postDefendHoldPending = true
+            }
             updates.tryEmit(state.toDto(humanId))
         }
         result.map { }
+    }
+
+    private fun shouldHoldBotsAfterHumanDefend(state: GameState): Boolean {
+        val event = state.lastActionEvent ?: return false
+        return event.kind == GameActionKind.DEFEND &&
+            event.playerId == humanId &&
+            state.allBeaten &&
+            state.tablePairs.isNotEmpty()
+    }
+
+    companion object {
+        const val POST_HUMAN_DEFEND_HOLD_MS = 1_000L
     }
 }
 
