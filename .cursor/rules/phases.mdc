@@ -1,17 +1,16 @@
 ---
-description: Работа по этапам docs/phases — не перескакивать
+description: Работа по этапам docs/phases — текущий Phase 4
 globs: "docs/**"
 alwaysApply: false
 ---
 
 # Phased Development
 
-- Implement strictly in order: phase-00 → phase-06
-- Before coding, read the current phase `README.md` (goal, DoD, checklist)
-- Phase 3: temporarily set `startDestination = game/debug`
-- Phase 4: restore `startDestination = login`; wire `LocalGameClient`
-- Do not start Phase 5 until Phase 4 DoD is met
-- Wireframes and nav diagrams: `docs/architecture/navigation-and-screens.md`
-- Mark phase checklist items as done when completing tasks
-- Each phase includes unit tests; see `docs/architecture/testing.md`
-- `./gradlew testDebugUnitTest` must pass before moving to next phase
+- Order: phase-00 → phase-06; checklists live in each phase `README.md`
+- **Done:** 00 login stub, 01 main menu, 02 profile/settings, 03 game UI + debug, **04 offline bots (playable)**
+- **Current focus:** polish Phase 4 / prepare Phase 5 — do not implement online until Phase 4 DoD holds
+- Launch: `startDestination = Routes.MAIN` (not login, not `game/debug`)
+- Offline path: Main → OfflineSetup → `LocalGameClient.createSession` → GameSession
+- `Routes.LOGIN` / `LoginScreen` remain for future online auth; settings do **not** edit account display name
+- Wireframes: `docs/architecture/navigation-and-screens.md`
+- Mark checklist items done when finishing work; `./gradlew testDebugUnitTest` must pass before Phase 5

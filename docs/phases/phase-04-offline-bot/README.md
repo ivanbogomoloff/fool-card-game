@@ -44,7 +44,7 @@ presentation/game/GameViewModel.kt  (подключить LocalGameClient)
 - [x] `LocalGameClient` implements `GameClient`
 - [x] `OfflineSetupScreen`: выбор 1–3 ботов → createSession → game
 - [x] `GameViewModel`: collect `observeState`, `leaveSession` in onCleared
-- [x] Вернуть `startDestination = login`
+- [x] Вернуть старт приложения на `main` (login отложен до online)
 - [x] `RulesTest`, `GameEngineTest`, `LocalGameClientTest`, `BotAITest`
 - [x] Функциональный тест партии ≥3 игроков (`GameEngineFunctionalTest`)
 - [x] Debug-экран (`game/debug`) сохранён

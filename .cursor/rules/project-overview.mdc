@@ -1,15 +1,15 @@
 ---
-description: Обзор проекта Подкидной дурак — стек, язык, docs
+description: Обзор проекта Подкидной дурак — стек, текущий этап, docs
 alwaysApply: true
 ---
 
 # FoolCardGame — Project Overview
 
 - Kotlin Android app, minSdk 33, Jetpack Compose + MVVM
-- Stack: Retrofit, OkHttp, Coroutines, Kotlinx Serialization, Compose Animation
+- Stack: Coroutines, Kotlinx Serialization, Compose Animation; Retrofit/OkHttp reserved for Phase 5–6
 - UI language: **Russian**
-- Follow phased plan in `docs/phases/` — current phase README is source of truth
-- Architecture docs: `docs/architecture/`
-- Game rules: `docs/game-rules/podkidnoy-durak.md`
-- Do not skip phases; Phase 3 game UI is critical before bot logic
-- Unit tests per phase: `docs/architecture/testing.md`; run `./gradlew testDebugUnitTest` before next phase
+- Architecture docs: `docs/architecture/`; game rules: `docs/game-rules/podkidnoy-durak.md`
+- Phased plan: `docs/phases/` — **current: Phase 4 (offline vs bots) is implemented and playable**
+- Next: Phase 5 (online). Do not start Phase 5 until Phase 4 DoD stays green
+- `startDestination = Routes.MAIN` (login screen kept for future online, not shown on launch)
+- Unit tests: `docs/architecture/testing.md`; run `./gradlew testDebugUnitTest` before advancing

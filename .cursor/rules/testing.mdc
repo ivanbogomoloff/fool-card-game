@@ -6,18 +6,19 @@ alwaysApply: false
 
 # Unit Testing Rules
 
-- Write tests in the same phase as the feature; green tests are part of DoD
+- Write tests with the feature; green tests are part of DoD
 - Run: `./gradlew testDebugUnitTest`
-- Domain (`GameEngine`, `Rules`) — highest priority, pure JVM, fixed deck seed
+- Domain (`GameEngine`, `Rules`, `BotAI`, `BotNames`) — highest priority, pure JVM, fixed deck `seed`
 - Flow/tick: `runTest` + Turbine for `observeState`
 - ViewModel: inject fake `GameClient` / `ProfileRepository`, no Android framework
+- Phase 4 baselines: `GameEngineTest`, `GameEngineFunctionalTest`, `LocalGameClientTest`, `BotAITest`
 - Phase 5+: MockWebServer for Retrofit, not live API
-- See `docs/architecture/testing.md` for required scenarios per phase
+- See `docs/architecture/testing.md` for required scenarios
 
 ```kotlin
 @Test
 fun addCard_rejects_whenRankNotOnTable() = runTest {
-    val engine = GameEngine(seed = 42)
+    val engine = GameEngine(/* fixed seed via GameConfig */)
     // ...
 }
 ```
