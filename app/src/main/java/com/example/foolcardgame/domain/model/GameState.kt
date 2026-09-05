@@ -18,6 +18,11 @@ data class GameState(
     /** Whose primary action is expected (attack / defend / throw). */
     val currentPlayerId: String?,
     val passedPlayerIds: Set<String> = emptySet(),
+    /**
+     * Attacker pressed «Бито» while all table cards are beaten.
+     * Helpers then confirm with pass (UI «Бито»); cleared on new throw / round end.
+     */
+    val attackerBitoDeclared: Boolean = false,
     /** Max attack cards this round = min(6, this value). */
     val defenderHandSizeAtRoundStart: Int = 0,
     val tick: Long = 0,

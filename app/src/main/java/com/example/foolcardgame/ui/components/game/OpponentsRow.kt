@@ -1,5 +1,7 @@
 package com.example.foolcardgame.ui.components.game
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +43,7 @@ import androidx.compose.ui.zIndex
 import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.presentation.game.OpponentActionUi
+import com.example.foolcardgame.presentation.game.OpponentPulseUi
 import com.example.foolcardgame.presentation.game.OpponentRoleBanner
 import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
@@ -50,6 +54,9 @@ import com.example.foolcardgame.ui.theme.TrumpGold
 import kotlinx.coroutines.delay
 
 private const val NamePlateAutoCollapseMs = 10_000L
+private const val NamePlatePulsePeakScale = 1.12f
+private const val NamePlatePulseUpMs = 120
+private const val NamePlatePulseDownMs = 220
 
 private enum class OpponentSeat {
     Left,
@@ -62,6 +69,7 @@ fun OpponentsRow(
     opponents: List<OpponentUi>,
     phase: GamePhase,
     opponentAction: OpponentActionUi? = null,
+    opponentPulse: OpponentPulseUi? = null,
     loserId: String? = null,
     localPlayerId: String = "",
     showLoserCards: Boolean = false,
@@ -95,6 +103,7 @@ fun OpponentsRow(
                 showLoserCards = showLoserCards,
                 revealLoserCards = revealLoserCards,
                 opponentAction = opponentAction,
+                opponentPulse = opponentPulse,
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -111,6 +120,7 @@ fun OpponentsRow(
                 showLoserCards = showLoserCards,
                 revealLoserCards = revealLoserCards,
                 opponentAction = opponentAction,
+                opponentPulse = opponentPulse,
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -127,6 +137,7 @@ fun OpponentsRow(
                 showLoserCards = showLoserCards,
                 revealLoserCards = revealLoserCards,
                 opponentAction = opponentAction,
+                opponentPulse = opponentPulse,
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
@@ -146,6 +157,7 @@ private fun OpponentSeatView(
     showLoserCards: Boolean,
     revealLoserCards: List<CardUi>,
     opponentAction: OpponentActionUi?,
+    opponentPulse: OpponentPulseUi?,
     onOpponentAvatarBoundsChanged: (String, Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -157,6 +169,11 @@ private fun OpponentSeatView(
         revealLoserCards.isNotEmpty()
     val actionMessage = if (opponentAction?.opponentId == opponent.id) {
         opponentAction.message
+    } else {
+        null
+    }
+    val pulseAtTick = if (opponentPulse?.opponentId == opponent.id) {
+        opponentPulse.atTick
     } else {
         null
     }
@@ -174,6 +191,7 @@ private fun OpponentSeatView(
                 opponent = opponent,
                 isLoserMarked = isLoserMarked,
                 actionMessage = actionMessage,
+                pulseAtTick = pulseAtTick,
                 onBoundsChanged = { bounds ->
                     onOpponentAvatarBoundsChanged(opponent.id, bounds)
                 },
@@ -215,14 +233,28 @@ private fun OpponentNamePlate(
     opponent: OpponentUi,
     isLoserMarked: Boolean,
     actionMessage: String?,
+    pulseAtTick: Long?,
     onBoundsChanged: (Rect) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val pulseScale = remember { Animatable(1f) }
     LaunchedEffect(expanded) {
         if (expanded) {
             delay(NamePlateAutoCollapseMs)
             expanded = false
         }
+    }
+    LaunchedEffect(pulseAtTick) {
+        if (pulseAtTick == null) return@LaunchedEffect
+        pulseScale.snapTo(1f)
+        pulseScale.animateTo(
+            targetValue = NamePlatePulsePeakScale,
+            animationSpec = tween(durationMillis = NamePlatePulseUpMs),
+        )
+        pulseScale.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = NamePlatePulseDownMs),
+        )
     }
 
     val useCompactName = actionMessage == null && !isLoserMarked
@@ -236,6 +268,10 @@ private fun OpponentNamePlate(
 
     Column(
         modifier = Modifier
+            .graphicsLayer {
+                scaleX = pulseScale.value
+                scaleY = pulseScale.value
+            }
             .background(OpponentPlate, RoundedCornerShape(10.dp))
             .clickable { expanded = !expanded }
             .padding(horizontal = 10.dp, vertical = 6.dp)

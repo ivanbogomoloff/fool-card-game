@@ -204,13 +204,21 @@ class LocalGameClient(
 
             val currentId = state.currentPlayerId
             val current = currentId?.let { state.player(it) }
-            if (current == null || !current.isBot) {
+            val humanTurnWithParallelBots = current != null &&
+                !current.isBot &&
+                state.tablePairs.isNotEmpty() &&
+                state.players.any { it.isBot && it.id != state.defenderId && it.hand.isNotEmpty() }
+            if (current == null || (!current.isBot && !humanTurnWithParallelBots)) {
                 lastHandledTurnKey = null
                 delay(150)
                 continue
             }
 
-            val turnKey = "${currentId}_${state.turnStartedAtMs}_${state.tick}"
+            val turnKey = if (current.isBot) {
+                "${currentId}_${state.turnStartedAtMs}_${state.tick}"
+            } else {
+                "parallel_${state.turnStartedAtMs}_${state.tick}_${state.tablePairs.size}"
+            }
             if (turnKey == lastHandledTurnKey) {
                 delay(150)
                 continue
@@ -225,10 +233,13 @@ class LocalGameClient(
                 if (activeSessionId != sessionId) return
                 val latest = engine.getState(sessionId)
                 if (latest.phase != GamePhase.IN_PROGRESS) return@withLock
-                if (latest.currentPlayerId != currentId) return@withLock
+                if (current.isBot && latest.currentPlayerId != currentId) return@withLock
+                val beforeTick = latest.tick
                 val after = engine.advanceOneBot(sessionId)
                 lastHandledTurnKey = turnKey
-                updates.tryEmit(after.toDto(humanId))
+                if (after.tick != beforeTick) {
+                    updates.tryEmit(after.toDto(humanId))
+                }
             }
         }
     }

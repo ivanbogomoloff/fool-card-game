@@ -84,6 +84,7 @@ object GameUiStateMapper {
             isLocalPlayerTurn = dto.currentPlayerId != null &&
                 dto.currentPlayerId == dto.localPlayerId,
             isLocalDefending = localBanner == OpponentRoleBanner.DEFENDING,
+            isLocalDefender = dto.defenderId != null && dto.localPlayerId == dto.defenderId,
             isLocalAttacking = localBanner == OpponentRoleBanner.ATTACKING,
         )
     }

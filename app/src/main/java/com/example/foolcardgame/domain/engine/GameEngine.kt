@@ -165,13 +165,7 @@ class GameEngine(
         if (!state.permissionsFor(playerId).canBito) {
             return@mutate Result.failure(IllegalStateException("Bito not allowed"))
         }
-        Result.success(
-            endRoundBito(state)
-                .withTurnDeadline()
-                .bumpTick()
-                .recordRoundEvent(RoundEventKind.BITO, playerId)
-                .recordActionEvent(GameActionKind.BITO, playerId),
-        )
+        Result.success(declareAttackerBito(state, playerId))
     }
 
     /** Test-only: inject a fully prepared state. */
@@ -248,6 +242,7 @@ class GameEngine(
             defenderId = newDefender.id,
             currentPlayerId = newAttacker.id,
             passedPlayerIds = emptySet(),
+            attackerBitoDeclared = false,
             defenderHandSizeAtRoundStart = state.player(newDefender.id)?.hand?.size ?: 0,
         ).withTurnDeadline().bumpTick()
     }
@@ -258,20 +253,11 @@ class GameEngine(
     }
 
     private fun skipThrowPhase(state: GameState, playerId: String): GameState {
-        var next = state.copy(passedPlayerIds = state.passedPlayerIds + playerId)
-        if (next.throwingClosed()) {
-            val attackerId = next.attackerId ?: playerId
-            return endRoundBito(next)
-                .withTurnDeadline()
-                .bumpTick()
-                .recordRoundEvent(RoundEventKind.BITO, attackerId)
-                .recordActionEvent(GameActionKind.BITO, attackerId)
+        // Attacker timeout while all beaten = auto «Бито».
+        if (playerId == state.attackerId && !state.attackerBitoDeclared) {
+            return declareAttackerBito(state, playerId)
         }
-        val nextActor = next.nextThrowPhaseActor() ?: next.attackerId
-        return next.copy(currentPlayerId = nextActor)
-            .withTurnDeadline()
-            .bumpTick()
-            .recordActionEvent(GameActionKind.PASS, playerId)
+        return markPassed(state, playerId).getOrElse { state }
     }
 
     private fun mutate(
@@ -333,13 +319,7 @@ class GameEngine(
                 if (!state.permissionsFor(action.playerId).canBito) {
                     Result.failure(IllegalStateException("Bot bito invalid"))
                 } else {
-                    Result.success(
-                        endRoundBito(state)
-                            .withTurnDeadline()
-                            .bumpTick()
-                            .recordRoundEvent(RoundEventKind.BITO, action.playerId)
-                            .recordActionEvent(GameActionKind.BITO, action.playerId),
-                    )
+                    Result.success(declareAttackerBito(state, action.playerId))
                 }
             }
         }
@@ -378,6 +358,7 @@ class GameEngine(
             defenderId = null,
             currentPlayerId = null,
             passedPlayerIds = emptySet(),
+            attackerBitoDeclared = false,
             defenderHandSizeAtRoundStart = 0,
         )
     }
@@ -394,6 +375,7 @@ class GameEngine(
             defenderId = defender.id,
             currentPlayerId = attackerId,
             passedPlayerIds = emptySet(),
+            attackerBitoDeclared = false,
             defenderHandSizeAtRoundStart = defender.hand.size,
             winnerIds = emptyList(),
             loserId = null,
@@ -441,6 +423,7 @@ class GameEngine(
                 tablePairs = listOf(pair),
                 currentPlayerId = state.defenderId,
                 passedPlayerIds = emptySet(),
+                attackerBitoDeclared = false,
                 defenderHandSizeAtRoundStart = state.player(state.defenderId!!)?.hand?.size
                     ?: state.defenderHandSizeAtRoundStart,
             )
@@ -458,6 +441,9 @@ class GameEngine(
         if (playerId == state.defenderId) {
             return Result.failure(IllegalStateException("Defender cannot throw"))
         }
+        if (state.attackerBitoDeclared && playerId == state.attackerId) {
+            return Result.failure(IllegalStateException("Attacker already declared bito"))
+        }
         if (!state.canAddMoreAttacks()) {
             return Result.failure(IllegalStateException("Table limit reached"))
         }
@@ -472,9 +458,6 @@ class GameEngine(
         if (playerId in state.passedPlayerIds) {
             return Result.failure(IllegalStateException("Already passed"))
         }
-        if (state.allBeaten && playerId != state.currentPlayerId) {
-            return Result.failure(IllegalStateException("Not your turn"))
-        }
 
         val pair = TablePair(id = nextPairId(state), attack = card)
         val next = state
@@ -483,6 +466,7 @@ class GameEngine(
                 tablePairs = state.tablePairs + pair,
                 currentPlayerId = state.defenderId,
                 passedPlayerIds = emptySet(),
+                attackerBitoDeclared = false,
             )
             .markFinishedPlayers()
             .withTurnDeadline()
@@ -528,7 +512,7 @@ class GameEngine(
 
         next = if (next.allBeaten) {
             if (next.throwingClosed()) {
-                // Limit reached or no throwers — round ends as bito immediately.
+                // Limit reached — round ends as bito immediately.
                 val attackerId = next.attackerId ?: playerId
                 return Result.success(
                     endRoundBito(next)
@@ -538,7 +522,8 @@ class GameEngine(
                         .recordActionEvent(GameActionKind.BITO, attackerId),
                 )
             }
-            next.copy(currentPlayerId = next.nextThrowPhaseActor() ?: next.attackerId)
+            // Attacker may declare «Бито»; others may still throw in parallel.
+            next.copy(currentPlayerId = next.attackerId)
         } else {
             next.copy(currentPlayerId = next.defenderId)
         }
@@ -557,6 +542,7 @@ class GameEngine(
             .copy(
                 tablePairs = emptyList(),
                 passedPlayerIds = emptySet(),
+                attackerBitoDeclared = false,
             )
         next = drawUpToSix(next, skipDefenderDraw = false)
         // Taker skips; next clockwise after taker becomes attacker.
@@ -579,6 +565,27 @@ class GameEngine(
         return Result.success(next)
     }
 
+    /**
+     * Attacker declares «Бито». If no helpers left to confirm, close the round;
+     * otherwise wait for helpers (pass / UI «Бито»).
+     */
+    private fun declareAttackerBito(state: GameState, playerId: String): GameState {
+        val declared = state.copy(attackerBitoDeclared = true)
+        if (declared.throwingClosed()) {
+            return endRoundBito(declared)
+                .withTurnDeadline()
+                .bumpTick()
+                .recordRoundEvent(RoundEventKind.BITO, playerId)
+                .recordActionEvent(GameActionKind.BITO, playerId)
+        }
+        val nextActor = declared.nextThrowPhaseActor()
+        return declared
+            .copy(currentPlayerId = nextActor)
+            .withTurnDeadline()
+            .bumpTick()
+            .recordActionEvent(GameActionKind.BITO, playerId)
+    }
+
     private fun markPassed(state: GameState, playerId: String): Result<GameState> {
         val next = state.copy(
             passedPlayerIds = state.passedPlayerIds + playerId,
@@ -593,7 +600,7 @@ class GameEngine(
                     .recordActionEvent(GameActionKind.BITO, attackerId),
             )
         } else {
-            val nextActor = next.nextThrowPhaseActor() ?: next.attackerId
+            val nextActor = next.nextThrowPhaseActor()
             Result.success(
                 next.copy(currentPlayerId = nextActor)
                     .withTurnDeadline()
@@ -609,6 +616,7 @@ class GameEngine(
         var next = state.copy(
             tablePairs = emptyList(),
             passedPlayerIds = emptySet(),
+            attackerBitoDeclared = false,
         )
         next = drawUpToSix(next, skipDefenderDraw = false)
         next = next.markFinishedPlayers()

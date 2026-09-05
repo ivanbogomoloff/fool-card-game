@@ -210,7 +210,77 @@ class GameViewModelTest {
             val action = viewModel.uiState.value.opponentAction
             assertNotNull(action)
             assertEquals("bot-1", action?.opponentId)
-            assertEquals("Пас", action?.message)
+            assertEquals("Бито", action?.message)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun opponentThrowInActionEvent_setsPulse() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.THROW_IN,
+                    playerId = "bot-1",
+                    atTick = 104L,
+                ),
+            )
+            runCurrent()
+
+            val pulse = viewModel.uiState.value.opponentPulse
+            assertNotNull(pulse)
+            assertEquals("bot-1", pulse?.opponentId)
+            assertEquals(104L, pulse?.atTick)
+            assertNull(viewModel.uiState.value.opponentAction)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun localThrowInActionEvent_doesNotSetPulse() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.THROW_IN,
+                    playerId = MockGameStates.LOCAL_PLAYER_ID,
+                    atTick = 105L,
+                ),
+            )
+            runCurrent()
+
+            assertNull(viewModel.uiState.value.opponentPulse)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun opponentThrowInPulse_clearsAfterDelay() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.emitActionEvent(
+                GameActionEventDto(
+                    kind = GameActionKindDto.THROW_IN,
+                    playerId = "bot-1",
+                    atTick = 106L,
+                ),
+            )
+            runCurrent()
+            assertNotNull(viewModel.uiState.value.opponentPulse)
+
+            advanceTimeBy(GameViewModel.OPPONENT_PULSE_MS_FOR_TEST)
+            runCurrent()
+            assertNull(viewModel.uiState.value.opponentPulse)
         } finally {
             viewModel.disposeForTest()
         }

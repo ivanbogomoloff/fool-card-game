@@ -95,7 +95,7 @@ fun GameActionBar(
                     modifier = Modifier.align(Alignment.Center),
                 )
                 TableActionButton(
-                    text = "Пас",
+                    text = "Бито",
                     onClick = onPassClick,
                     modifier = Modifier.align(Alignment.CenterEnd),
                 )

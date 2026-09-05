@@ -15,6 +15,12 @@ data class OpponentActionUi(
     val atTick: Long,
 )
 
+/** One-shot scale pulse on opponent name plate (e.g. after THROW_IN). */
+data class OpponentPulseUi(
+    val opponentId: String,
+    val atTick: Long,
+)
+
 data class TableFlyAnimationUi(
     val pairs: List<TablePairUi>,
     val targetOpponentId: String,
@@ -101,8 +107,11 @@ data class GameUiState(
     val showLobbyTimeoutDialog: Boolean = false,
     val isLocalPlayerTurn: Boolean = false,
     val isLocalDefending: Boolean = false,
+    /** True while local player is the round defender (even if all cards are beaten). */
+    val isLocalDefender: Boolean = false,
     val isLocalAttacking: Boolean = false,
     val opponentAction: OpponentActionUi? = null,
+    val opponentPulse: OpponentPulseUi? = null,
     val tableFlyAnimation: TableFlyAnimationUi? = null,
     val gameHistory: List<GameHistoryEntryUi> = emptyList(),
 )

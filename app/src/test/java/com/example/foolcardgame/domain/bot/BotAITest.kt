@@ -9,6 +9,7 @@ import com.example.foolcardgame.domain.model.Rank
 import com.example.foolcardgame.domain.model.Suit
 import com.example.foolcardgame.domain.model.TablePair
 import com.example.foolcardgame.domain.engine.Rules
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -73,6 +74,47 @@ class BotAITest {
         assertNotNull(botAI.chooseAction(state))
     }
 
+    @Test
+    fun chooseAction_helperThrows_midDefense_whenNotCurrent() {
+        val throwCard = Card(Suit.CLUBS, Rank.SEVEN)
+        val state = baseState(
+            attackerHand = listOf(Card(Suit.DIAMONDS, Rank.SIX)),
+            defenderHand = listOf(Card(Suit.SPADES, Rank.ACE)),
+            helperHand = listOf(throwCard),
+            tablePairs = listOf(TablePair(id = 1, attack = Card(Suit.SPADES, Rank.SEVEN))),
+            currentPlayerId = "bot-1",
+            defenderHandSizeAtRoundStart = 3,
+        )
+        val action = botAI.chooseAction(state)
+        assertTrue(action is BotAI.Action.AddCard)
+        val add = action as BotAI.Action.AddCard
+        assertEquals("bot-2", add.playerId)
+        assertEquals(throwCard, add.card)
+    }
+
+    @Test
+    fun chooseAction_attackerBito_whenAllBeaten() {
+        val state = baseState(
+            attackerHand = listOf(Card(Suit.DIAMONDS, Rank.SIX)),
+            defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
+            helperHand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+            tablePairs = listOf(
+                TablePair(
+                    id = 1,
+                    attack = Card(Suit.SPADES, Rank.SEVEN),
+                    defense = Card(Suit.SPADES, Rank.TEN),
+                ),
+            ),
+            currentPlayerId = "local",
+            attackerId = "local",
+            defenderId = "bot-1",
+            defenderHandSizeAtRoundStart = 3,
+        )
+        // controlAllPlayers so local (human) can be driven
+        val action = botAI.chooseAction(state, controlAllPlayers = true)
+        assertTrue(action is BotAI.Action.Bito)
+    }
+
     private fun baseState(
         attackerHand: List<Card> = listOf(Card(Suit.DIAMONDS, Rank.SIX)),
         defenderHand: List<Card>,
@@ -80,7 +122,15 @@ class BotAITest {
         currentPlayerId: String = "bot-1",
         attackerId: String = "local",
         defenderId: String = "bot-1",
-    ): GameState = GameState(
+        helperHand: List<Card> = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+        defenderHandSizeAtRoundStart: Int = defenderHand.size,
+    ): GameState {
+        fun handFor(id: String): List<Card> = when (id) {
+            attackerId -> attackerHand
+            defenderId -> defenderHand
+            else -> helperHand
+        }
+        return GameState(
         sessionId = "bot-test",
         phase = GamePhase.IN_PROGRESS,
         players = listOf(
@@ -89,7 +139,7 @@ class BotAITest {
                 displayName = "Вы",
                 avatarId = 0,
                 isBot = false,
-                hand = if (attackerId == "local") attackerHand else listOf(Card(Suit.DIAMONDS, Rank.EIGHT)),
+                hand = handFor("local"),
                 isReady = true,
                 status = PlayerStatus.PLAYING,
             ),
@@ -98,7 +148,7 @@ class BotAITest {
                 displayName = "Бот 1",
                 avatarId = 1,
                 isBot = true,
-                hand = if (defenderId == "bot-1") defenderHand else attackerHand,
+                hand = handFor("bot-1"),
                 isReady = true,
                 status = PlayerStatus.PLAYING,
             ),
@@ -107,7 +157,7 @@ class BotAITest {
                 displayName = "Бот 2",
                 avatarId = 2,
                 isBot = true,
-                hand = if (attackerId == "bot-2") attackerHand else listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                hand = handFor("bot-2"),
                 isReady = true,
                 status = PlayerStatus.PLAYING,
             ),
@@ -119,6 +169,7 @@ class BotAITest {
         attackerId = attackerId,
         defenderId = defenderId,
         currentPlayerId = currentPlayerId,
-        defenderHandSizeAtRoundStart = defenderHand.size,
+        defenderHandSizeAtRoundStart = defenderHandSizeAtRoundStart,
     )
+    }
 }

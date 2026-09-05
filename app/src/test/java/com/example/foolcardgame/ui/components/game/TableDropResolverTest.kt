@@ -48,9 +48,23 @@ class TableDropResolverTest {
             tablePairs = listOf(unbeatenPair(id = 1)),
             tableBounds = tableBounds,
             attackCardBounds = mapOf(1 to attackBounds),
+            isLocalDefender = true,
         )
 
         assertTrue(action is TableDropAction.Defend)
+    }
+
+    @Test
+    fun dropOnTable_unbeaten_whenNotDefender_isAttack() {
+        val action = resolveTableDrop(
+            position = Offset(300f, 150f),
+            tablePairs = listOf(unbeatenPair(id = 1)),
+            tableBounds = tableBounds,
+            attackCardBounds = mapOf(1 to attackBounds),
+            isLocalDefender = false,
+        )
+
+        assertEquals(TableDropAction.Attack, action)
     }
 
     @Test

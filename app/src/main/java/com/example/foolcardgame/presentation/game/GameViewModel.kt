@@ -2,6 +2,7 @@ package com.example.foolcardgame.presentation.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.foolcardgame.data.api.dto.GameActionKindDto
 import com.example.foolcardgame.data.api.dto.GamePhaseDto
 import com.example.foolcardgame.data.api.dto.GameSessionId
 import com.example.foolcardgame.data.api.dto.GameStateDto
@@ -40,12 +41,14 @@ open class GameViewModel(
     private var lastHandledEventTick: Long = -1L
     private var lastHandledActionKey: String? = null
     private var opponentToastJob: Job? = null
+    private var opponentPulseJob: Job? = null
 
     init {
         observeJob = viewModelScope.launch {
             gameClient.observeState(sessionId).collect { dto ->
                 val mapped = GameUiStateMapper.map(dto)
                 var newOpponentAction: OpponentActionUi? = null
+                var newOpponentPulse: OpponentPulseUi? = null
                 var newFlyAnimation: TableFlyAnimationUi? = null
                 var newHistoryEntry: GameHistoryEntryUi? = null
 
@@ -90,6 +93,13 @@ open class GameViewModel(
                                 )
                                 scheduleOpponentToastClear()
                             }
+                            if (event.kind == GameActionKindDto.THROW_IN) {
+                                newOpponentPulse = OpponentPulseUi(
+                                    opponentId = event.playerId,
+                                    atTick = event.atTick,
+                                )
+                                scheduleOpponentPulseClear()
+                            }
                         }
                     }
                 }
@@ -104,6 +114,7 @@ open class GameViewModel(
                         showLobbyTimeoutDialog = current.showLobbyTimeoutDialog,
                         showLoserCards = current.showLoserCards,
                         opponentAction = newOpponentAction ?: current.opponentAction,
+                        opponentPulse = newOpponentPulse ?: current.opponentPulse,
                         tableFlyAnimation = newFlyAnimation ?: current.tableFlyAnimation,
                         gameHistory = if (newHistoryEntry != null) {
                             current.gameHistory + newHistoryEntry
@@ -126,6 +137,8 @@ open class GameViewModel(
         observeJob?.cancel()
         cancelReadyTimer(clearSeconds = true)
         cancelTurnTimer(clearSeconds = true)
+        opponentToastJob?.cancel()
+        opponentPulseJob?.cancel()
         kotlinx.coroutines.runBlocking {
             runCatching { gameClient.leaveSession(sessionId) }
         }
@@ -136,6 +149,7 @@ open class GameViewModel(
     internal fun disposeForTest() {
         observeJob?.cancel()
         opponentToastJob?.cancel()
+        opponentPulseJob?.cancel()
         cancelReadyTimer(clearSeconds = true)
         cancelTurnTimer(clearSeconds = true)
     }
@@ -209,6 +223,14 @@ open class GameViewModel(
         opponentToastJob = viewModelScope.launch {
             delay(OPPONENT_TOAST_MS)
             _uiState.update { it.copy(opponentAction = null) }
+        }
+    }
+
+    private fun scheduleOpponentPulseClear() {
+        opponentPulseJob?.cancel()
+        opponentPulseJob = viewModelScope.launch {
+            delay(OPPONENT_PULSE_MS)
+            _uiState.update { it.copy(opponentPulse = null) }
         }
     }
 
@@ -311,7 +333,9 @@ open class GameViewModel(
         const val TURN_TIMEOUT_SECONDS = (GameConfig.TURN_TIMEOUT_MS / 1_000L).toInt()
         const val THROW_TIMEOUT_SECONDS = (GameConfig.THROW_TIMEOUT_MS / 1_000L).toInt()
         private const val OPPONENT_TOAST_MS = 3_000L
+        private const val OPPONENT_PULSE_MS = 550L
         internal const val OPPONENT_TOAST_MS_FOR_TEST = OPPONENT_TOAST_MS
+        internal const val OPPONENT_PULSE_MS_FOR_TEST = OPPONENT_PULSE_MS
     }
 }
 

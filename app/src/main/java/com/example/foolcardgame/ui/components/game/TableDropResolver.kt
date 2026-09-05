@@ -83,6 +83,7 @@ fun resolveTableDrop(
     cardSize: DraggedCardSizePx? = null,
     handTop: Float = Float.NaN,
     playAreaBounds: Rect = Rect.Zero,
+    isLocalDefender: Boolean = true,
 ): TableDropAction? {
     val unbeaten = tablePairs.filter { it.defense == null }
     val onTable = isDropOnTable(
@@ -93,6 +94,17 @@ fun resolveTableDrop(
         handTop = handTop,
     )
     if (unbeaten.isNotEmpty()) {
+        if (!isLocalDefender) {
+            return if (onTable || tablePairs.any { pair ->
+                attackCardBounds[pair.id]?.let { bounds ->
+                    hitsRect(position, bounds, cardSize)
+                } == true
+            }) {
+                TableDropAction.Attack
+            } else {
+                null
+            }
+        }
         return resolveDefendDrop(
             position = position,
             unbeaten = unbeaten,

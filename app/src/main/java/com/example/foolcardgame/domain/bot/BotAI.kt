@@ -4,9 +4,9 @@ import com.example.foolcardgame.domain.engine.Rules
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GamePhase
 import com.example.foolcardgame.domain.model.GameState
-import com.example.foolcardgame.domain.model.permissionsFor
-import com.example.foolcardgame.domain.model.throwPhaseTurnOrder
 import com.example.foolcardgame.domain.model.canAddMoreAttacks
+import com.example.foolcardgame.domain.model.helperThrowerIds
+import com.example.foolcardgame.domain.model.permissionsFor
 
 /**
  * Simple deterministic bot: lowest legal card / obvious pass-bito-take.
@@ -38,27 +38,20 @@ class BotAI {
             GamePhase.IN_PROGRESS -> Unit
         }
 
-        if (!controlAllPlayers) {
-            val actorId = state.currentPlayerId ?: return null
-            val actor = state.player(actorId) ?: return null
-            if (!controllable(actor.isBot)) return null
-            return chooseActionForActor(state, actorId)
+        // Mid-defense: any non-defender may throw in parallel.
+        if (state.unbeatenPairs.isNotEmpty()) {
+            chooseThrowIn(state, { controllable(it) }, includeAttacker = true)?.let { return it }
         }
 
         val defenderId = state.defenderId
-        if (defenderId != null) {
+        if (defenderId != null && state.unbeatenPairs.isNotEmpty()) {
             val defender = state.player(defenderId)
-            if (defender != null && controllable(defender.isBot) && state.unbeatenPairs.isNotEmpty()) {
-                val trump = state.trumpSuit ?: return Action.Pass(defenderId)
-                val unbeaten = state.unbeatenPairs.first()
-                val beating = defender.hand
-                    .filter { Rules.beats(it, unbeaten.attack, trump) }
-                    .minWithOrNull(lowestFirst(trump))
-                return if (beating != null) {
-                    Action.PlayCard(defenderId, beating, unbeaten.id)
-                } else {
-                    Action.Pass(defenderId)
-                }
+            if (defender != null && controllable(defender.isBot)) {
+                return chooseDefenseOrTake(state, defenderId)
+            }
+            if (!controlAllPlayers) {
+                // Human defending — only parallel throws (already tried) remain for bots.
+                return null
             }
         }
 
@@ -72,25 +65,29 @@ class BotAI {
             }
         }
 
-        if (state.tablePairs.isNotEmpty() && state.allBeaten) {
-            for (throwerId in state.throwPhaseTurnOrder()) {
-                val thrower = state.player(throwerId) ?: continue
-                if (!controllable(thrower.isBot)) continue
-                if (throwerId in state.passedPlayerIds) continue
-                val perms = state.permissionsFor(throwerId)
-                if (perms.canPass || state.canThrowSomething(throwerId)) {
-                    val throwCard = thrower.hand
-                        .filter { Rules.canThrow(it, state.tableRanks) }
-                        .minWithOrNull(lowestFirst(state.trumpSuit))
-                    return if (throwCard != null && state.canAddMoreSafe()) {
-                        Action.AddCard(throwerId, throwCard)
-                    } else if (perms.canPass) {
-                        Action.Pass(throwerId)
-                    } else {
-                        continue
-                    }
+        // After attacker «Бито»: helpers throw if possible, else confirm.
+        if (state.attackerBitoDeclared && state.allBeaten) {
+            chooseThrowIn(state, { controllable(it) }, includeAttacker = false)?.let { return it }
+            for (helperId in state.helperThrowerIds()) {
+                if (helperId in state.passedPlayerIds) continue
+                val helper = state.player(helperId) ?: continue
+                if (!controllable(helper.isBot)) continue
+                if (state.permissionsFor(helperId).canPass) {
+                    return Action.Pass(helperId)
                 }
             }
+        }
+
+        // All beaten, attacker not yet declared: helpers may still throw.
+        if (state.allBeaten && !state.attackerBitoDeclared) {
+            chooseThrowIn(state, { controllable(it) }, includeAttacker = false)?.let { return it }
+        }
+
+        if (!controlAllPlayers) {
+            val actorId = state.currentPlayerId ?: return null
+            val actor = state.player(actorId) ?: return null
+            if (!controllable(actor.isBot)) return null
+            return chooseActionForActor(state, actorId)
         }
 
         if (state.tablePairs.isEmpty() && attackerId != null) {
@@ -100,18 +97,44 @@ class BotAI {
             return Action.PlayCard(attackerId, card, targetPairId = null)
         }
 
-        if (attackerId != null && state.tablePairs.isNotEmpty()) {
-            val attacker = state.player(attackerId)
-            if (attacker != null && controllable(attacker.isBot)) {
-                val throwCard = attacker.hand
-                    .filter { Rules.canThrow(it, state.tableRanks) }
-                    .minWithOrNull(lowestFirst(state.trumpSuit))
-                if (throwCard != null && state.canAddMoreSafe()) {
-                    return Action.AddCard(attackerId, throwCard)
-                }
+        return null
+    }
+
+    private fun chooseDefenseOrTake(state: GameState, defenderId: String): Action {
+        val trump = state.trumpSuit ?: return Action.Pass(defenderId)
+        val unbeaten = state.unbeatenPairs.first()
+        val beating = state.player(defenderId)?.hand
+            ?.filter { Rules.beats(it, unbeaten.attack, trump) }
+            ?.minWithOrNull(lowestFirst(trump))
+        return if (beating != null) {
+            Action.PlayCard(defenderId, beating, unbeaten.id)
+        } else {
+            Action.Pass(defenderId)
+        }
+    }
+
+    private fun chooseThrowIn(
+        state: GameState,
+        controllable: (Boolean) -> Boolean,
+        includeAttacker: Boolean,
+    ): Action? {
+        if (state.tablePairs.isEmpty() || !state.canAddMoreAttacks()) return null
+        val candidates = state.players.filter { player ->
+            controllable(player.isBot) &&
+                player.id != state.defenderId &&
+                player.id !in state.passedPlayerIds &&
+                (includeAttacker || player.id != state.attackerId) &&
+                !(state.attackerBitoDeclared && player.id == state.attackerId) &&
+                player.hand.isNotEmpty()
+        }
+        for (player in candidates) {
+            val throwCard = player.hand
+                .filter { Rules.canThrow(it, state.tableRanks) }
+                .minWithOrNull(lowestFirst(state.trumpSuit))
+            if (throwCard != null) {
+                return Action.AddCard(player.id, throwCard)
             }
         }
-
         return null
     }
 
@@ -120,36 +143,15 @@ class BotAI {
         val attackerId = state.attackerId
 
         if (actorId == state.defenderId && state.unbeatenPairs.isNotEmpty()) {
-            val trump = state.trumpSuit ?: return Action.Pass(actorId)
-            val unbeaten = state.unbeatenPairs.first()
-            val beating = state.player(actorId)?.hand
-                ?.filter { Rules.beats(it, unbeaten.attack, trump) }
-                ?.minWithOrNull(lowestFirst(trump))
-            return if (beating != null) {
-                Action.PlayCard(actorId, beating, unbeaten.id)
-            } else {
-                Action.Pass(actorId)
-            }
+            return chooseDefenseOrTake(state, actorId)
         }
 
         if (perms.canBito) {
             return Action.Bito(actorId)
         }
 
-        if (state.tablePairs.isNotEmpty() && state.allBeaten) {
-            if (actorId in state.passedPlayerIds) return null
-            if (perms.canPass || state.canThrowSomething(actorId)) {
-                val throwCard = state.player(actorId)?.hand
-                    ?.filter { Rules.canThrow(it, state.tableRanks) }
-                    ?.minWithOrNull(lowestFirst(state.trumpSuit))
-                return if (throwCard != null && state.canAddMoreSafe()) {
-                    Action.AddCard(actorId, throwCard)
-                } else if (perms.canPass) {
-                    Action.Pass(actorId)
-                } else {
-                    null
-                }
-            }
+        if (perms.canPass) {
+            return Action.Pass(actorId)
         }
 
         if (state.tablePairs.isEmpty() && actorId == attackerId) {
@@ -159,24 +161,8 @@ class BotAI {
             return Action.PlayCard(actorId, card, targetPairId = null)
         }
 
-        if (state.tablePairs.isNotEmpty() && !state.allBeaten && actorId == attackerId) {
-            val throwCard = state.player(actorId)?.hand
-                ?.filter { Rules.canThrow(it, state.tableRanks) }
-                ?.minWithOrNull(lowestFirst(state.trumpSuit))
-            if (throwCard != null && state.canAddMoreSafe()) {
-                return Action.AddCard(actorId, throwCard)
-            }
-        }
-
         return null
     }
-
-    private fun GameState.canThrowSomething(playerId: String): Boolean {
-        val hand = player(playerId)?.hand.orEmpty()
-        return hand.any { Rules.canThrow(it, tableRanks) } && canAddMoreSafe()
-    }
-
-    private fun GameState.canAddMoreSafe(): Boolean = canAddMoreAttacks()
 
     private fun lowestFirst(trumpSuit: com.example.foolcardgame.domain.model.Suit?) =
         Comparator<Card> { a, b ->

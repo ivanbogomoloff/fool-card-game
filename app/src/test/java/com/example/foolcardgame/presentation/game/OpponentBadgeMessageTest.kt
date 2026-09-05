@@ -9,7 +9,7 @@ class OpponentBadgeMessageTest {
 
     @Test
     fun passTookBito_returnBadgeLabels() {
-        assertEquals("Пас", opponentBadgeMessage(GameActionKindDto.PASS))
+        assertEquals("Бито", opponentBadgeMessage(GameActionKindDto.PASS))
         assertEquals("Беру", opponentBadgeMessage(GameActionKindDto.TOOK))
         assertEquals("Бито", opponentBadgeMessage(GameActionKindDto.BITO))
     }

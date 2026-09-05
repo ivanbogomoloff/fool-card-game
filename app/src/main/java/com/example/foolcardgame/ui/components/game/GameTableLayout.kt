@@ -231,6 +231,7 @@ private fun InProgressGameLayout(
                     opponents = uiState.opponents,
                     phase = uiState.phase,
                     opponentAction = uiState.opponentAction,
+                    opponentPulse = uiState.opponentPulse,
                     loserId = uiState.loserId,
                     localPlayerId = uiState.localPlayerId,
                     showLoserCards = uiState.showLoserCards,
@@ -323,6 +324,7 @@ private fun InProgressGameLayout(
                             ),
                             handTop = if (handBounds.height > 1f) handBounds.top else Float.NaN,
                             playAreaBounds = playAreaBounds,
+                            isLocalDefender = uiState.isLocalDefender,
                         )
                     ) {
                         is TableDropAction.Defend -> onDefendDrop(current.cardId, action.pairId)

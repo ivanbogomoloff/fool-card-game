@@ -22,17 +22,17 @@ fun GameState.permissionsFor(playerId: String): ActionPermissions {
 private fun GameState.inProgressPermissions(playerId: String): ActionPermissions {
     val isDefender = playerId == defenderId
     val isAttacker = playerId == attackerId
-    val hasTable = tablePairs.isNotEmpty()
     val hasUnbeaten = unbeatenPairs.isNotEmpty()
 
     val canTake = isDefender && hasUnbeaten
-    val helperThrowers = throwerIds() - attackerId
-    val allHelpersPassed = helperThrowers.all { it in passedPlayerIds }
-    val canBito = isAttacker && allBeaten && allHelpersPassed
-    val canPass = !isDefender && !isAttacker && hasTable && allBeaten &&
+    // Attacker may declare «Бито» as soon as all cards are beaten (does not wait for helpers).
+    val canBito = isAttacker && allBeaten && !attackerBitoDeclared
+    // Helpers confirm «Бито» (engine: pass) after attacker declared.
+    val canPass = !isDefender && !isAttacker &&
+        attackerBitoDeclared &&
+        allBeaten &&
         playerId in throwerIds() &&
-        playerId !in passedPlayerIds &&
-        playerId == currentPlayerId
+        playerId !in passedPlayerIds
 
     return ActionPermissions(
         canBito = canBito,
@@ -47,11 +47,15 @@ fun GameState.throwerIds(): Set<String> =
         .map { it.id }
         .toSet()
 
+fun GameState.helperThrowerIds(): Set<String> =
+    throwerIds() - setOfNotNull(attackerId)
+
 fun GameState.throwingClosed(): Boolean {
     if (!allBeaten) return false
     if (!canAddMoreAttacks()) return true
-    val throwers = throwerIds()
-    return throwers.isEmpty() || throwers.all { it in passedPlayerIds }
+    if (!attackerBitoDeclared) return false
+    val helpers = helperThrowerIds()
+    return helpers.isEmpty() || helpers.all { it in passedPlayerIds }
 }
 
 fun GameState.canAddMoreAttacks(): Boolean =
@@ -60,12 +64,12 @@ fun GameState.canAddMoreAttacks(): Boolean =
         defenderHandSizeAtRoundStart = defenderHandSizeAtRoundStart,
     )
 
-/** Throwers clockwise after attacker (excluding defender); attacker is last for bito. */
+/** Helpers clockwise after attacker (for timeout auto-confirm order). */
 fun GameState.throwPhaseTurnOrder(): List<String> {
-    if (!allBeaten) return emptyList()
+    if (!allBeaten || !attackerBitoDeclared) return emptyList()
     val attacker = attackerId ?: return emptyList()
     val defender = defenderId
-    val throwers = throwerIds()
+    val helpers = helperThrowerIds()
     val players = playersInGame()
     if (players.isEmpty()) return emptyList()
 
@@ -76,10 +80,7 @@ fun GameState.throwPhaseTurnOrder(): List<String> {
     for (i in 1 until players.size) {
         val player = players[(attIdx + i) % players.size]
         if (player.id == defender) continue
-        if (player.id in throwers) ordered.add(player.id)
-    }
-    if (attacker !in ordered) {
-        ordered.add(attacker)
+        if (player.id in helpers) ordered.add(player.id)
     }
     return ordered
 }
