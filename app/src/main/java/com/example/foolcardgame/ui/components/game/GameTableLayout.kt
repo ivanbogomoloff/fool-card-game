@@ -203,6 +203,7 @@ private fun InProgressGameLayout(
                         playAreaBounds = coordinates.boundsInRoot()
                     },
             ) {
+                val hasTopOpponent = uiState.opponents.size == 1 || uiState.opponents.size >= 3
                 TableCardsView(
                     tablePairs = visibleTablePairs,
                     onTableBoundsChanged = { tableBounds = it },
@@ -212,15 +213,19 @@ private fun InProgressGameLayout(
                     showEmptyHint = false,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 72.dp, end = 72.dp, top = 168.dp, bottom = 8.dp),
+                        .padding(
+                            start = 72.dp,
+                            end = 72.dp,
+                            top = if (hasTopOpponent) 220.dp else 120.dp,
+                            bottom = 8.dp,
+                        ),
                 )
-                val hasTopOpponent = uiState.opponents.size == 1 || uiState.opponents.size >= 3
                 DeckAndTrumpView(
                     deckCount = uiState.deckCount,
                     trump = uiState.trump,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = if (hasTopOpponent) 132.dp else 64.dp),
+                        .padding(top = if (hasTopOpponent) 168.dp else 56.dp),
                 )
                 OpponentsRow(
                     opponents = uiState.opponents,

@@ -103,7 +103,7 @@ fun OpponentsRow(
                 onOpponentAvatarBoundsChanged = onOpponentAvatarBoundsChanged,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 56.dp),
+                    .padding(top = 8.dp),
             )
         }
         if (right != null) {
