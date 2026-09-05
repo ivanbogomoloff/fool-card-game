@@ -172,6 +172,12 @@ class GameUiStateMapperTest {
     }
 
     @Test
+    fun resolvePrimaryAction_lobbyAfterReady_showsWaitingReady() {
+        val dto = MockGameStates.lobbyWaiting().copy(canReady = false)
+        assertEquals(HandPrimaryAction.WAITING_READY, GameUiStateMapper.resolvePrimaryAction(dto))
+    }
+
+    @Test
     fun formatReadyTimer_formatsMinutesAndSeconds() {
         assertEquals("1:00", formatReadyTimer(60))
         assertEquals("0:45", formatReadyTimer(45))

@@ -105,6 +105,7 @@ object GameUiStateMapper {
     fun resolvePrimaryAction(dto: GameStateDto): HandPrimaryAction = when {
         dto.phase == GamePhaseDto.FINISHED -> HandPrimaryAction.FINISHED
         dto.canReady -> HandPrimaryAction.READY
+        dto.phase == GamePhaseDto.LOBBY_WAITING -> HandPrimaryAction.WAITING_READY
         dto.canTake -> HandPrimaryAction.TAKE
         dto.canBito -> HandPrimaryAction.BITO
         dto.canPass -> HandPrimaryAction.PASS

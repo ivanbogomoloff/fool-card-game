@@ -80,7 +80,7 @@ class GameViewModelTest {
             runCurrent()
 
             assertNull(viewModel.uiState.value.readySecondsLeft)
-            assertEquals(HandPrimaryAction.NONE, viewModel.uiState.value.actions.primary)
+            assertEquals(HandPrimaryAction.WAITING_READY, viewModel.uiState.value.actions.primary)
         } finally {
             viewModel.disposeForTest()
         }

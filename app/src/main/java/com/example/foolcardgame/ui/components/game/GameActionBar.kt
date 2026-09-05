@@ -74,6 +74,28 @@ fun GameActionBar(
                     }
                 }
             }
+            HandPrimaryAction.WAITING_READY -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        repeat(3) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .background(Color.White, CircleShape),
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Ожидание готовности игроков",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                    )
+                }
+            }
             HandPrimaryAction.BITO -> {
                 TurnStatus(
                     isLocalDefending = false,

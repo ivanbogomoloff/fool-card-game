@@ -67,6 +67,7 @@ data class WaitingPlayerUi(
 
 enum class HandPrimaryAction {
     READY,
+    WAITING_READY,
     BITO,
     PASS,
     TAKE,
