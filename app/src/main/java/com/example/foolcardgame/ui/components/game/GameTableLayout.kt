@@ -253,12 +253,7 @@ private fun InProgressGameLayout(
                     showLoserCards = uiState.showLoserCards,
                     onBitoClick = {
                         if (isDiscardAnimating) return@GameActionBar
-                        if (uiState.deckCount == 0) {
-                            onBitoClick()
-                        } else {
-                            startTableFlyaway(TableFlyawayDirection.Right)
-                            onBitoClick()
-                        }
+                        onBitoClick()
                     },
                     onPassClick = onPassClick,
                     onTakeClick = {

@@ -53,9 +53,7 @@ open class GameViewModel(
                 var newHistoryEntry: GameHistoryEntryUi? = null
 
                 dto.roundEvent?.let { event ->
-                    if (event.playerId != dto.localPlayerId &&
-                        event.atTick > lastHandledEventTick
-                    ) {
+                    if (event.atTick > lastHandledEventTick) {
                         lastHandledEventTick = event.atTick
                         val kind = when (event.kind) {
                             RoundEventKindDto.TOOK -> RoundEventKind.TOOK
@@ -64,6 +62,7 @@ open class GameViewModel(
                         val snapshotPairs = previousDto?.tablePairs
                             ?.let { GameUiStateMapper.mapTablePairs(it) }
                             .orEmpty()
+                        // Flyaway for anyone (incl. local attacker) when the table actually clears.
                         if (snapshotPairs.isNotEmpty() && dto.phase != GamePhaseDto.FINISHED) {
                             newFlyAnimation = TableFlyAnimationUi(
                                 pairs = snapshotPairs,

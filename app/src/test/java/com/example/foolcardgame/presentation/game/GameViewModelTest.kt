@@ -335,7 +335,7 @@ class GameViewModelTest {
     }
 
     @Test
-    fun localRoundEvent_doesNotShowOpponentFx() = runTest {
+    fun localRoundEvent_showsFlyawayButNotOpponentBadge() = runTest {
         val client = LobbyTestClient(initial = MockGameStates.inProgress())
         val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
         try {
@@ -352,7 +352,63 @@ class GameViewModelTest {
             runCurrent()
 
             assertNull(viewModel.uiState.value.opponentAction)
+            val fly = viewModel.uiState.value.tableFlyAnimation
+            assertNotNull(fly)
+            assertEquals(RoundEventKind.BITO, fly?.kind)
+            assertEquals(MockGameStates.LOCAL_PLAYER_ID, fly?.targetOpponentId)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun localRoundEvent_withoutTableSnapshot_hasNoFlyaway() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            client.clearTable()
+            runCurrent()
+            client.emitRoundEvent(
+                RoundEventDto(
+                    kind = RoundEventKindDto.BITO,
+                    playerId = MockGameStates.LOCAL_PLAYER_ID,
+                    atTick = 110L,
+                ),
+                clearedTable = true,
+                previousTable = emptyList(),
+            )
+            runCurrent()
+
+            assertNull(viewModel.uiState.value.opponentAction)
             assertNull(viewModel.uiState.value.tableFlyAnimation)
+        } finally {
+            viewModel.disposeForTest()
+        }
+    }
+
+    @Test
+    fun opponentBitoRoundEvent_withTableSnapshot_showsFlyaway() = runTest {
+        val client = LobbyTestClient(initial = MockGameStates.inProgress())
+        val viewModel = GameViewModel(client, MockGameStates.DEBUG_SESSION_ID)
+        try {
+            runCurrent()
+            val table = MockGameStates.inProgress().tablePairs
+            client.emitRoundEvent(
+                RoundEventDto(
+                    kind = RoundEventKindDto.BITO,
+                    playerId = "bot-1",
+                    atTick = 111L,
+                ),
+                clearedTable = true,
+                previousTable = table,
+            )
+            runCurrent()
+
+            val fly = viewModel.uiState.value.tableFlyAnimation
+            assertNotNull(fly)
+            assertEquals(RoundEventKind.BITO, fly?.kind)
+            assertEquals("bot-1", fly?.targetOpponentId)
         } finally {
             viewModel.disposeForTest()
         }
