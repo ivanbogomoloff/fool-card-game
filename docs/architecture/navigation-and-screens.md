@@ -4,9 +4,10 @@
 
 ## App NavGraph
 
+Стартовый экран: **`main`**. Маршрут `login` / `LoginScreen` сохранён для будущей сетевой фазы и при запуске не открывается.
+
 ```mermaid
 flowchart LR
-    Login --> MainMenu
     MainMenu --> OfflineSetup
     MainMenu --> OnlineLobby
     MainMenu --> Profile

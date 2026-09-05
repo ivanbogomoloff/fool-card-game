@@ -1,6 +1,7 @@
 package com.example.foolcardgame.ui.components.game
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -36,9 +43,13 @@ import com.example.foolcardgame.presentation.game.OpponentActionUi
 import com.example.foolcardgame.presentation.game.OpponentRoleBanner
 import com.example.foolcardgame.presentation.game.OpponentUi
 import com.example.foolcardgame.ui.components.card.CardFace
+import com.example.foolcardgame.ui.screens.profile.AvatarPresets
 import com.example.foolcardgame.ui.theme.OpponentPlate
 import com.example.foolcardgame.ui.theme.SoftCoral
 import com.example.foolcardgame.ui.theme.TrumpGold
+import kotlinx.coroutines.delay
+
+private const val NamePlateAutoCollapseMs = 10_000L
 
 private enum class OpponentSeat {
     Left,
@@ -158,14 +169,16 @@ private fun OpponentSeatView(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         OpponentRoleIcon(roleBanner = opponent.roleBanner)
-        OpponentNamePlate(
-            opponent = opponent,
-            isLoserMarked = isLoserMarked,
-            actionMessage = actionMessage,
-            onBoundsChanged = { bounds ->
-                onOpponentAvatarBoundsChanged(opponent.id, bounds)
-            },
-        )
+        key(opponent.id) {
+            OpponentNamePlate(
+                opponent = opponent,
+                isLoserMarked = isLoserMarked,
+                actionMessage = actionMessage,
+                onBoundsChanged = { bounds ->
+                    onOpponentAvatarBoundsChanged(opponent.id, bounds)
+                },
+            )
+        }
         if (!opponent.isConnected) {
             Text(
                 text = "Нет сети",
@@ -204,28 +217,72 @@ private fun OpponentNamePlate(
     actionMessage: String?,
     onBoundsChanged: (Rect) -> Unit,
 ) {
+    var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            delay(NamePlateAutoCollapseMs)
+            expanded = false
+        }
+    }
+
+    val useCompactName = actionMessage == null && !isLoserMarked
+    val (line1, line2) = if (useCompactName) {
+        formatCompactOpponentName(opponent.displayName)
+    } else {
+        (actionMessage ?: "Дурак") to null
+    }
+    val showCardCount = opponent.cardCount > 0 && actionMessage == null && !isLoserMarked
+    val avatar = AvatarPresets.get(opponent.avatarId)
+
     Column(
         modifier = Modifier
             .background(OpponentPlate, RoundedCornerShape(10.dp))
+            .clickable { expanded = !expanded }
             .padding(horizontal = 10.dp, vertical = 6.dp)
             .onGloballyPositioned { coordinates ->
                 onBoundsChanged(coordinates.boundsInRoot())
             },
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        val title = when {
-            actionMessage != null -> actionMessage
-            isLoserMarked -> "Дурак"
-            else -> opponent.displayName
+        if (expanded) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(avatar.backgroundColor, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = avatar.emoji,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Text(
+                text = opponent.displayName,
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            Text(
+                text = line1,
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            if (line2 != null) {
+                Text(
+                    text = line2,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
-        Text(
-            text = title,
-            color = Color.White,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-        )
-        if (opponent.cardCount > 0 && actionMessage == null && !isLoserMarked) {
+        if (showCardCount) {
             Text(
                 text = "${opponent.cardCount} КАРТ",
                 color = Color.White.copy(alpha = 0.9f),

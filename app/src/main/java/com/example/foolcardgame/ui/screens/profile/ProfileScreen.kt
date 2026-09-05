@@ -212,12 +212,6 @@ fun ProfileScreen(
                     onCheckedChange = onSoundsEnabledChange,
                 )
             }
-
-            PrimaryButton(
-                text = if (uiState.isSaving) "Сохранение..." else "Сохранить",
-                onClick = onSaveClick,
-                modifier = Modifier.padding(top = 8.dp),
-            )
         }
     }
 }

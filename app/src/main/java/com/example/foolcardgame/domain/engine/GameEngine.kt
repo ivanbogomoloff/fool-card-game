@@ -1,6 +1,7 @@
 package com.example.foolcardgame.domain.engine
 
 import com.example.foolcardgame.domain.bot.BotAI
+import com.example.foolcardgame.domain.bot.BotNames
 import com.example.foolcardgame.domain.model.ActionPermissions
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameActionEvent
@@ -19,6 +20,7 @@ import com.example.foolcardgame.domain.model.permissionsFor
 import com.example.foolcardgame.domain.model.nextThrowPhaseActor
 import com.example.foolcardgame.domain.model.throwingClosed
 import java.util.UUID
+import kotlin.random.Random
 
 /**
  * Pure Kotlin game session engine (local “API”).
@@ -42,10 +44,11 @@ class GameEngine(
             isConnected = true,
             status = PlayerStatus.WAITING,
         )
+        val botNames = BotNames.pick(config.botCount, Random(config.seed))
         val bots = (1..config.botCount).map { index ->
             Player(
                 id = "bot-$index",
-                displayName = "Бот $index",
+                displayName = botNames[index - 1],
                 avatarId = index % 8,
                 isBot = true,
                 isConnected = false,

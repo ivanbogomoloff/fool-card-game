@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     AppNavGraph(
                         modifier = Modifier.padding(innerPadding),
-                        startDestination = Routes.LOGIN,
+                        startDestination = Routes.MAIN,
                     )
                 }
             }

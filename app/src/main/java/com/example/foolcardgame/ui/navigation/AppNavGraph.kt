@@ -32,7 +32,7 @@ import com.example.foolcardgame.ui.screens.stub.PlaceholderScreen
 fun AppNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Routes.LOGIN,
+    startDestination: String = Routes.MAIN,
 ) {
     NavHost(
         navController = navController,
