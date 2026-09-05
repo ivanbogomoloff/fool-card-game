@@ -12,8 +12,6 @@ object GameUiStateMapper {
 
     fun map(dto: GameStateDto): GameUiState {
         val phase = dto.phase.toDomain()
-        val hasUnbeaten = dto.tablePairs.any { it.defense == null }
-        val allBeaten = dto.tablePairs.isNotEmpty() && dto.tablePairs.all { it.defense != null }
 
         val opponents = dto.players
             .filter { it.id != dto.localPlayerId }
@@ -29,9 +27,6 @@ object GameUiStateMapper {
                         playerId = it.id,
                         attackerId = dto.attackerId,
                         defenderId = dto.defenderId,
-                        tableEmpty = dto.tablePairs.isEmpty(),
-                        hasUnbeaten = hasUnbeaten,
-                        allBeaten = allBeaten,
                     ),
                 )
             }
@@ -48,9 +43,6 @@ object GameUiStateMapper {
             playerId = dto.localPlayerId,
             attackerId = dto.attackerId,
             defenderId = dto.defenderId,
-            tableEmpty = dto.tablePairs.isEmpty(),
-            hasUnbeaten = hasUnbeaten,
-            allBeaten = allBeaten,
         )
         val revealLoserCards = dto.revealLoserCards.map { it.toUi() }
         val isLocalPlayerLoser = dto.loserId == dto.localPlayerId
@@ -93,12 +85,9 @@ object GameUiStateMapper {
         playerId: String,
         attackerId: String?,
         defenderId: String?,
-        tableEmpty: Boolean,
-        hasUnbeaten: Boolean,
-        allBeaten: Boolean,
     ): OpponentRoleBanner = when {
-        playerId == defenderId && hasUnbeaten -> OpponentRoleBanner.DEFENDING
-        playerId == attackerId && (tableEmpty || allBeaten) -> OpponentRoleBanner.ATTACKING
+        playerId == defenderId -> OpponentRoleBanner.DEFENDING
+        playerId == attackerId -> OpponentRoleBanner.ATTACKING
         else -> OpponentRoleBanner.NONE
     }
 

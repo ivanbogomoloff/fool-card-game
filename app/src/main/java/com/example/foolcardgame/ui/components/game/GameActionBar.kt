@@ -1,5 +1,12 @@
 package com.example.foolcardgame.ui.components.game
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,9 +26,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.game.GameActionsUi
 import com.example.foolcardgame.presentation.game.HandPrimaryAction
@@ -49,7 +58,7 @@ fun GameActionBar(
     onExitClick: () -> Unit = {},
 ) {
     val showStatusOnly = actions.primary == HandPrimaryAction.NONE &&
-        (isLocalDefending || (isLocalAttacking && isLocalPlayerTurn))
+        (isLocalDefending || isLocalAttacking)
     if (actions.primary == HandPrimaryAction.NONE && !showStatusOnly) return
 
     Box(
@@ -80,15 +89,7 @@ fun GameActionBar(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        repeat(3) {
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .background(Color.White, CircleShape),
-                            )
-                        }
-                    }
+                    WaitingDots()
                     Text(
                         text = "Ожидание готовности игроков",
                         style = MaterialTheme.typography.titleMedium,
@@ -98,8 +99,8 @@ fun GameActionBar(
             }
             HandPrimaryAction.BITO -> {
                 TurnStatus(
-                    isLocalDefending = false,
-                    isLocalAttacking = true,
+                    isLocalDefending = isLocalDefending,
+                    isLocalAttacking = isLocalAttacking,
                     turnSecondsLeft = turnSecondsLeft,
                     modifier = Modifier.align(Alignment.Center),
                 )
@@ -111,8 +112,8 @@ fun GameActionBar(
             }
             HandPrimaryAction.PASS -> {
                 TurnStatus(
-                    isLocalDefending = false,
-                    isLocalAttacking = false,
+                    isLocalDefending = isLocalDefending,
+                    isLocalAttacking = isLocalAttacking,
                     turnSecondsLeft = turnSecondsLeft,
                     modifier = Modifier.align(Alignment.Center),
                 )
@@ -125,7 +126,7 @@ fun GameActionBar(
             HandPrimaryAction.TAKE -> {
                 TurnStatus(
                     isLocalDefending = isLocalDefending,
-                    isLocalAttacking = false,
+                    isLocalAttacking = isLocalAttacking,
                     turnSecondsLeft = turnSecondsLeft,
                     modifier = Modifier.align(Alignment.Center),
                 )
@@ -166,7 +167,7 @@ fun GameActionBar(
             HandPrimaryAction.NONE -> {
                 TurnStatus(
                     isLocalDefending = isLocalDefending,
-                    isLocalAttacking = isLocalAttacking && isLocalPlayerTurn,
+                    isLocalAttacking = isLocalAttacking,
                     turnSecondsLeft = if (isLocalPlayerTurn) turnSecondsLeft else null,
                     modifier = Modifier.align(Alignment.Center),
                 )
@@ -188,15 +189,7 @@ private fun TurnStatus(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (isLocalDefending || isLocalAttacking) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                repeat(3) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .background(Color.White, CircleShape),
-                    )
-                }
-            }
+            WaitingDots()
         }
         if (isLocalDefending) {
             Icon(
@@ -218,6 +211,31 @@ private fun TurnStatus(
                 text = formatReadyTimer(turnSecondsLeft),
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WaitingDots() {
+    val transition = rememberInfiniteTransition(label = "waitingDots")
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(3) { index ->
+            val alpha by transition.animateFloat(
+                initialValue = 0.3f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(index * 200),
+                ),
+                label = "dot$index",
+            )
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .graphicsLayer { this.alpha = alpha }
+                    .background(Color.White, CircleShape),
             )
         }
     }

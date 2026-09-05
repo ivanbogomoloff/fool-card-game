@@ -26,7 +26,7 @@ class GameUiStateMapperTest {
     }
 
     @Test
-    fun map_inProgress_withUnbeaten_marksDefenderNotAttacker() {
+    fun map_inProgress_withUnbeaten_marksAttackerAndDefender() {
         val uiState = GameUiStateMapper.map(MockGameStates.inProgress())
 
         assertEquals(GamePhase.IN_PROGRESS, uiState.phase)
@@ -36,7 +36,7 @@ class GameUiStateMapperTest {
         assertEquals(2, uiState.opponents.size)
         assertTrue(uiState.opponents.all { it.isReady })
         assertTrue(uiState.isLocalPlayerTurn)
-        assertFalse(uiState.isLocalAttacking)
+        assertTrue(uiState.isLocalAttacking)
         assertFalse(uiState.isLocalDefending)
 
         val bot1 = uiState.opponents.first { it.id == "bot-1" }
@@ -47,12 +47,13 @@ class GameUiStateMapperTest {
     }
 
     @Test
-    fun map_opponentTurn_marksBotAsAttacking() {
+    fun map_opponentTurn_marksBotAsAttackingAndLocalDefending() {
         val uiState = GameUiStateMapper.map(MockGameStates.opponentTurn())
 
         assertFalse(uiState.isLocalPlayerTurn)
         assertEquals(HandPrimaryAction.NONE, uiState.actions.primary)
-        assertTrue(uiState.isLocalDefending.not())
+        assertTrue(uiState.isLocalDefending)
+        assertFalse(uiState.isLocalAttacking)
         val bot1 = uiState.opponents.first { it.id == "bot-1" }
         assertEquals(OpponentRoleBanner.ATTACKING, bot1.roleBanner)
         assertTrue(uiState.opponents.filter { it.id != "bot-1" }.all {
@@ -71,7 +72,11 @@ class GameUiStateMapperTest {
 
         assertTrue(uiState.isLocalAttacking)
         assertFalse(uiState.isLocalDefending)
-        assertTrue(uiState.opponents.all { it.roleBanner == OpponentRoleBanner.NONE })
+        val bot1 = uiState.opponents.first { it.id == "bot-1" }
+        assertEquals(OpponentRoleBanner.DEFENDING, bot1.roleBanner)
+        assertTrue(uiState.opponents.filter { it.id != "bot-1" }.all {
+            it.roleBanner == OpponentRoleBanner.NONE
+        })
     }
 
     @Test
@@ -81,8 +86,11 @@ class GameUiStateMapperTest {
         assertTrue(uiState.isLocalDefending)
         assertFalse(uiState.isLocalAttacking)
         assertEquals(HandPrimaryAction.TAKE, uiState.actions.primary)
-        // While defending, attacker has no «Ходит» banner
-        assertTrue(uiState.opponents.all { it.roleBanner == OpponentRoleBanner.NONE })
+        val bot1 = uiState.opponents.first { it.id == "bot-1" }
+        assertEquals(OpponentRoleBanner.ATTACKING, bot1.roleBanner)
+        assertTrue(uiState.opponents.filter { it.id != "bot-1" }.all {
+            it.roleBanner == OpponentRoleBanner.NONE
+        })
     }
 
     @Test
