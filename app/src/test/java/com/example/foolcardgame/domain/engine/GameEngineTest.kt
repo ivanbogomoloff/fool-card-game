@@ -420,6 +420,34 @@ class GameEngineTest {
     }
 
     @Test
+    fun shiftTurnDeadlines_extendsDeadlineWithoutSkipping() {
+        var now = 1_000L
+        val timedEngine = GameEngine(clock = { now })
+        val sessionId = "s-shift-deadline"
+        timedEngine.loadStateForTest(
+            inProgressState(
+                sessionId = sessionId,
+                attackerHand = listOf(Card(Suit.CLUBS, Rank.SIX)),
+                defenderHand = listOf(Card(Suit.SPADES, Rank.ACE)),
+                tablePairs = emptyList(),
+                currentPlayerId = "local",
+            ).copy(
+                turnStartedAtMs = 1_000L,
+                turnDeadlineAtMs = 1_000L + GameConfig.TURN_TIMEOUT_MS,
+            ),
+        )
+
+        timedEngine.shiftTurnDeadlines(sessionId, deltaMs = 5_000L)
+        now = 1_000L + GameConfig.TURN_TIMEOUT_MS + 1_000L
+        timedEngine.onTick(sessionId)
+        assertEquals("local", timedEngine.getState(sessionId).currentPlayerId)
+
+        now = 1_000L + GameConfig.TURN_TIMEOUT_MS + 5_000L
+        timedEngine.onTick(sessionId)
+        assertEquals("bot-1", timedEngine.getState(sessionId).currentPlayerId)
+    }
+
+    @Test
     fun skipTurn_emptyTable_rotatesAttacker() {
         val sessionId = "s-skip-empty"
         engine.loadStateForTest(

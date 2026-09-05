@@ -217,6 +217,29 @@ open class GameViewModel(
         _uiState.update { it.copy(tableFlyAnimation = null) }
     }
 
+    fun onAppPaused() {
+        gameClient.setPaused(true)
+        cancelTurnTimer(clearSeconds = false)
+        cancelReadyTimer(clearSeconds = false)
+        opponentToastJob?.cancel()
+        opponentPulseJob?.cancel()
+    }
+
+    fun onAppResumed() {
+        gameClient.setPaused(false)
+        viewModelScope.launch {
+            val dto = runCatching { gameClient.getState(sessionId) }.getOrNull() ?: return@launch
+            val mapped = GameUiStateMapper.map(dto)
+            previousDto = dto
+            syncReadyTimer(canReady = dto.canReady)
+            syncTurnTimer(
+                isLocalTurn = mapped.isLocalPlayerTurn,
+                currentPlayerId = dto.currentPlayerId,
+                turnDeadlineAtMs = dto.turnDeadlineAtMs,
+            )
+        }
+    }
+
     private fun scheduleOpponentToastClear() {
         opponentToastJob?.cancel()
         opponentToastJob = viewModelScope.launch {

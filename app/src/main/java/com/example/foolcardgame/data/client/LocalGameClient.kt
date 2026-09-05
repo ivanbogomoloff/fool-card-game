@@ -59,9 +59,17 @@ class LocalGameClient(
     private var schedulerJob: Job? = null
     private var activeBotThinkDelayRange: LongRange =
         GameConfig.DEFAULT_BOT_THINK_MIN_MS..GameConfig.DEFAULT_BOT_THINK_MAX_MS
+    @Volatile
+    private var paused: Boolean = false
+    private var pausedAtMs: Long? = null
+    private var pendingDeadlineShiftMs: Long = 0L
+    private val clock: () -> Long = { System.currentTimeMillis() }
 
     override suspend fun createSession(config: GameConfig): GameSessionId = mutex.withLock {
         stopSchedulerLocked()
+        paused = false
+        pausedAtMs = null
+        pendingDeadlineShiftMs = 0L
         activeBotThinkDelayRange = config.botThinkMinMs..config.botThinkMaxMs
         val id = engine.createSession(config)
         humanId = config.humanId
@@ -73,6 +81,7 @@ class LocalGameClient(
     }
 
     override suspend fun getState(sessionId: GameSessionId): GameStateDto = mutex.withLock {
+        applyPendingDeadlineShiftLocked()
         engine.getState(sessionId).toDto(humanId)
     }
 
@@ -85,13 +94,21 @@ class LocalGameClient(
                 delay(pollIntervalMs)
                 val dto = mutex.withLock {
                     if (activeSessionId != sessionId) return@flow
-                    engine.onTick(sessionId).toDto(humanId)
+                    applyPendingDeadlineShiftLocked()
+                    if (paused) {
+                        engine.getState(sessionId).toDto(humanId)
+                    } else {
+                        engine.onTick(sessionId).toDto(humanId)
+                    }
                 }
                 emit(dto)
             }
         }
         val immediate = flow {
-            emit(mutex.withLock { engine.getState(sessionId).toDto(humanId) })
+            emit(mutex.withLock {
+                applyPendingDeadlineShiftLocked()
+                engine.getState(sessionId).toDto(humanId)
+            })
         }
         return merge(immediate, updates, ticks)
     }
@@ -130,8 +147,41 @@ class LocalGameClient(
             engine.leave(sessionId, humanId)
             if (activeSessionId == sessionId) {
                 activeSessionId = null
+                paused = false
+                pausedAtMs = null
                 stopSchedulerLocked()
             }
+        }
+    }
+
+    override fun setPaused(paused: Boolean) {
+        if (paused) {
+            if (!this.paused) {
+                this.paused = true
+                pausedAtMs = clock()
+            }
+            return
+        }
+        val started = pausedAtMs
+        val wasPaused = this.paused
+        this.paused = false
+        pausedAtMs = null
+        if (wasPaused && started != null) {
+            pendingDeadlineShiftMs += (clock() - started).coerceAtLeast(0L)
+        }
+    }
+
+    private fun applyPendingDeadlineShiftLocked() {
+        val delta = pendingDeadlineShiftMs
+        val sessionId = activeSessionId
+        if (delta == 0L || sessionId == null) return
+        pendingDeadlineShiftMs = 0L
+        engine.shiftTurnDeadlines(sessionId, delta)
+    }
+
+    private suspend fun awaitUnpaused(sessionId: GameSessionId) {
+        while (coroutineActive(sessionId) && paused) {
+            delay(150)
         }
     }
 
@@ -153,6 +203,8 @@ class LocalGameClient(
 
     private suspend fun runLobbyStaging(sessionId: GameSessionId) {
         while (coroutineActive(sessionId)) {
+            awaitUnpaused(sessionId)
+            if (!coroutineActive(sessionId)) return
             val state = mutex.withLock {
                 if (activeSessionId != sessionId) return
                 engine.getState(sessionId)
@@ -168,17 +220,19 @@ class LocalGameClient(
 
             if (!bot.isConnected) {
                 delay(randomIn(botConnectDelayRange))
+                awaitUnpaused(sessionId)
                 if (!coroutineActive(sessionId)) return
                 mutex.withLock {
-                    if (activeSessionId != sessionId) return
+                    if (activeSessionId != sessionId || paused) return@withLock
                     engine.setConnected(sessionId, bot.id, connected = true)
                         .onSuccess { updates.tryEmit(it.toDto(humanId)) }
                 }
             } else if (!bot.isReady) {
                 delay(randomIn(botReadyDelayRange))
+                awaitUnpaused(sessionId)
                 if (!coroutineActive(sessionId)) return
                 mutex.withLock {
-                    if (activeSessionId != sessionId) return
+                    if (activeSessionId != sessionId || paused) return@withLock
                     engine.ready(sessionId, bot.id)
                         .onSuccess { updates.tryEmit(it.toDto(humanId)) }
                 }
@@ -189,6 +243,8 @@ class LocalGameClient(
     private suspend fun runBotThinkLoop(sessionId: GameSessionId) {
         var lastHandledTurnKey: String? = null
         while (coroutineActive(sessionId)) {
+            awaitUnpaused(sessionId)
+            if (!coroutineActive(sessionId)) return
             val state = mutex.withLock {
                 if (activeSessionId != sessionId) return
                 engine.getState(sessionId)
@@ -227,10 +283,11 @@ class LocalGameClient(
             // Emit current state so UI can show «Ходит» before the delay.
             updates.tryEmit(state.toDto(humanId))
             delay(randomIn(activeBotThinkDelayRange))
+            awaitUnpaused(sessionId)
             if (!coroutineActive(sessionId)) return
 
             mutex.withLock {
-                if (activeSessionId != sessionId) return
+                if (activeSessionId != sessionId || paused) return@withLock
                 val latest = engine.getState(sessionId)
                 if (latest.phase != GamePhase.IN_PROGRESS) return@withLock
                 if (current.isBot && latest.currentPlayerId != currentId) return@withLock
@@ -256,6 +313,7 @@ class LocalGameClient(
         sessionId: GameSessionId,
         block: () -> Result<GameState>,
     ): Result<Unit> = mutex.withLock {
+        applyPendingDeadlineShiftLocked()
         val result = block()
         result.onSuccess { state ->
             updates.tryEmit(state.toDto(humanId))

@@ -195,4 +195,25 @@ class LocalGameClientTest {
         }
         client.leaveSession(sessionId)
     }
+
+    @Test
+    fun setPaused_doesNotHangAndAllowsResume() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val client = client(
+            dispatcher = dispatcher,
+            connectDelay = 50L..50L,
+            readyDelay = 50L..50L,
+        )
+        val sessionId = client.createSession(GameConfig(botCount = 1, seed = 7))
+        client.setPaused(true)
+        advanceTimeBy(300)
+        runCurrent()
+        assertFalse(client.getState(sessionId).players.first { it.id == "bot-1" }.isConnected)
+
+        client.setPaused(false)
+        advanceTimeBy(300)
+        runCurrent()
+        assertTrue(client.getState(sessionId).players.first { it.id == "bot-1" }.isConnected)
+        client.leaveSession(sessionId)
+    }
 }

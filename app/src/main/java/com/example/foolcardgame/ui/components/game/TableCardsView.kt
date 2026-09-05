@@ -1,5 +1,6 @@
 package com.example.foolcardgame.ui.components.game
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -11,16 +12,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.zIndex
+import com.example.foolcardgame.presentation.game.CardUi
 import com.example.foolcardgame.presentation.game.TablePairUi
 import com.example.foolcardgame.ui.components.card.CardFace
 
@@ -28,6 +33,7 @@ private val MaxTableCardWidth = 64.dp
 private val MaxTableCardHeight = 90.dp
 private const val TableColumnCount = 3
 private val TableRowSpacing = 10.dp
+private val BeatenCardDim = Color.Black.copy(alpha = 0.42f)
 
 /** Horizontal overlap of defense over attack: 30% → shift by 70% of width. */
 private const val DefenseOverlapXFraction = 0.70f
@@ -122,10 +128,11 @@ private fun TablePairView(
             .width(stackWidth)
             .height(stackHeight),
     ) {
-        CardFace(
+        DimmedTableCard(
             card = pair.attack,
-            width = cardWidth,
-            height = cardHeight,
+            cardWidth = cardWidth,
+            cardHeight = cardHeight,
+            dimmed = hasDefense,
             modifier = Modifier
                 .zIndex(0f)
                 .onGloballyPositioned { coordinates ->
@@ -133,13 +140,39 @@ private fun TablePairView(
                 },
         )
         if (hasDefense) {
-            CardFace(
+            DimmedTableCard(
                 card = pair.defense,
-                width = cardWidth,
-                height = cardHeight,
+                cardWidth = cardWidth,
+                cardHeight = cardHeight,
+                dimmed = true,
                 modifier = Modifier
                     .zIndex(1f)
                     .offset(x = defenseOffsetX, y = defenseOffsetY),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DimmedTableCard(
+    card: CardUi?,
+    cardWidth: Dp,
+    cardHeight: Dp,
+    dimmed: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        CardFace(
+            card = card,
+            width = cardWidth,
+            height = cardHeight,
+        )
+        if (dimmed) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(BeatenCardDim),
             )
         }
     }

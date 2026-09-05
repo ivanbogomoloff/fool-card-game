@@ -29,6 +29,7 @@ import kotlin.math.roundToInt
 sealed class TableFlyawayDirection {
     data object Right : TableFlyawayDirection()
     data object Down : TableFlyawayDirection()
+    data object Shrink : TableFlyawayDirection()
     data class ToTarget(val end: Offset) : TableFlyawayDirection()
 }
 
@@ -40,9 +41,11 @@ data class FlyingDiscardCard(
     val widthPx: Float,
     val heightPx: Float,
     val staggerIndex: Int,
+    val shrink: Boolean = false,
 )
 
 private const val FlyDurationMs = 700
+private const val ShrinkDurationMs = 380
 private const val FlyStaggerMs = 50L
 
 @Composable
@@ -56,10 +59,11 @@ fun TableCardsFlyawayOverlay(
 
     val density = LocalDensity.current
     val cameraDistance = with(density) { 12.dp.toPx() * density.density }
+    val durationMs = if (cards.any { it.shrink }) ShrinkDurationMs else FlyDurationMs
 
     LaunchedEffect(cards.map { it.id }) {
         val maxStagger = cards.maxOfOrNull { it.staggerIndex } ?: 0
-        delay(FlyDurationMs + maxStagger * FlyStaggerMs + 50L)
+        delay(durationMs + maxStagger * FlyStaggerMs + 50L)
         onFinished()
     }
 
@@ -69,6 +73,7 @@ fun TableCardsFlyawayOverlay(
                 flying = flying,
                 layoutTopLeftInRoot = layoutTopLeftInRoot,
                 cameraDistance = cameraDistance,
+                durationMs = durationMs,
             )
         }
     }
@@ -79,6 +84,7 @@ private fun FlyingDiscardCardItem(
     flying: FlyingDiscardCard,
     layoutTopLeftInRoot: Offset,
     cameraDistance: Float,
+    durationMs: Int,
 ) {
     var progress by remember(flying.id) { mutableFloatStateOf(0f) }
     var rotationY by remember(flying.id) { mutableFloatStateOf(0f) }
@@ -86,35 +92,48 @@ private fun FlyingDiscardCardItem(
 
     LaunchedEffect(flying.id) {
         delay(flying.staggerIndex * FlyStaggerMs)
-        coroutineScope {
-            launch {
-                val anim = Animatable(0f)
-                anim.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = FlyDurationMs,
-                        easing = LinearOutSlowInEasing,
-                    ),
-                ) {
-                    progress = value
-                }
+        if (flying.shrink) {
+            val anim = Animatable(0f)
+            anim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = durationMs,
+                    easing = LinearOutSlowInEasing,
+                ),
+            ) {
+                progress = value
             }
-            launch {
-                val anim = Animatable(0f)
-                anim.animateTo(
-                    targetValue = 180f,
-                    animationSpec = tween(
-                        durationMillis = FlyDurationMs,
-                        easing = LinearOutSlowInEasing,
-                    ),
-                ) {
-                    rotationY = value
+        } else {
+            coroutineScope {
+                launch {
+                    val anim = Animatable(0f)
+                    anim.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = durationMs,
+                            easing = LinearOutSlowInEasing,
+                        ),
+                    ) {
+                        progress = value
+                    }
+                }
+                launch {
+                    val anim = Animatable(0f)
+                    anim.animateTo(
+                        targetValue = 180f,
+                        animationSpec = tween(
+                            durationMillis = durationMs,
+                            easing = LinearOutSlowInEasing,
+                        ),
+                    ) {
+                        rotationY = value
+                    }
                 }
             }
         }
     }
 
-    val faceUp = rotationY <= 90f
+    val faceUp = if (flying.shrink) true else rotationY <= 90f
     val displayRotation = if (faceUp) rotationY else rotationY - 180f
     val currentTopLeft = Offset(
         x = flying.startTopLeftInRoot.x +
@@ -136,12 +155,18 @@ private fun FlyingDiscardCardItem(
                 )
             }
             .graphicsLayer {
-                this.rotationY = displayRotation
-                this.cameraDistance = cameraDistance
-                // Slight shrink into the hand.
-                val scale = 1f - 0.15f * progress
-                scaleX = scale
-                scaleY = scale
+                if (flying.shrink) {
+                    val scale = 1f - progress
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - progress
+                } else {
+                    this.rotationY = displayRotation
+                    this.cameraDistance = cameraDistance
+                    val scale = 1f - 0.15f * progress
+                    scaleX = scale
+                    scaleY = scale
+                }
             },
     )
 }

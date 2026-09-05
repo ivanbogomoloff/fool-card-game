@@ -156,25 +156,27 @@ private fun InProgressGameLayout(
         return discardFlyaway.isNotEmpty()
     }
 
-    fun startTableFlyaway(direction: TableFlyawayDirection): Boolean =
-        startFlyaway(uiState.tablePairs, direction)
-
     LaunchedEffect(uiState.tableFlyAnimation?.atTick) {
         val animation = uiState.tableFlyAnimation ?: return@LaunchedEffect
         if (animation.atTick == lastHandledFlyTick) return@LaunchedEffect
         lastHandledFlyTick = animation.atTick
         val direction = when (animation.kind) {
             RoundEventKind.TOOK -> {
-                val target = opponentAvatarBounds[animation.targetOpponentId]?.center
-                    ?: layoutBounds.center
-                TableFlyawayDirection.ToTarget(
-                    end = Offset(
-                        x = target.x,
-                        y = target.y,
-                    ),
-                )
+                val isLocalTaker = animation.targetOpponentId == uiState.localPlayerId
+                val target = when {
+                    isLocalTaker && handBounds.width > 1f && handBounds.height > 1f ->
+                        handBounds.center
+                    !isLocalTaker ->
+                        opponentAvatarBounds[animation.targetOpponentId]?.center
+                            ?: layoutBounds.center
+                    else -> Offset(
+                        x = layoutBounds.center.x,
+                        y = layoutBounds.bottom - with(density) { 80.dp.toPx() },
+                    )
+                }
+                TableFlyawayDirection.ToTarget(end = target)
             }
-            RoundEventKind.BITO -> TableFlyawayDirection.Right
+            RoundEventKind.BITO -> TableFlyawayDirection.Shrink
         }
         if (startFlyaway(animation.pairs, direction)) {
             suppressTableCards = true
@@ -258,15 +260,7 @@ private fun InProgressGameLayout(
                     onPassClick = onPassClick,
                     onTakeClick = {
                         if (isDiscardAnimating) return@GameActionBar
-                        if (startTableFlyaway(TableFlyawayDirection.Down)) {
-                            suppressTableCards = true
-                            pendingAfterFlyaway = {
-                                onTakeClick()
-                                suppressTableCards = false
-                            }
-                        } else {
-                            onTakeClick()
-                        }
+                        onTakeClick()
                     },
                     onReadyClick = onReadyClick,
                     onToggleLoserCardsClick = onToggleLoserCardsClick,
@@ -411,6 +405,7 @@ private fun snapshotDiscardCards(
 
     val handReady = handBounds.width > 1f && handBounds.height > 1f
     return starts.mapIndexed { index, (id, card, rect) ->
+        val start = Offset(rect.left, rect.top)
         val end = when (direction) {
             TableFlyawayDirection.Right -> Offset(
                 x = layoutBounds.right + flyExtraPx,
@@ -430,6 +425,7 @@ private fun snapshotDiscardCards(
                     )
                 }
             }
+            TableFlyawayDirection.Shrink -> start
             is TableFlyawayDirection.ToTarget -> Offset(
                 x = direction.end.x - rect.width / 2f,
                 y = direction.end.y - rect.height / 2f,
@@ -438,11 +434,12 @@ private fun snapshotDiscardCards(
         FlyingDiscardCard(
             id = id,
             card = card,
-            startTopLeftInRoot = Offset(rect.left, rect.top),
+            startTopLeftInRoot = start,
             endTopLeftInRoot = end,
             widthPx = rect.width,
             heightPx = rect.height,
             staggerIndex = index,
+            shrink = direction is TableFlyawayDirection.Shrink,
         )
     }
 }

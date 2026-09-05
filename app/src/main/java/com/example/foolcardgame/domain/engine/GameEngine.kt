@@ -198,6 +198,18 @@ class GameEngine(
         return next
     }
 
+    /** Extends turn timers after app pause so wall-clock idle does not auto-skip. */
+    fun shiftTurnDeadlines(sessionId: String, deltaMs: Long): GameState {
+        if (deltaMs == 0L) return getState(sessionId)
+        val state = sessions[sessionId] ?: return getOrEmpty(sessionId)
+        val next = state.copy(
+            turnDeadlineAtMs = state.turnDeadlineAtMs?.plus(deltaMs),
+            turnStartedAtMs = state.turnStartedAtMs?.plus(deltaMs),
+        )
+        sessions[sessionId] = next
+        return next
+    }
+
     /** Runs bot actions until a human must act or the game ends (tests). */
     fun advanceUntilHumanOrFinished(sessionId: String, maxSteps: Int = 64): GameState {
         var state = getState(sessionId)
