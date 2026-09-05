@@ -96,7 +96,6 @@ fun AppNavGraph(
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             ProfileScreen(
                 uiState = uiState,
-                onDisplayNameChange = viewModel::onDisplayNameChange,
                 onAvatarSelected = viewModel::onAvatarSelected,
                 onSoundsEnabledChange = viewModel::onSoundsEnabledChange,
                 onThemeModeChange = viewModel::onThemeModeChange,

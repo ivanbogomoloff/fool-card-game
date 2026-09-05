@@ -56,7 +56,6 @@ class OfflineSetupViewModel(
                 val sessionId = gameClient.createSession(
                     GameConfig(
                         botCount = _uiState.value.botCount,
-                        humanDisplayName = profile.displayName,
                         humanAvatarId = profile.avatarId,
                         seed = Random.Default.nextLong(),
                         botThinkMinMs = reactionMinSec * 1_000L,

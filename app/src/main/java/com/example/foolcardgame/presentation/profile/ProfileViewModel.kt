@@ -25,7 +25,6 @@ class ProfileViewModel(
             repository.observeProfile().collect { profile ->
                 _uiState.update {
                     it.copy(
-                        displayName = profile.displayName,
                         avatarId = profile.avatarId,
                         soundsEnabled = profile.soundsEnabled,
                         themeMode = profile.themeMode,
@@ -35,10 +34,6 @@ class ProfileViewModel(
                 }
             }
         }
-    }
-
-    fun onDisplayNameChange(name: String) {
-        _uiState.update { it.copy(displayName = name, error = null) }
     }
 
     fun onAvatarSelected(avatarId: Int) {
@@ -67,20 +62,9 @@ class ProfileViewModel(
     }
 
     fun saveProfile() {
-        val state = _uiState.value
-        val trimmedName = state.displayName.trim()
-        if (trimmedName.isEmpty()) {
-            _uiState.update { it.copy(error = "Введите имя профиля") }
-            return
-        }
-
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null, snackbarMessage = null) }
-            val result = repository.saveProfile(
-                _uiState.value.toUserProfile(
-                    displayName = trimmedName,
-                ),
-            )
+            val result = repository.saveProfile(_uiState.value.toUserProfile())
             _uiState.update {
                 when (result) {
                     SaveProfileResult.Success -> it.copy(
@@ -102,13 +86,13 @@ class ProfileViewModel(
     }
 
     private fun ProfileUiState.toUserProfile(
-        displayName: String? = null,
         avatarId: Int? = null,
         soundsEnabled: Boolean? = null,
         themeMode: ThemeMode? = null,
         cardTheme: CardTheme? = null,
     ): UserProfile = UserProfile(
-        displayName = displayName ?: this.displayName.trim().ifEmpty { UserProfile.DEFAULT_DISPLAY_NAME },
+        // Display name is for online accounts later; settings do not edit it.
+        displayName = UserProfile.DEFAULT_DISPLAY_NAME,
         avatarId = avatarId ?: this.avatarId,
         soundsEnabled = soundsEnabled ?: this.soundsEnabled,
         themeMode = themeMode ?: this.themeMode,

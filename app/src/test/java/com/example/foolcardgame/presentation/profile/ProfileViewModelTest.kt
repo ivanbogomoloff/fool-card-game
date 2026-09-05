@@ -47,7 +47,6 @@ class ProfileViewModelTest {
         val viewModel = ProfileViewModel(repository)
         advanceUntilIdle()
 
-        assertEquals("Тест", viewModel.uiState.value.displayName)
         assertEquals(3, viewModel.uiState.value.avatarId)
         assertEquals(false, viewModel.uiState.value.isLoading)
     }
@@ -62,28 +61,13 @@ class ProfileViewModelTest {
         val viewModel = ProfileViewModel(repository)
         advanceUntilIdle()
 
-        viewModel.onDisplayNameChange("Алекс")
         viewModel.onAvatarSelected(2)
         viewModel.saveProfile()
         advanceUntilIdle()
 
         assertEquals("Профиль сохранён", viewModel.uiState.value.snackbarMessage)
-        assertEquals("Алекс", api.lastSavedProfile?.displayName)
+        assertEquals(UserProfile.DEFAULT_DISPLAY_NAME, api.lastSavedProfile?.displayName)
         assertEquals(2, api.lastSavedProfile?.avatarId)
-    }
-
-    @Test
-    fun saveProfile_showsErrorWhenNameIsBlank() = runTest {
-        val viewModel = ProfileViewModel(
-            ProfileRepository(InMemoryProfileLocalStore(), FakeProfileApi()),
-        )
-        advanceUntilIdle()
-
-        viewModel.onDisplayNameChange("   ")
-        viewModel.saveProfile()
-        advanceUntilIdle()
-
-        assertEquals("Введите имя профиля", viewModel.uiState.value.error)
     }
 
     @Test
@@ -95,7 +79,7 @@ class ProfileViewModelTest {
         val viewModel = ProfileViewModel(repository)
         advanceUntilIdle()
 
-        viewModel.onDisplayNameChange("Мария")
+        viewModel.onAvatarSelected(1)
         viewModel.saveProfile()
         advanceUntilIdle()
 

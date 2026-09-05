@@ -24,7 +24,7 @@ data class TablePair(
 data class GameConfig(
     val botCount: Int,
     val humanId: String = DEFAULT_HUMAN_ID,
-    val humanDisplayName: String = UserProfile.DEFAULT_DISPLAY_NAME,
+    val humanDisplayName: String = OFFLINE_HUMAN_DISPLAY_NAME,
     val humanAvatarId: Int = UserProfile.DEFAULT_AVATAR_ID,
     val seed: Long = DEFAULT_SEED,
     val botThinkMinMs: Long = DEFAULT_BOT_THINK_MIN_MS,
@@ -41,6 +41,8 @@ data class GameConfig(
 
     companion object {
         const val DEFAULT_HUMAN_ID = "local"
+        /** Fixed local seat label for offline/bots; account name comes with online later. */
+        const val OFFLINE_HUMAN_DISPLAY_NAME = "Вы"
         const val DEFAULT_SEED = 42L
         const val TURN_TIMEOUT_MS = 60_000L
         const val THROW_TIMEOUT_MS = 30_000L

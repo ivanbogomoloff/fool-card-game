@@ -2,11 +2,7 @@
 
 ## Цель
 
-Экран настроек профиля: имя и аватар с локальным сохранением (DataStore) и заглушкой API.
-
-## Зависимости
-
-- [Phase 1 — Main Menu](../phase-01-main-menu/README.md)
+Экран настроек: аватар, тема, колода, звуки. Имя профиля в настройках не редактируется — понадобится для сетевой игры позже.
 
 ## Wireframe
 
@@ -14,7 +10,8 @@
 flowchart TB
     subgraph profileScreen [ProfileScreen]
         AvatarPicker[Avatar grid]
-        NameField[Imya profilya]
+        ThemeChips[Theme and card theme]
+        Sounds[Sounds switch]
         BtnSave[Sohranit]
     end
 ```
@@ -35,9 +32,9 @@ data/api/FakeProfileApi.kt
 
 ## Задачи
 
-- [x] DataStore: `displayName`, `avatarId`
+- [x] DataStore: `displayName` (зарезервировано под online), `avatarId`
 - [x] `ProfileViewModel` — load/save
-- [x] UI: TextField имени, grid аватаров (8 preset)
+- [x] UI: grid аватаров (8 preset); имя профиля не в настройках
 - [x] `ProfileApi` interface + `FakeProfileApi` (stub POST)
 - [x] `ProfileRepository` — local first, затем fake API call
 - [x] Кнопка «Сохранить» — persist + snackbar

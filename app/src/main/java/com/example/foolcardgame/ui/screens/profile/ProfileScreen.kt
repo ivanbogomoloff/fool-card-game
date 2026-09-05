@@ -24,7 +24,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -52,7 +51,6 @@ import com.example.foolcardgame.ui.theme.TrumpGold
 @Composable
 fun ProfileScreen(
     uiState: ProfileUiState,
-    onDisplayNameChange: (String) -> Unit,
     onAvatarSelected: (Int) -> Unit,
     onSoundsEnabledChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
@@ -132,18 +130,6 @@ fun ProfileScreen(
                     )
                 }
             }
-
-            OutlinedTextField(
-                value = uiState.displayName,
-                onValueChange = onDisplayNameChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(text = "Имя профиля") },
-                singleLine = true,
-                isError = uiState.error != null,
-                supportingText = uiState.error?.let { error ->
-                    { Text(text = error) }
-                },
-            )
 
             Text(
                 text = "Тема",
@@ -249,11 +235,9 @@ private fun ProfileScreenPreview() {
     FoolCardGameTheme {
         ProfileScreen(
             uiState = ProfileUiState(
-                displayName = "Иван",
                 avatarId = 1,
                 isLoading = false,
             ),
-            onDisplayNameChange = {},
             onAvatarSelected = {},
             onSoundsEnabledChange = {},
             onThemeModeChange = {},
