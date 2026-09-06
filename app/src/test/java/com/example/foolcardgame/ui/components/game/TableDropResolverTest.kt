@@ -194,7 +194,7 @@ class TableDropResolverTest {
 
     @Test
     fun tableDropZone_extendsToCoverOverflowingTableCards() {
-        val overflowCard = Rect(100f, 350f, 160f, 430f) // straddles actionBar.top=400
+        val overflowCard = Rect(100f, 350f, 160f, 430f) // пересекает actionBar.top=400
         val zone = tableDropZone(
             playAreaBounds = playArea,
             actionBarBounds = actionBar,

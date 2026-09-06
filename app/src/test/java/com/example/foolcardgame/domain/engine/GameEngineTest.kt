@@ -105,7 +105,7 @@ class GameEngineTest {
 
         assertTrue(engine.playCard(sessionId, "bot-1", defense, targetPairId = 1).isSuccess)
         val state = engine.getState(sessionId)
-        // Limit was 1 attack → throwing closed, but round waits for attacker «Бито»
+        // Лимит был 1 атака → подкид закрыт, но раунд ждёт «Бито» атакующего
         assertEquals(1, state.tablePairs.size)
         assertEquals(defense, state.tablePairs.single().defense)
         assertEquals("local", state.currentPlayerId)
@@ -169,7 +169,7 @@ class GameEngineTest {
     @Test
     fun addCard_respectsLimit_min6_andDefenderHandCount() {
         val sessionId = "s-add-limit"
-        // Defender started with 1 card → max 1 attack on table
+        // Защитник начал с 1 карты → максимум 1 атака на столе
         val throwCard = Card(Suit.CLUBS, Rank.SEVEN)
         engine.loadStateForTest(
             inProgressState(
@@ -216,7 +216,7 @@ class GameEngineTest {
         assertTrue(engine.bito(sessionId, "local").isSuccess)
         val state = engine.getState(sessionId)
         assertTrue(state.tablePairs.isEmpty())
-        // After bito, previous defender (bot-1) attacks; bot-2 empty → local defends
+        // После бито предыдущий защитник (bot-1) атакует; bot-2 пуст → local защищается
         assertEquals("bot-1", state.attackerId)
         assertEquals("local", state.defenderId)
     }
@@ -251,7 +251,7 @@ class GameEngineTest {
         val state = engine.getState(sessionId)
         assertEquals(2, state.tablePairs.size)
         assertEquals("bot-1", state.defenderId)
-        assertEquals("bot-1", state.currentPlayerId) // defender must beat the throw
+        assertEquals("bot-1", state.currentPlayerId) // защитник должен отбить подкид
     }
 
     @Test
@@ -277,14 +277,14 @@ class GameEngineTest {
 
         assertTrue(engine.bito(sessionId, "local").isSuccess)
         var state = engine.getState(sessionId)
-        assertEquals(1, state.tablePairs.size) // attacker declared; helper must confirm
+        assertEquals(1, state.tablePairs.size) // атакующий объявил; помощник должен подтвердить
         assertTrue(state.attackerBitoDeclared)
         assertTrue("bot-2" !in state.passedPlayerIds)
 
         assertTrue(engine.pass(sessionId, "bot-2").isSuccess)
         state = engine.getState(sessionId)
         assertTrue(state.tablePairs.isEmpty())
-        assertEquals("bot-1", state.attackerId) // previous defender attacks after bito
+        assertEquals("bot-1", state.attackerId) // предыдущий защитник атакует после бито
         assertEquals("bot-2", state.defenderId)
     }
 
@@ -306,7 +306,7 @@ class GameEngineTest {
         val state = engine.getState(sessionId)
         assertTrue(state.tablePairs.isEmpty())
         assertTrue(state.player("bot-1")!!.hand.contains(attack))
-        // Taker skips; next after bot-1 is bot-2
+        // Взявший пропускает; следующий после bot-1 — bot-2
         assertEquals("bot-2", state.attackerId)
         assertEquals("local", state.defenderId)
     }
@@ -318,12 +318,12 @@ class GameEngineTest {
             Card(Suit.CLUBS, Rank.SIX),
             Card(Suit.CLUBS, Rank.SEVEN),
             Card(Suit.CLUBS, Rank.EIGHT),
-            Card(Suit.HEARTS, Rank.NINE), // trump at bottom
+            Card(Suit.HEARTS, Rank.NINE), // козырь внизу
         )
         engine.loadStateForTest(
             inProgressState(
                 sessionId = sessionId,
-                attackerHand = listOf(Card(Suit.DIAMONDS, Rank.SIX)), // 1 card → will draw
+                attackerHand = listOf(Card(Suit.DIAMONDS, Rank.SIX)), // 1 карта → будет добор
                 defenderHand = listOf(Card(Suit.DIAMONDS, Rank.SEVEN)),
                 tablePairs = listOf(
                     TablePair(
@@ -341,7 +341,7 @@ class GameEngineTest {
         val state = engine.getState(sessionId)
         assertTrue(state.tablePairs.isEmpty())
         assertTrue(state.player("local")!!.hand.size > 1)
-        assertEquals("bot-1", state.attackerId) // previous defender attacks after bito
+        assertEquals("bot-1", state.attackerId) // предыдущий защитник атакует после бито
         assertEquals("bot-2", state.defenderId)
     }
 
@@ -391,7 +391,7 @@ class GameEngineTest {
         assertTrue(engine.pass(sessionId, "bot-1").isSuccess)
         val state = engine.getState(sessionId)
         assertTrue(state.player("bot-1")!!.hand.contains(attack))
-        // bot-1 took and skips; only local left with cards in circle → local attacks
+        // bot-1 взял и пропускает; в круге с картами остался только local → local атакует
         assertEquals("local", state.attackerId)
         assertEquals("bot-1", state.defenderId)
     }
@@ -510,7 +510,7 @@ class GameEngineTest {
             ),
         )
         assertTrue(engine.skipTurn(sessionId, "bot-2").isSuccess)
-        // Sole helper timed out → round closes as bito.
+        // Единственный помощник по таймауту → раунд закрывается как бито.
         assertTrue(engine.getState(sessionId).tablePairs.isEmpty())
         assertFalse(engine.getState(sessionId).attackerBitoDeclared)
     }
@@ -708,7 +708,7 @@ class GameEngineTest {
     @Test
     fun pass_emitsPassActionEvent() {
         val sessionId = "s-pass-event"
-        // 4 players so first helper confirm does not close the round.
+        // 4 игрока, чтобы первое подтверждение помощника не закрыло раунд.
         engine.loadStateForTest(
             GameState(
                 sessionId = sessionId,
@@ -965,7 +965,7 @@ class GameEngineTest {
                         attack = Card(Suit.SPADES, Rank.SEVEN),
                     ),
                 ),
-                currentPlayerId = "bot-1", // defender's turn
+                currentPlayerId = "bot-1", // ход защитника
                 helperHand = listOf(throwCard, Card(Suit.DIAMONDS, Rank.NINE)),
                 defenderHandSizeAtRoundStart = 2,
             ),
@@ -1019,7 +1019,7 @@ class GameEngineTest {
         val afterBito = engine.getState(sessionId)
         assertTrue(afterBito.attackerBitoDeclared)
         assertEquals(1, afterBito.tablePairs.size)
-        // Clockwise from finished bot-2: skip defender bot-3 → local first helper
+        // По часовой от выбывшего bot-2: пропуск защитника bot-3 → local первый помощник
         assertEquals("local", afterBito.currentPlayerId)
         assertNotNull(afterBito.turnDeadlineAtMs)
         assertTrue(afterBito.permissionsFor("local").canPass)

@@ -264,7 +264,7 @@ class LocalGameClientTest {
                         displayName = "Бот 1",
                         avatarId = 1,
                         isBot = true,
-                        // Empty hand → no parallel throw-in while human still defends
+                        // Пустая рука → нет параллельного подкида, пока человек ещё отбивается
                         hand = emptyList(),
                         isReady = true,
                         isConnected = true,
@@ -294,7 +294,7 @@ class LocalGameClientTest {
         assertEquals(1, client.getState(sessionId).tablePairs.size)
         assertEquals("bot-1", client.getState(sessionId).currentPlayerId)
 
-        // Poll (~150) + hold (1000) + think (1000). Without hold, bito would land ~1150ms.
+        // Poll (~150) + hold (1000) + think (1000). Без hold бито пришло бы ~через 1150 мс.
         advanceTimeBy(1_500)
         runCurrent()
         assertEquals(1, client.getState(sessionId).tablePairs.size)
@@ -392,7 +392,7 @@ class LocalGameClientTest {
         assertEquals(1, client.getState(sessionId).tablePairs.size)
         assertEquals("bot-1", client.getState(sessionId).currentPlayerId)
 
-        // Poll + think delay for bot-1 Pass
+        // Poll + задержка «думанья» для Pass у bot-1
         advanceTimeBy(1_500)
         runCurrent()
         assertTrue(client.getState(sessionId).tablePairs.isEmpty())

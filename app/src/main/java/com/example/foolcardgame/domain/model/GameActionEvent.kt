@@ -9,7 +9,7 @@ enum class GameActionKind {
     BITO,
 }
 
-/** One-shot UI hint emitted when a player performs an action. */
+/** Одноразовый UI-сигнал при действии игрока. */
 data class GameActionEvent(
     val kind: GameActionKind,
     val playerId: String,

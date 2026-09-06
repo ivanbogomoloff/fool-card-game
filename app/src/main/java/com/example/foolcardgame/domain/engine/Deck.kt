@@ -17,7 +17,7 @@ object Deck {
         }
     }
 
-    /** Deterministic shuffle for tests and reproducible offline games. */
+    /** Детерминированное тасование для тестов и воспроизводимых офлайн-игр. */
     fun shuffled(seed: Long): List<Card> {
         val cards = create36().toMutableList()
         cards.shuffle(Random(seed))

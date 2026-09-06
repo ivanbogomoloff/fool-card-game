@@ -72,7 +72,7 @@ fun tableDropZone(
         layoutBounds.height > 1f -> layoutBounds.bottom
         else -> 0f
     }
-    // Include table cards that visually overflow into the action-bar band.
+    // Учитывать карты стола, которые визуально заходят в полосу action-bar.
     val cardsBottom = attackCardBounds.values.maxOfOrNull { it.bottom + AttackHitSlopPx }
         ?: baseBottom
     var bottom = max(baseBottom, cardsBottom)

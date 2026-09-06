@@ -9,7 +9,7 @@ import com.example.foolcardgame.domain.model.helperThrowerIds
 import com.example.foolcardgame.domain.model.permissionsFor
 
 /**
- * Simple deterministic bot: lowest legal card / obvious pass-bito-take.
+ * Простой детерминированный бот: младшая легальная карта / очевидные pass-бито-беру.
  */
 class BotAI {
 
@@ -22,7 +22,7 @@ class BotAI {
     }
 
     /**
-     * @param controlAllPlayers when true (functional tests), any player can be driven by AI.
+     * @param controlAllPlayers если true (функциональные тесты), ИИ управляет любым местом.
      */
     fun chooseAction(state: GameState, controlAllPlayers: Boolean = false): Action? {
         fun controllable(isBot: Boolean) = controlAllPlayers || isBot
@@ -38,7 +38,7 @@ class BotAI {
             GamePhase.IN_PROGRESS -> Unit
         }
 
-        // Mid-defense: any non-defender may throw in parallel.
+        // В середине отбивки: любой не-защитник может подкидывать параллельно.
         if (state.unbeatenPairs.isNotEmpty()) {
             chooseThrowIn(state, { controllable(it) }, includeAttacker = true)?.let { return it }
         }
@@ -50,7 +50,7 @@ class BotAI {
                 return chooseDefenseOrTake(state, defenderId)
             }
             if (!controlAllPlayers) {
-                // Human defending — only parallel throws (already tried) remain for bots.
+                // Человек отбивается — ботам остаются только параллельные подкиды (уже пробовали).
                 return null
             }
         }
@@ -65,7 +65,7 @@ class BotAI {
             }
         }
 
-        // After attacker «Бито»: helpers throw if possible, else confirm.
+        // После «Бито» атакующего: помощники подкидывают, если можно, иначе подтверждают.
         if (state.attackerBitoDeclared && state.allBeaten) {
             chooseThrowIn(state, { controllable(it) }, includeAttacker = false)?.let { return it }
             for (helperId in state.helperThrowerIds()) {
@@ -78,7 +78,7 @@ class BotAI {
             }
         }
 
-        // All beaten, attacker not yet declared: helpers may still throw.
+        // Всё отбито, атакующий ещё не объявил: помощники всё ещё могут подкидывать.
         if (state.allBeaten && !state.attackerBitoDeclared) {
             chooseThrowIn(state, { controllable(it) }, includeAttacker = false)?.let { return it }
         }

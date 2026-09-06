@@ -91,7 +91,7 @@ class ProfileViewModel(
         themeMode: ThemeMode? = null,
         cardTheme: CardTheme? = null,
     ): UserProfile = UserProfile(
-        // Display name is for online accounts later; settings do not edit it.
+        // Display name — для онлайн-аккаунтов позже; настройки его не редактируют.
         displayName = UserProfile.DEFAULT_DISPLAY_NAME,
         avatarId = avatarId ?: this.avatarId,
         soundsEnabled = soundsEnabled ?: this.soundsEnabled,

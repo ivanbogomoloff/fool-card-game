@@ -9,7 +9,7 @@ import kotlin.math.ceil
 private const val LoserRevealColumnCount = 3
 private const val LoserRevealPairIdBase = -1000
 
-/** Maps fool hand cards to single-attack table pairs for [TableCardsView]. */
+/** Преобразует карты руки дурака в одноатакующие пары для [TableCardsView]. */
 fun revealLoserCardsToTablePairs(cards: List<CardUi>): List<TablePairUi> =
     cards.mapIndexed { index, card ->
         TablePairUi(
@@ -20,8 +20,8 @@ fun revealLoserCardsToTablePairs(cards: List<CardUi>): List<TablePairUi> =
     }
 
 /**
- * Top-left positions for [count] cards in a 3-column grid inside [tableBounds],
- * matching the general layout of [TableCardsView].
+ * Позиции top-left для [count] карт в сетке 3 колонки внутри [tableBounds],
+ * в духе общей раскладки [TableCardsView].
  */
 fun loserRevealTableSlotTops(
     tableBounds: Rect,

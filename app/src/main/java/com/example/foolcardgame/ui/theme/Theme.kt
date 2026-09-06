@@ -36,7 +36,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun FoolCardGameTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    // Динамический цвет доступен на Android 12+
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

@@ -38,13 +38,13 @@ private val TableRowSpacingCrowded = 5.dp
 private val BeatenCardDim = Color.Black.copy(alpha = 0.42f)
 private const val CrowdedPairThreshold = 4
 
-/** Horizontal overlap of defense over attack (comfortable). */
+/** Горизонтальное перекрытие отбивки над атакой (комфортное). */
 private const val DefenseOverlapXComfortable = 0.70f
 
-/** Horizontal overlap when many pairs — stacks sit closer. */
+/** Горизонтальное перекрытие при многих парах — стопки ближе. */
 private const val DefenseOverlapXCrowded = 0.55f
 
-/** Vertical overlap of defense over attack. */
+/** Вертикальное перекрытие отбивки над атакой. */
 private const val DefenseOverlapYFraction = 0.20f
 
 private val CardAspect = MaxTableCardHeight / MaxTableCardWidth

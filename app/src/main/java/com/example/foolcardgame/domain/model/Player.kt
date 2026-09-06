@@ -9,7 +9,7 @@ data class Player(
     val isReady: Boolean = false,
     val isConnected: Boolean = true,
     val status: PlayerStatus = PlayerStatus.WAITING,
-    /** Out of the game (no cards left after deck emptied). */
+    /** Вышел из игры (карт не осталось после опустошения колоды). */
     val isFinished: Boolean = false,
 )
 
@@ -41,7 +41,7 @@ data class GameConfig(
 
     companion object {
         const val DEFAULT_HUMAN_ID = "local"
-        /** Fixed local seat label for offline/bots; account name comes with online later. */
+        /** Фиксированная подпись локального места в офлайне/с ботами; имя аккаунта — позже для онлайна. */
         const val OFFLINE_HUMAN_DISPLAY_NAME = "Вы"
         const val DEFAULT_SEED = 42L
         const val TURN_TIMEOUT_MS = 60_000L

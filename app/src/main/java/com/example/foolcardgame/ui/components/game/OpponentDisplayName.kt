@@ -4,10 +4,10 @@ private const val CompactLineLimit = 8
 private const val Ellipsis = "…"
 
 /**
- * Compact opponent name for the table plate.
+ * Компактное имя оппонента для плашки за столом.
  *
- * Default: at most two lines, 8 chars each (split on the first space).
- * [singleLine]: one line up to 16 chars, spaces preserved.
+ * По умолчанию: не более двух строк по 8 символов (разрыв по первому пробелу).
+ * [singleLine]: одна строка до 16 символов, пробелы сохраняются.
  */
 fun formatCompactOpponentName(
     full: String,

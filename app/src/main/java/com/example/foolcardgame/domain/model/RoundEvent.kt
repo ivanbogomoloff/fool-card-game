@@ -5,7 +5,7 @@ enum class RoundEventKind {
     BITO,
 }
 
-/** One-shot UI hint emitted when a round ends by take or bito. */
+/** Одноразовый UI-сигнал при завершении раунда «беру» или «бито». */
 data class RoundEvent(
     val kind: RoundEventKind,
     val playerId: String,

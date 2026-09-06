@@ -1,41 +1,41 @@
 package com.example.foolcardgame.domain.model
 
 /**
- * Immutable snapshot of a game session — domain analogue of a REST state payload.
- * No Android / HTTP dependencies.
+ * Неизменяемый снимок игровой сессии — доменный аналог REST-состояния.
+ * Без зависимостей от Android / HTTP.
  */
 data class GameState(
     val sessionId: String,
     val phase: GamePhase,
     val players: List<Player>,
-    /** Remaining draw pile; index 0 is next to draw; last card is the face-up trump. */
+    /** Оставшаяся колода; индекс 0 — следующая к добору; последняя карта — открытый козырь. */
     val deck: List<Card>,
     val trumpCard: Card?,
     val trumpSuit: Suit?,
     val tablePairs: List<TablePair>,
     val attackerId: String?,
     val defenderId: String?,
-    /** Whose primary action is expected (attack / defend / throw). */
+    /** От кого ожидается основное действие (атака / отбивка / подкид). */
     val currentPlayerId: String?,
     val passedPlayerIds: Set<String> = emptySet(),
     /**
-     * Attacker pressed «Бито» while all table cards are beaten.
-     * Helpers then confirm with pass (UI «Бито»); cleared on new throw / round end.
+     * Атакующий нажал «Бито», пока все карты на столе отбиты.
+     * Помощники подтверждают через pass (UI «Бито»); сбрасывается при новом подкиде / конце раунда.
      */
     val attackerBitoDeclared: Boolean = false,
-    /** Max attack cards this round = min(6, this value). */
+    /** Максимум атакующих карт в раунде = min(6, это значение). */
     val defenderHandSizeAtRoundStart: Int = 0,
     val tick: Long = 0,
     val winnerIds: List<String> = emptyList(),
     val loserId: String? = null,
-    /** Cards removed after successful «бито». */
+    /** Карты, ушедшие в отбой после успешного «бито». */
     val discardPile: List<Card> = emptyList(),
     val turnStartedAtMs: Long? = null,
-    /** When set, [currentPlayerId] must act before this epoch ms or the turn is skipped. */
+    /** Если задано, [currentPlayerId] должен сходить до этого epoch ms, иначе ход пропускается. */
     val turnDeadlineAtMs: Long? = null,
-    /** When set, UI may show take/bito feedback; cleared at the start of the next mutate. */
+    /** Если задано, UI может показать отклик «беру»/«бито»; очищается в начале следующего mutate. */
     val lastRoundEvent: RoundEvent? = null,
-    /** When set, UI may append an action to game history; cleared at the start of the next mutate. */
+    /** Если задано, UI может добавить действие в историю; очищается в начале следующего mutate. */
     val lastActionEvent: GameActionEvent? = null,
 ) {
     fun player(id: String): Player? = players.find { it.id == id }

@@ -110,7 +110,7 @@ class BotAITest {
             defenderId = "bot-1",
             defenderHandSizeAtRoundStart = 3,
         )
-        // controlAllPlayers so local (human) can be driven
+        // controlAllPlayers, чтобы local (человек) управлялся ИИ
         val action = botAI.chooseAction(state, controlAllPlayers = true)
         assertTrue(action is BotAI.Action.Bito)
     }

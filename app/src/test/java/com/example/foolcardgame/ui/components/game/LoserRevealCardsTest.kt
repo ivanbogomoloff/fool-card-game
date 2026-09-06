@@ -34,7 +34,7 @@ class LoserRevealCardsTest {
             cardHeightPx = 90f,
         )
         assertEquals(4, slots.size)
-        // First two on row 0; index 3 on row 1
+        // Первые две на ряду 0; индекс 3 на ряду 1
         assertEquals(slots[0].y, slots[1].y, 0.1f)
         assertTrue(slots[3].y > slots[0].y)
         assertTrue(slots[1].x > slots[0].x)

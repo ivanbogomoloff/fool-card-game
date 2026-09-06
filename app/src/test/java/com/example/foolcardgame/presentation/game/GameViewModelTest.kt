@@ -586,7 +586,7 @@ class GameDebugViewModelTest {
     }
 }
 
-/** GameClient without infinite poll ticks — safe for runTest. */
+/** GameClient без бесконечных poll-тиков — безопасен для runTest. */
 private class LobbyTestClient(
     initial: GameStateDto = MockGameStates.lobbyWaiting(),
 ) : GameClient {

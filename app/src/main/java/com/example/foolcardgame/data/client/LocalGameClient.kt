@@ -37,8 +37,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * In-process [GameClient] backed by [GameEngine] — local “REST API” without HTTP.
- * Stages bot connect/ready and delays bot moves for a more human feel.
+ * In-process [GameClient] на базе [GameEngine] — локальный «REST API» без HTTP.
+ * Ставит ботов в очередь connect/ready и задерживает их ходы для более «живого» ощущения.
  */
 class LocalGameClient(
     private val engine: GameEngine = GameEngine(),
@@ -63,7 +63,7 @@ class LocalGameClient(
     private var paused: Boolean = false
     private var pausedAtMs: Long? = null
     private var pendingDeadlineShiftMs: Long = 0L
-    /** After local full defense, bots wait this hold before their think delay. */
+    /** После полной отбивки локальным игроком боты ждут эту паузу перед «думаньем». */
     @Volatile
     private var postDefendHoldPending: Boolean = false
     private val clock: () -> Long = { System.currentTimeMillis() }
@@ -292,7 +292,7 @@ class LocalGameClient(
                 if (!coroutineActive(sessionId)) return
             }
 
-            // Emit current state so UI can show «Ходит» before the delay.
+            // Отдать текущее состояние, чтобы UI успел показать «Ходит» до задержки.
             updates.tryEmit(state.toDto(humanId))
             delay(randomIn(activeBotThinkDelayRange))
             awaitUnpaused(sessionId)
@@ -309,10 +309,10 @@ class LocalGameClient(
                     lastHandledTurnKey = turnKey
                     updates.tryEmit(after.toDto(humanId))
                 } else if (!current.isBot) {
-                    // Parallel human turn: lock key so we do not re-think until state changes.
+                    // Параллельный ход человека: зафиксировать ключ, чтобы не передумывать до смены состояния.
                     lastHandledTurnKey = turnKey
                 }
-                // Bot no-op: leave key unset so the loop can retry after the next think delay.
+                // No-op бота: ключ не ставить, чтобы цикл мог повторить шаг после следующей задержки.
             }
         }
     }

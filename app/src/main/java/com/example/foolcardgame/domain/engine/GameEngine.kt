@@ -23,12 +23,12 @@ import java.util.UUID
 import kotlin.random.Random
 
 /**
- * Pure Kotlin game session engine (local “API”).
- * No Android / HTTP dependencies — actions mirror GameClient verbs.
+ * Чистый Kotlin-движок игровой сессии (локальный «API»).
+ * Без Android / HTTP — действия зеркалят глаголы GameClient.
  */
 class GameEngine(
     private val botAI: BotAI = BotAI(),
-    /** When true, BotAI drives every seat (functional / simulation tests). */
+    /** Если true, BotAI управляет всеми местами (функциональные / симуляционные тесты). */
     private val controlAllPlayers: Boolean = false,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) {
@@ -168,7 +168,7 @@ class GameEngine(
         Result.success(declareAttackerBito(state, playerId))
     }
 
-    /** Test-only: inject a fully prepared state. */
+    /** Только для тестов: подставить полностью подготовленное состояние. */
     fun loadStateForTest(state: GameState, seed: Long = GameConfig.DEFAULT_SEED) {
         sessions[state.sessionId] = state
         sessionSeeds[state.sessionId] = seed
@@ -181,7 +181,7 @@ class GameEngine(
     }
 
     /**
-     * Checks turn deadline (skip if expired). Bot moves and lobby staging are owned by LocalGameClient.
+     * Проверяет дедлайн хода (пропуск при истечении). Ходы ботов и лобби — зона LocalGameClient.
      */
     fun onTick(sessionId: String): GameState {
         val state = sessions[sessionId] ?: return getOrEmpty(sessionId)
@@ -198,7 +198,7 @@ class GameEngine(
         return next
     }
 
-    /** Extends turn timers after app pause so wall-clock idle does not auto-skip. */
+    /** Сдвигает таймеры хода после паузы приложения, чтобы простой по wall-clock не давал автопропуск. */
     fun shiftTurnDeadlines(sessionId: String, deltaMs: Long): GameState {
         if (deltaMs == 0L) return getState(sessionId)
         val state = sessions[sessionId] ?: return getOrEmpty(sessionId)
@@ -210,7 +210,7 @@ class GameEngine(
         return next
     }
 
-    /** Runs bot actions until a human must act or the game ends (tests). */
+    /** Крутит действия ботов, пока не нужен человек или игра не закончится (тесты). */
     fun advanceUntilHumanOrFinished(sessionId: String, maxSteps: Int = 64): GameState {
         var state = getState(sessionId)
         state = advanceBots(state, maxSteps)
@@ -218,14 +218,14 @@ class GameEngine(
         return state
     }
 
-    /** One BotAI step (LocalGameClient after think delay). */
+    /** Один шаг BotAI (LocalGameClient после задержки «думанья»). */
     fun advanceOneBot(sessionId: String): GameState {
         val advanced = advanceBots(getState(sessionId), maxSteps = 1)
         sessions[sessionId] = advanced
         return advanced
     }
 
-    // --- internals ---
+    // --- внутренности ---
 
     private fun skipTurnInMemory(state: GameState, playerId: String): Result<GameState> {
         if (state.phase != GamePhase.IN_PROGRESS) {
@@ -260,12 +260,12 @@ class GameEngine(
     }
 
     private fun skipDefenderTimeout(state: GameState): GameState {
-        // Table discarded (not taken by defender), then roles like after bito — no UI event.
+        // Стол в отбой (не забирает защитник), роли как после бито — без UI-события.
         return endRoundBito(state).withTurnDeadline().bumpTick()
     }
 
     private fun skipThrowPhase(state: GameState, playerId: String): GameState {
-        // Attacker timeout while all beaten = auto «Бито».
+        // Таймаут атакующего при полностью отбитом столе = авто «Бито».
         if (playerId == state.attackerId && !state.attackerBitoDeclared) {
             return declareAttackerBito(state, playerId)
         }
@@ -350,7 +350,7 @@ class GameEngine(
         return Result.success(next)
     }
 
-    /** Deal 6 cards and trump while staying in lobby so players can study hands before ready. */
+    /** Раздача по 6 карт и козырь, оставаясь в лобби, чтобы игроки успели посмотреть руки до ready. */
     private fun dealForLobby(state: GameState, seed: Long): GameState {
         var deck = Deck.shuffled(seed)
         val dealtPlayers = state.players.map { player ->
@@ -523,8 +523,8 @@ class GameEngine(
             .markFinishedPlayers()
 
         next = if (next.allBeaten) {
-            // Attacker may declare «Бито»; others may still throw in parallel.
-            // Do not auto-close here — client applies a short hold so the table stays visible.
+            // Атакующий может объявить «Бито»; остальные ещё могут подкидывать параллельно.
+            // Не закрывать раунд сразу — клиент держит короткую паузу, чтобы стол оставался видимым.
             next.copy(currentPlayerId = next.attackerId)
         } else {
             next.copy(currentPlayerId = next.defenderId)
@@ -547,7 +547,7 @@ class GameEngine(
                 attackerBitoDeclared = false,
             )
         next = drawUpToSix(next, skipDefenderDraw = false)
-        // Taker skips; next clockwise after taker becomes attacker.
+        // Взявший пропускает; следующий по часовой после него становится атакующим.
         val players = next.playersInGame()
         val takerIndex = players.indexOfFirst { it.id == playerId }
         val newAttacker = nextPlayerWithCards(players, takerIndex)
@@ -568,13 +568,13 @@ class GameEngine(
     }
 
     /**
-     * Attacker declares «Бито». If no helpers left to confirm, close the round;
-     * otherwise wait for helpers (pass / UI «Бито»).
+     * Атакующий объявляет «Бито». Если помощников для подтверждения нет — закрыть раунд;
+     * иначе ждать помощников (pass / UI «Бито»).
      */
     private fun declareAttackerBito(state: GameState, playerId: String): GameState {
         val declared = state.copy(attackerBitoDeclared = true)
         val nextActor = declared.nextThrowPhaseActor()
-        // Failsafe: never leave currentPlayerId=null mid-throw phase (deadlocks bots/timeouts).
+        // Защита: не оставлять currentPlayerId=null в фазе подкида (дедлок ботов/таймаутов).
         if (declared.throwingClosed() || nextActor == null) {
             return endRoundBito(declared)
                 .withTurnDeadline()
@@ -594,7 +594,7 @@ class GameEngine(
             passedPlayerIds = state.passedPlayerIds + playerId,
         )
         val nextActor = next.nextThrowPhaseActor()
-        // Failsafe: if no next helper but table is beaten, close rather than null currentPlayerId.
+        // Защита: если следующего помощника нет, а стол отбит — закрыть раунд, а не null currentPlayerId.
         return if (next.allBeaten && (next.throwingClosed() || nextActor == null)) {
             val attackerId = next.attackerId ?: playerId
             Result.success(
@@ -640,7 +640,7 @@ class GameEngine(
         val oldDefenderId = state.defenderId ?: return next
         val players = next.playersInGame().ifEmpty { next.playersWithCards() }
         val defenderIndex = players.indexOfFirst { it.id == oldDefenderId }
-        // After bito, previous defender becomes the attacker.
+        // После бито предыдущий защитник становится атакующим.
         val newAttacker = players.find { it.id == oldDefenderId && it.hand.isNotEmpty() }
             ?: (if (defenderIndex >= 0) {
                 nextPlayerWithCards(players, defenderIndex)
@@ -661,7 +661,7 @@ class GameEngine(
     }
 
     /**
-     * Draw to 6: attacker first, then clockwise, defender last.
+     * Добор до 6: сначала атакующий, затем по часовой, защитник последним.
      */
     private fun drawUpToSix(state: GameState, skipDefenderDraw: Boolean): GameState {
         if (state.deck.isEmpty()) return state
@@ -675,7 +675,7 @@ class GameEngine(
             if (index < 0) continue
             var hand = players[index].hand
             while (hand.size < 6 && deck.isNotEmpty()) {
-                // Draw from front; keep last card (trump) until only it remains
+                // Добор с начала колоды; последнюю карту (козырь) оставляем, пока она не единственная
                 val drawn = deck.first()
                 deck = deck.drop(1)
                 hand = hand + drawn
@@ -702,7 +702,7 @@ class GameEngine(
             if (skipDefender && p.id == defenderId) continue
             order.add(p.id)
         }
-        // Ensure defender is last if present and not skipped
+        // Защитник должен быть последним, если он есть и не пропущен
         if (!skipDefender && defenderId != null) {
             order.remove(defenderId)
             order.add(defenderId)
@@ -767,9 +767,9 @@ class GameEngine(
     }
 
     /**
-     * Ends the game when the deck is empty and at most one player still holds cards.
-     * - One player with cards → that player is the fool (`loserId`).
-     * - Nobody with cards → draw (`loserId = null`, empty `winnerIds`).
+     * Завершает игру, когда колода пуста и карты остались не более чем у одного игрока.
+     * - Один игрок с картами → он дурак (`loserId`).
+     * - Ни у кого карт нет → ничья (`loserId = null`, пустые `winnerIds`).
      */
     private fun GameState.checkGameEnd(): GameState {
         if (phase != GamePhase.IN_PROGRESS) return this
@@ -778,7 +778,7 @@ class GameEngine(
         val emptiedIds = players.filter { it.isFinished || it.hand.isEmpty() }.map { it.id }
         return when {
             withCards.isEmpty() -> {
-                // Successful last defense / everyone out — draw, no fool.
+                // Успешная последняя отбивка / все вышли — ничья, дурака нет.
                 copy(
                     phase = GamePhase.FINISHED,
                     currentPlayerId = null,

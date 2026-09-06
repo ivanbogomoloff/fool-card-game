@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Functional smoke: full party with ≥3 players follows rules until FINISHED.
+ * Функциональный smoke: полная партия с ≥3 игроками идёт по правилам до FINISHED.
  */
 class GameEngineFunctionalTest {
 
@@ -56,7 +56,7 @@ class GameEngineFunctionalTest {
             val loser = finalState.player(loserId)!!
             assertTrue(loser.hand.isNotEmpty())
         } else {
-            // Draw: nobody left with cards.
+            // Ничья: ни у кого не осталось карт.
             assertTrue(finalState.players.all { it.hand.isEmpty() })
             assertTrue(finalState.winnerIds.isEmpty())
         }

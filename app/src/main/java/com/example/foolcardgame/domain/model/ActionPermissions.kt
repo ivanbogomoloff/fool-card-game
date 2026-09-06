@@ -2,7 +2,7 @@ package com.example.foolcardgame.domain.model
 
 import com.example.foolcardgame.domain.engine.Rules
 
-/** Permissions for the viewing/acting player — computed from [GameState]. */
+/** Права просматривающего/действующего игрока — вычисляются из [GameState]. */
 data class ActionPermissions(
     val canReady: Boolean = false,
     val canBito: Boolean = false,
@@ -25,9 +25,9 @@ private fun GameState.inProgressPermissions(playerId: String): ActionPermissions
     val hasUnbeaten = unbeatenPairs.isNotEmpty()
 
     val canTake = isDefender && hasUnbeaten
-    // Attacker may declare «Бито» as soon as all cards are beaten (does not wait for helpers).
+    // Атакующий может объявить «Бито», как только все карты отбиты (не ждёт помощников).
     val canBito = isAttacker && allBeaten && !attackerBitoDeclared
-    // Helpers confirm «Бито» (engine: pass) after attacker declared.
+    // Помощники подтверждают «Бито» (в движке: pass) после объявления атакующего.
     val canPass = !isDefender && !isAttacker &&
         attackerBitoDeclared &&
         allBeaten &&
@@ -64,7 +64,7 @@ fun GameState.canAddMoreAttacks(): Boolean =
         defenderHandSizeAtRoundStart = defenderHandSizeAtRoundStart,
     )
 
-/** Helpers clockwise after attacker (for timeout auto-confirm order). */
+/** Помощники по часовой после атакующего (порядок автоподтверждения по таймауту). */
 fun GameState.throwPhaseTurnOrder(): List<String> {
     if (!allBeaten || !attackerBitoDeclared) return emptyList()
     val attacker = attackerId ?: return emptyList()
@@ -72,7 +72,7 @@ fun GameState.throwPhaseTurnOrder(): List<String> {
     val helpers = helperThrowerIds()
     if (helpers.isEmpty() || players.isEmpty()) return emptyList()
 
-    // Seat order uses full [players] so a finished attacker still anchors clockwise order.
+    // Порядок мест — по полному [players], чтобы выбывший атакующий оставался якорем часовой очереди.
     val attIdx = players.indexOfFirst { it.id == attacker }
     if (attIdx < 0) {
         return players.map { it.id }.filter { it in helpers }

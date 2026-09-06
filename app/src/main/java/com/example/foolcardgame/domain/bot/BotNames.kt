@@ -3,7 +3,7 @@ package com.example.foolcardgame.domain.bot
 import kotlin.random.Random
 
 /**
- * Display names for offline bots: Hollywood stars (Russian) + Russian classics.
+ * Отображаемые имена офлайн-ботов: голливудские звёзды (по-русски) + русская классика.
  */
 object BotNames {
     val hollywoodStars: List<String> = listOf(
@@ -75,7 +75,7 @@ object BotNames {
     val all: List<String> = hollywoodStars + russianClassics
 
     /**
-     * Picks [count] distinct names. Uses [random] so a session seed can make names stable.
+     * Выбирает [count] различных имён. Использует [random], чтобы сид сессии делал имена стабильными.
      */
     fun pick(count: Int, random: Random = Random.Default): List<String> {
         require(count >= 0) { "count must be non-negative" }

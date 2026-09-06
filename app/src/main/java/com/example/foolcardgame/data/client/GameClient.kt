@@ -27,7 +27,7 @@ interface GameClient {
     suspend fun skipTurn(sessionId: GameSessionId): Result<Unit>
     suspend fun leaveSession(sessionId: GameSessionId)
 
-    /** Pause offline bots/timers while the screen is not active. Default no-op. */
+    /** Пауза офлайн-ботов/таймеров, пока экран неактивен. По умолчанию no-op. */
     fun setPaused(paused: Boolean) {}
 
     companion object {

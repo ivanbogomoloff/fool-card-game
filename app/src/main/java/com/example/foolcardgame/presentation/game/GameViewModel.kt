@@ -62,7 +62,7 @@ open class GameViewModel(
                         val snapshotPairs = previousDto?.tablePairs
                             ?.let { GameUiStateMapper.mapTablePairs(it) }
                             .orEmpty()
-                        // Flyaway for anyone (incl. local attacker) when the table actually clears.
+                        // Улёт карт для любого (в т.ч. локального атакующего), когда стол реально очищается.
                         if (snapshotPairs.isNotEmpty() && dto.phase != GamePhaseDto.FINISHED) {
                             newFlyAnimation = TableFlyAnimationUi(
                                 pairs = snapshotPairs,
@@ -147,7 +147,7 @@ open class GameViewModel(
         super.onCleared()
     }
 
-    /** Cancels observation/timer so coroutine tests can finish. */
+    /** Отменяет наблюдение/таймер, чтобы coroutine-тесты могли завершиться. */
     internal fun disposeForTest() {
         observeJob?.cancel()
         opponentToastJob?.cancel()
@@ -259,7 +259,7 @@ open class GameViewModel(
         }
     }
 
-    /** Restarts lobby ready countdown (e.g. when debug scenario switches to lobby). */
+    /** Перезапускает обратный отсчёт ready в лобби (например, при смене debug-сценария на лобби). */
     protected fun restartReadyTimerIfNeeded(canReady: Boolean) {
         cancelReadyTimer(clearSeconds = true)
         syncReadyTimer(canReady = canReady)
