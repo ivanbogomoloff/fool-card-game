@@ -304,4 +304,98 @@ class LocalGameClientTest {
         assertTrue(client.getState(sessionId).tablePairs.isEmpty())
         client.leaveSession(sessionId)
     }
+
+    @Test
+    fun finishedAttacker_helperPass_botConfirmsBito() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val engine = GameEngine()
+        val client = client(dispatcher = dispatcher, engine = engine)
+        val sessionId = client.createSession(
+            GameConfig(
+                botCount = 3,
+                seed = 42,
+                botThinkMinMs = 1_000,
+                botThinkMaxMs = 1_000,
+            ),
+        )
+        advanceTimeBy(1)
+        runCurrent()
+
+        engine.loadStateForTest(
+            GameState(
+                sessionId = sessionId,
+                phase = GamePhase.IN_PROGRESS,
+                players = listOf(
+                    Player(
+                        id = "local",
+                        displayName = "Вы",
+                        avatarId = 0,
+                        isBot = false,
+                        hand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                        isReady = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                    Player(
+                        id = "bot-1",
+                        displayName = "Бот 1",
+                        avatarId = 1,
+                        isBot = true,
+                        hand = listOf(Card(Suit.CLUBS, Rank.EIGHT)),
+                        isReady = true,
+                        isConnected = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                    Player(
+                        id = "bot-2",
+                        displayName = "Бот 2",
+                        avatarId = 2,
+                        isBot = true,
+                        hand = emptyList(),
+                        isReady = true,
+                        isConnected = true,
+                        isFinished = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                    Player(
+                        id = "bot-3",
+                        displayName = "Бот 3",
+                        avatarId = 3,
+                        isBot = true,
+                        hand = listOf(Card(Suit.HEARTS, Rank.SIX)),
+                        isReady = true,
+                        isConnected = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                ),
+                deck = emptyList(),
+                trumpCard = Card(Suit.HEARTS, Rank.ACE),
+                trumpSuit = Suit.HEARTS,
+                tablePairs = listOf(
+                    TablePair(
+                        id = 1,
+                        attack = Card(Suit.SPADES, Rank.SEVEN),
+                        defense = Card(Suit.SPADES, Rank.TEN),
+                    ),
+                ),
+                attackerId = "bot-2",
+                defenderId = "bot-3",
+                currentPlayerId = "local",
+                passedPlayerIds = emptySet(),
+                attackerBitoDeclared = true,
+                defenderHandSizeAtRoundStart = 6,
+                turnStartedAtMs = 0L,
+                turnDeadlineAtMs = 30_000L,
+            ),
+        )
+
+        assertTrue(client.pass(sessionId).isSuccess)
+        assertEquals(1, client.getState(sessionId).tablePairs.size)
+        assertEquals("bot-1", client.getState(sessionId).currentPlayerId)
+
+        // Poll + think delay for bot-1 Pass
+        advanceTimeBy(1_500)
+        runCurrent()
+        assertTrue(client.getState(sessionId).tablePairs.isEmpty())
+        client.leaveSession(sessionId)
+    }
 }

@@ -115,6 +115,72 @@ class BotAITest {
         assertTrue(action is BotAI.Action.Bito)
     }
 
+    @Test
+    fun chooseAction_helperPass_whenAttackerFinishedAndBitoDeclared() {
+        val state = GameState(
+            sessionId = "bot-finished-attacker",
+            phase = GamePhase.IN_PROGRESS,
+            players = listOf(
+                Player(
+                    id = "local",
+                    displayName = "Вы",
+                    avatarId = 0,
+                    isBot = false,
+                    hand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                    isReady = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+                Player(
+                    id = "bot-1",
+                    displayName = "Бот 1",
+                    avatarId = 1,
+                    isBot = true,
+                    hand = listOf(Card(Suit.CLUBS, Rank.EIGHT)),
+                    isReady = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+                Player(
+                    id = "bot-2",
+                    displayName = "Бот 2",
+                    avatarId = 2,
+                    isBot = true,
+                    hand = emptyList(),
+                    isReady = true,
+                    isFinished = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+                Player(
+                    id = "bot-3",
+                    displayName = "Бот 3",
+                    avatarId = 3,
+                    isBot = true,
+                    hand = listOf(Card(Suit.HEARTS, Rank.SIX)),
+                    isReady = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+            ),
+            deck = emptyList(),
+            trumpCard = Card(Suit.HEARTS, Rank.ACE),
+            trumpSuit = Suit.HEARTS,
+            tablePairs = listOf(
+                TablePair(
+                    id = 1,
+                    attack = Card(Suit.SPADES, Rank.SEVEN),
+                    defense = Card(Suit.SPADES, Rank.TEN),
+                ),
+            ),
+            attackerId = "bot-2",
+            defenderId = "bot-3",
+            currentPlayerId = "bot-1",
+            passedPlayerIds = setOf("local"),
+            attackerBitoDeclared = true,
+            defenderHandSizeAtRoundStart = 6,
+        )
+        val action = botAI.chooseAction(state)
+        assertTrue(action is BotAI.Action.Pass)
+        assertEquals("bot-1", (action as BotAI.Action.Pass).playerId)
+    }
+
     private fun baseState(
         attackerHand: List<Card> = listOf(Card(Suit.DIAMONDS, Rank.SIX)),
         defenderHand: List<Card>,

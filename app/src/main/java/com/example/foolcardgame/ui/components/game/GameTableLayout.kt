@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -437,9 +436,7 @@ private fun InProgressGameLayout(
                 onDragCancel = { dragState = null },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
-                    .padding(top = 0.dp, bottom = 2.dp)
                     .onGloballyPositioned { coordinates ->
                         handBounds = coordinates.boundsInRoot()
                     },

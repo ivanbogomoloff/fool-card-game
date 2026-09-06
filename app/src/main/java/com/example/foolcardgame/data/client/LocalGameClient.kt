@@ -305,10 +305,14 @@ class LocalGameClient(
                 if (current.isBot && latest.currentPlayerId != currentId) return@withLock
                 val beforeTick = latest.tick
                 val after = engine.advanceOneBot(sessionId)
-                lastHandledTurnKey = turnKey
                 if (after.tick != beforeTick) {
+                    lastHandledTurnKey = turnKey
                     updates.tryEmit(after.toDto(humanId))
+                } else if (!current.isBot) {
+                    // Parallel human turn: lock key so we do not re-think until state changes.
+                    lastHandledTurnKey = turnKey
                 }
+                // Bot no-op: leave key unset so the loop can retry after the next think delay.
             }
         }
     }

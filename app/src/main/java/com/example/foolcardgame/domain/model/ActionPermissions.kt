@@ -70,11 +70,13 @@ fun GameState.throwPhaseTurnOrder(): List<String> {
     val attacker = attackerId ?: return emptyList()
     val defender = defenderId
     val helpers = helperThrowerIds()
-    val players = playersInGame()
-    if (players.isEmpty()) return emptyList()
+    if (helpers.isEmpty() || players.isEmpty()) return emptyList()
 
+    // Seat order uses full [players] so a finished attacker still anchors clockwise order.
     val attIdx = players.indexOfFirst { it.id == attacker }
-    if (attIdx < 0) return emptyList()
+    if (attIdx < 0) {
+        return players.map { it.id }.filter { it in helpers }
+    }
 
     val ordered = mutableListOf<String>()
     for (i in 1 until players.size) {

@@ -573,14 +573,15 @@ class GameEngine(
      */
     private fun declareAttackerBito(state: GameState, playerId: String): GameState {
         val declared = state.copy(attackerBitoDeclared = true)
-        if (declared.throwingClosed()) {
+        val nextActor = declared.nextThrowPhaseActor()
+        // Failsafe: never leave currentPlayerId=null mid-throw phase (deadlocks bots/timeouts).
+        if (declared.throwingClosed() || nextActor == null) {
             return endRoundBito(declared)
                 .withTurnDeadline()
                 .bumpTick()
                 .recordRoundEvent(RoundEventKind.BITO, playerId)
                 .recordActionEvent(GameActionKind.BITO, playerId)
         }
-        val nextActor = declared.nextThrowPhaseActor()
         return declared
             .copy(currentPlayerId = nextActor)
             .withTurnDeadline()
@@ -592,7 +593,9 @@ class GameEngine(
         val next = state.copy(
             passedPlayerIds = state.passedPlayerIds + playerId,
         )
-        return if (next.throwingClosed() && next.allBeaten) {
+        val nextActor = next.nextThrowPhaseActor()
+        // Failsafe: if no next helper but table is beaten, close rather than null currentPlayerId.
+        return if (next.allBeaten && (next.throwingClosed() || nextActor == null)) {
             val attackerId = next.attackerId ?: playerId
             Result.success(
                 endRoundBito(next)
@@ -602,7 +605,6 @@ class GameEngine(
                     .recordActionEvent(GameActionKind.BITO, attackerId),
             )
         } else {
-            val nextActor = next.nextThrowPhaseActor()
             Result.success(
                 next.copy(currentPlayerId = nextActor)
                     .withTurnDeadline()

@@ -1,5 +1,6 @@
 package com.example.foolcardgame.domain.engine
 
+import com.example.foolcardgame.domain.bot.BotAI
 import com.example.foolcardgame.domain.model.Card
 import com.example.foolcardgame.domain.model.GameActionKind
 import com.example.foolcardgame.domain.model.GameConfig
@@ -1008,6 +1009,115 @@ class GameEngineTest {
             (state.turnDeadlineAtMs ?: 0L) - (state.turnStartedAtMs ?: 0L),
         )
     }
+
+    @Test
+    fun bito_finishedAttacker_stillPromptsHelpersClockwise() {
+        val sessionId = "s-finished-attacker-bito"
+        engine.loadStateForTest(finishedAttackerThrowPhaseState(sessionId))
+
+        assertTrue(engine.bito(sessionId, "bot-2").isSuccess)
+        val afterBito = engine.getState(sessionId)
+        assertTrue(afterBito.attackerBitoDeclared)
+        assertEquals(1, afterBito.tablePairs.size)
+        // Clockwise from finished bot-2: skip defender bot-3 → local first helper
+        assertEquals("local", afterBito.currentPlayerId)
+        assertNotNull(afterBito.turnDeadlineAtMs)
+        assertTrue(afterBito.permissionsFor("local").canPass)
+        assertTrue(afterBito.permissionsFor("bot-1").canPass)
+    }
+
+    @Test
+    fun bito_finishedAttacker_helpersConfirm_closesRound() {
+        val sessionId = "s-finished-attacker-confirm"
+        engine.loadStateForTest(finishedAttackerThrowPhaseState(sessionId))
+
+        assertTrue(engine.bito(sessionId, "bot-2").isSuccess)
+        assertTrue(engine.pass(sessionId, "local").isSuccess)
+        val afterLocal = engine.getState(sessionId)
+        assertEquals(1, afterLocal.tablePairs.size)
+        assertEquals("bot-1", afterLocal.currentPlayerId)
+
+        assertTrue(engine.pass(sessionId, "bot-1").isSuccess)
+        val closed = engine.getState(sessionId)
+        assertTrue(closed.tablePairs.isEmpty())
+        assertFalse(closed.attackerBitoDeclared)
+    }
+
+    @Test
+    fun advanceOneBot_helperPass_afterFinishedAttackerBito() {
+        val sessionId = "s-finished-attacker-bot-pass"
+        val botEngine = GameEngine(botAI = BotAI())
+        botEngine.loadStateForTest(
+            finishedAttackerThrowPhaseState(sessionId).copy(
+                attackerBitoDeclared = true,
+                currentPlayerId = "bot-1",
+                passedPlayerIds = setOf("local"),
+            ),
+        )
+
+        val after = botEngine.advanceOneBot(sessionId)
+        assertTrue(after.tablePairs.isEmpty())
+        assertFalse(after.attackerBitoDeclared)
+    }
+
+    private fun finishedAttackerThrowPhaseState(sessionId: String): GameState =
+        GameState(
+            sessionId = sessionId,
+            phase = GamePhase.IN_PROGRESS,
+            players = listOf(
+                Player(
+                    id = "local",
+                    displayName = "Вы",
+                    avatarId = 0,
+                    isBot = false,
+                    hand = listOf(Card(Suit.DIAMONDS, Rank.NINE)),
+                    isReady = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+                Player(
+                    id = "bot-1",
+                    displayName = "Бот 1",
+                    avatarId = 1,
+                    isBot = true,
+                    hand = listOf(Card(Suit.CLUBS, Rank.EIGHT)),
+                    isReady = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+                Player(
+                    id = "bot-2",
+                    displayName = "Бот 2",
+                    avatarId = 2,
+                    isBot = true,
+                    hand = emptyList(),
+                    isReady = true,
+                    isFinished = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+                Player(
+                    id = "bot-3",
+                    displayName = "Бот 3",
+                    avatarId = 3,
+                    isBot = true,
+                    hand = listOf(Card(Suit.HEARTS, Rank.SIX)),
+                    isReady = true,
+                    status = PlayerStatus.PLAYING,
+                ),
+            ),
+            deck = emptyList(),
+            trumpCard = Card(Suit.HEARTS, Rank.ACE),
+            trumpSuit = Suit.HEARTS,
+            tablePairs = listOf(
+                TablePair(
+                    id = 1,
+                    attack = Card(Suit.SPADES, Rank.SEVEN),
+                    defense = Card(Suit.SPADES, Rank.TEN),
+                ),
+            ),
+            attackerId = "bot-2",
+            defenderId = "bot-3",
+            currentPlayerId = "bot-2",
+            defenderHandSizeAtRoundStart = 6,
+        )
 
     private fun readyAll(sessionId: String) {
         engine.ready(sessionId, "local")
