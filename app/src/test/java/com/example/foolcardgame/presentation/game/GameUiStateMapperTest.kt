@@ -147,6 +147,24 @@ class GameUiStateMapperTest {
     }
 
     @Test
+    fun map_finished_draw_showsDrawMessages() {
+        val uiState = GameUiStateMapper.map(
+            MockGameStates.finished().copy(
+                loserId = null,
+                loserName = null,
+                winnerName = null,
+                isDraw = true,
+                revealLoserCards = emptyList(),
+            ),
+        )
+
+        assertEquals("Ничья", uiState.resultMessage)
+        assertEquals("Ничья", uiState.finishedSummary)
+        assertFalse(uiState.canRevealLoserCards)
+        assertFalse(uiState.isLocalPlayerLoser)
+    }
+
+    @Test
     fun resolvePrimaryAction_bitoBeforePass() {
         val dto = MockGameStates.inProgress().copy(
             canReady = false,

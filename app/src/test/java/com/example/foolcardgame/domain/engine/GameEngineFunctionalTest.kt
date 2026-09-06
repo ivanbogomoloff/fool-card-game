@@ -50,10 +50,16 @@ class GameEngineFunctionalTest {
             GamePhase.FINISHED,
             finalState.phase,
         )
-        assertTrue(finalState.loserId != null)
-        assertTrue(finalState.players.count { it.id == finalState.loserId } == 1)
-        val loser = finalState.player(finalState.loserId!!)!!
-        assertTrue(loser.hand.isNotEmpty() || finalState.winnerIds.isNotEmpty())
+        val loserId = finalState.loserId
+        if (loserId != null) {
+            assertTrue(finalState.players.count { it.id == loserId } == 1)
+            val loser = finalState.player(loserId)!!
+            assertTrue(loser.hand.isNotEmpty())
+        } else {
+            // Draw: nobody left with cards.
+            assertTrue(finalState.players.all { it.hand.isEmpty() })
+            assertTrue(finalState.winnerIds.isEmpty())
+        }
     }
 
     private fun assertInvariants(state: com.example.foolcardgame.domain.model.GameState) {

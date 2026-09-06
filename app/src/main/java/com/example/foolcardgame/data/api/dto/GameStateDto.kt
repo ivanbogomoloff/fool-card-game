@@ -120,6 +120,8 @@ data class GameStateDto(
     val winnerName: String? = null,
     val loserName: String? = null,
     val loserId: String? = null,
+    /** Finished with no fool — every player emptied their hand. */
+    val isDraw: Boolean = false,
     val revealLoserCards: List<CardDto> = emptyList(),
     val turnDeadlineAtMs: Long? = null,
     val roundEvent: RoundEventDto? = null,

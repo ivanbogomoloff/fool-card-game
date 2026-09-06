@@ -764,24 +764,40 @@ class GameEngine(
         )
     }
 
+    /**
+     * Ends the game when the deck is empty and at most one player still holds cards.
+     * - One player with cards → that player is the fool (`loserId`).
+     * - Nobody with cards → draw (`loserId = null`, empty `winnerIds`).
+     */
     private fun GameState.checkGameEnd(): GameState {
         if (phase != GamePhase.IN_PROGRESS) return this
         if (deck.isNotEmpty()) return this
         val withCards = players.filter { !it.isFinished && it.hand.isNotEmpty() }
-        val winners = players.filter { it.isFinished || it.hand.isEmpty() }.map { it.id }
+        val emptiedIds = players.filter { it.isFinished || it.hand.isEmpty() }.map { it.id }
         return when {
-            withCards.size <= 1 -> {
-                val loser = withCards.singleOrNull()
+            withCards.isEmpty() -> {
+                // Successful last defense / everyone out — draw, no fool.
                 copy(
                     phase = GamePhase.FINISHED,
                     currentPlayerId = null,
-                    loserId = loser?.id,
-                    winnerIds = players.map { it.id }.filter { it != loser?.id },
+                    loserId = null,
+                    winnerIds = emptyList(),
                 )
             }
-            else -> copy(winnerIds = winners.filter { id ->
-                players.find { it.id == id }?.hand?.isEmpty() == true
-            })
+            withCards.size == 1 -> {
+                val loser = withCards.single()
+                copy(
+                    phase = GamePhase.FINISHED,
+                    currentPlayerId = null,
+                    loserId = loser.id,
+                    winnerIds = players.map { it.id }.filter { it != loser.id },
+                )
+            }
+            else -> copy(
+                winnerIds = emptiedIds.filter { id ->
+                    players.find { it.id == id }?.hand?.isEmpty() == true
+                },
+            )
         }
     }
 

@@ -394,9 +394,14 @@ internal fun GameState.toDto(localPlayerId: String): GameStateDto {
         canPass = perms.canPass,
         canTake = perms.canTake,
         canReady = perms.canReady,
-        winnerName = winnerIds.firstOrNull()?.let { id -> players.find { it.id == id }?.displayName },
+        winnerName = if (phase == GamePhase.FINISHED && loserId == null) {
+            null
+        } else {
+            winnerIds.firstOrNull()?.let { id -> players.find { it.id == id }?.displayName }
+        },
         loserName = loserId?.let { id -> players.find { it.id == id }?.displayName },
         loserId = loserId,
+        isDraw = phase == GamePhase.FINISHED && loserId == null,
         revealLoserCards = if (phase == GamePhase.FINISHED) {
             loserId?.let { id -> player(id)?.hand?.map { it.toDto() } }.orEmpty()
         } else {

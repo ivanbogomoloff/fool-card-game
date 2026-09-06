@@ -103,13 +103,19 @@ object GameUiStateMapper {
 
     private fun buildFinishedSummary(dto: GameStateDto): String? {
         if (dto.phase != GamePhaseDto.FINISHED) return null
-        return if (dto.loserId == dto.localPlayerId) "Вы — дурак" else null
+        return when {
+            dto.isDraw -> "Ничья"
+            dto.loserId == dto.localPlayerId -> "Вы — дурак"
+            else -> null
+        }
     }
 
     private fun buildResultMessage(dto: GameStateDto): String {
         return when {
+            dto.isDraw -> "Ничья"
             dto.winnerName != null && dto.loserName != null ->
                 "Победитель: ${dto.winnerName}. Дурак: ${dto.loserName}."
+            dto.loserName != null -> "Дурак: ${dto.loserName}."
             dto.winnerName != null -> "Победитель: ${dto.winnerName}."
             else -> "Партия завершена."
         }

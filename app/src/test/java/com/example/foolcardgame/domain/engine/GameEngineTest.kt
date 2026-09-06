@@ -576,6 +576,55 @@ class GameEngineTest {
     }
 
     @Test
+    fun gameEnds_draw_whenLastDefenseEmptiesAllHands() {
+        val sessionId = "s-draw"
+        val attack = Card(Suit.HEARTS, Rank.KING)
+        val defense = Card(Suit.HEARTS, Rank.ACE)
+        engine.loadStateForTest(
+            GameState(
+                sessionId = sessionId,
+                phase = GamePhase.IN_PROGRESS,
+                players = listOf(
+                    Player(
+                        id = "local",
+                        displayName = "Вы",
+                        avatarId = 0,
+                        isBot = false,
+                        hand = emptyList(),
+                        isReady = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                    Player(
+                        id = "bot-1",
+                        displayName = "Бот 1",
+                        avatarId = 1,
+                        isBot = true,
+                        hand = listOf(defense),
+                        isReady = true,
+                        status = PlayerStatus.PLAYING,
+                    ),
+                ),
+                deck = emptyList(),
+                trumpCard = Card(Suit.CLUBS, Rank.SIX),
+                trumpSuit = Suit.CLUBS,
+                tablePairs = listOf(TablePair(id = 1, attack = attack)),
+                attackerId = "local",
+                defenderId = "bot-1",
+                currentPlayerId = "bot-1",
+                defenderHandSizeAtRoundStart = 1,
+            ),
+        )
+
+        assertTrue(engine.playCard(sessionId, "bot-1", defense, targetPairId = 1).isSuccess)
+        val ended = engine.getState(sessionId)
+        assertEquals(GamePhase.FINISHED, ended.phase)
+        assertNull(ended.loserId)
+        assertTrue(ended.winnerIds.isEmpty())
+        assertEquals(1, ended.tablePairs.size)
+        assertEquals(defense, ended.tablePairs.single().defense)
+    }
+
+    @Test
     fun createSession_differentSeeds_produceDifferentHands() {
         val sessionA = engine.createSession(GameConfig(botCount = 1, seed = 1))
         val sessionB = engine.createSession(GameConfig(botCount = 1, seed = 2))
