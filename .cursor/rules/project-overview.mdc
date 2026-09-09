@@ -6,10 +6,11 @@ alwaysApply: true
 # FoolCardGame — Project Overview
 
 - Kotlin Android app, minSdk 33, Jetpack Compose + MVVM
-- Stack: Coroutines, Kotlinx Serialization, Compose Animation; Retrofit/OkHttp for Phase 5–6
+- Stack: Coroutines, Kotlinx Serialization, Compose Animation; Phase 5 Fake API; Phase 6 **grpc-kotlin** → Go server
+- Server TZ: [`server/docs`](../../server/docs/README.md) (gRPC, MariaDB, autocert)
 - UI language: **Russian**
 - Architecture docs: `docs/architecture/`; game rules: `docs/game-rules/podkidnoy-durak.md`
-- Phased plan: `docs/phases/` — **current: Phase 5 (online)**; Phase 4 offline bots is done
+- Phased plan: `docs/phases/` — **current: Phase 5b (server TZ / implementation)**; Phase 5 fake online done
 - `startDestination = Routes.MAIN`; `LoginScreen` opens when entering online without a session
 - Offline human seat: `"Вы"` + default avatar; online: account name/avatar via `GameClient`
 - Unit tests: `docs/architecture/testing.md`; run `./gradlew testDebugUnitTest` before advancing

@@ -1,18 +1,19 @@
 ---
-description: Работа по этапам docs/phases — текущий Phase 5
+description: Работа по этапам docs/phases — текущий Phase 5b (ТЗ сервера)
 globs: "docs/**"
 alwaysApply: false
 ---
 
 # Phased Development
 
-- Order: phase-00 → phase-06; checklists live in each phase `README.md`
-- **Done:** 00 login stub, 01 main menu, 02 profile/settings, 03 game UI + debug, **04 offline bots**
-- **Current focus: Phase 5 (online)** — auth gate, лобби, RemoteGameClient (fake), профиль в лобби
+- Order: phase-00 → phase-05 → **phase-05b (server TZ)** → phase-06; checklists in each phase `README.md`
+- **Done:** 00–04; Phase 5 online UI + FakeGameApi
+- **Current focus: Phase 5b** — ТЗ и затем реализация Go gRPC-сервера: [`server/docs`](../../server/docs/README.md)
+- Phase 6: grpc-kotlin к живому серверу (не Retrofit poll)
 - Launch: `startDestination = Routes.MAIN` (not login, not `game/debug`)
 - Offline path: Main → OfflineSetup → `LocalGameClient.createSession` → GameSession
-- Online path: Main → (Login если нет сессии) → OnlineLobby → create/join → waiting → game
+- Online path: Main → (Login если нет сессии) → OnlineLobby → create/join/quick → waiting → game
 - Settings: theme / card theme / sounds only — **no** avatar or display name
-- Online lobby: avatar + displayName via `GameClient` profile REST; bots keep avatars offline
+- Online lobby: displayName/avatar в теле matchmaking (QuickMatch/create/join)
 - Wireframes: `docs/architecture/navigation-and-screens.md`
 - Mark checklist items done when finishing work; `./gradlew testDebugUnitTest` must stay green

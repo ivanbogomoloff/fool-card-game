@@ -58,4 +58,4 @@ flowchart TD
 
 ## Следующий этап
 
-[Phase 6 — API Integration](../phase-06-api-integration/README.md)
+[Phase 5b — ТЗ сервера](../phase-05b-server/README.md) → реализация по [`server/docs`](../../../server/docs/README.md) → [Phase 6 — gRPC](../phase-06-api-integration/README.md)

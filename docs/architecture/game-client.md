@@ -8,10 +8,14 @@
 interface GameClient {
     suspend fun login(displayName: String? = null): Result<Unit>
     fun isAuthorized(): Boolean
-    /** Быстрая игра: одна попытка; null = ещё ждать. */
+    /**
+     * Быстрая игра.
+     * Phase 5 (fake): одна попытка; null = ещё ждать (клиент poll).
+     * Phase 6 (gRPC): открывает Session stream + QuickMatch; результат через observe / callback потока очереди.
+     */
     suspend fun quickMatch(displayName: String, avatarId: Int): Result<GameSessionId?>
     suspend fun createPrivateGame(displayName: String, avatarId: Int): Result<CreateGameResult>
-    suspend fun joinByCode(code: String, displayName: String, avatarId: Int): Result<GameSessionId>
+    suspend fun joinByCode(code: String, displayName: String, avatarId: Int): Result<Pair<GameSessionId, String>>
     suspend fun getRoom(sessionId: GameSessionId): Result<RoomStateDto>
     suspend fun kickPlayer(sessionId: GameSessionId, playerId: String): Result<Unit>
     suspend fun startGame(sessionId: GameSessionId): Result<Unit>
@@ -22,64 +26,66 @@ interface GameClient {
 }
 ```
 
+На Phase 6 online: `observeState` / очередь QuickMatch — **подписка на gRPC stream**, не HTTP-poll. Методы `getRoom` могут стать тонкой обёрткой над последним `RoomState` со stream или уйти из online-пути.
+
 ## Разделение действий
 
-| Метод | Назначение |
-|-------|------------|
-| `login` | Вход (`POST /auth/login`) |
-| `quickMatch` | `POST /game/fast/join` (poll с клиента каждые 5 с) |
-| `createPrivateGame` | `POST /game/create` |
-| `joinByCode` | `POST /game/join` |
-| `getRoom` | `GET /game/{id}/room` |
-| `kickPlayer` | `POST /game/{id}/kick` |
-| `startGame` | `POST /game/{id}/start` |
-| `playCard` / … | Игровые действия |
-| `leaveSession` | Выход |
+| Метод | Phase 5 (fake) | Phase 6 (gRPC) |
+|-------|----------------|----------------|
+| `login` | stub login | unary `Auth.Login` |
+| `quickMatch` | poll-имитация | `Session` + `QuickMatch` → `QueueState` / `MatchStarted` |
+| `createPrivateGame` | fake create | unary `CreateGame` |
+| `joinByCode` | fake join | unary `JoinGame` → затем `Subscribe` |
+| `getRoom` / kick / start | fake REST | сообщения stream / кэш RoomState |
+| `playCard` / … | stub / local | исходящий stream |
+| `leaveSession` | локальная очистка | **`ClientMessage.Leave`** |
 
-Профиль в matchmaking передаётся в теле join/create; отдельных get/update profile для лобби нет.
+Профиль в matchmaking — в теле QuickMatch/create/join.
 
-## Tick и периодический опрос
+## Наблюдение состояния
+
+### Offline (`LocalGameClient`)
+
+Tick / poll engine + emit после действий (как Phase 4).
+
+### Online Phase 5 (`RemoteGameClient` + Fake)
 
 ```mermaid
 sequenceDiagram
     participant VM as GameViewModel
     participant GC as GameClient
-    participant BE as Engine_or_API
-
-    VM->>GC: observeState(sessionId)
-    loop каждые pollIntervalMs
-        GC->>BE: tick / GET /game/id/state
-        BE-->>GC: GameStateDto
-        GC-->>VM: emit state
+    participant Fake as FakeGameApi
+    VM->>GC: observeState / getRoom poll
+    loop poll
+        GC->>Fake: getState / getRoom
+        Fake-->>GC: DTO
+        GC-->>VM: emit
     end
 ```
 
-- Комната ожидания: poll `getRoom` каждые **5 с** (`ROOM_POLL_INTERVAL_MS`).
-- **RemoteGameClient**: матч → `GET /game/{id}/state`.
+### Online Phase 6 (gRPC)
+
+```mermaid
+sequenceDiagram
+    participant VM as GameViewModel
+    participant GC as RemoteGameClient
+    participant S as Go_Session_stream
+    VM->>GC: observeState / quickMatch
+    GC->>S: open bidi Session
+    S-->>GC: QueueState_or_GameState
+    GC-->>VM: Flow emit
+    VM->>GC: playCard / Leave
+    GC->>S: ClientMessage
+    S-->>GC: GameState broadcast
+```
+
+- Комната / матч: **server push**, не poll 2 с / 5 с.
+- Keepalive + reconnect при смене сети; после reconnect — полный снимок.
 
 ## GameStateDto
 
-```kotlin
-data class PlayerStateDto(
-    val id: String,
-    val displayName: String,
-    val avatarId: Int,
-    val handCount: Int,
-    val isReady: Boolean,
-    val isConnected: Boolean,
-    val status: PlayerStatus, // WAITING, PLAYING, DISCONNECTED, LEFT
-)
-
-enum class GamePhase { LOBBY_WAITING, IN_PROGRESS, FINISHED }
-
-data class GameStateDto(
-    val sessionId: String,
-    val phase: GamePhase,
-    val players: List<PlayerStateDto>,
-    val serverTick: Long?,
-    // стол, колода, козырь, текущий ход
-)
-```
+Без изменения контракта UI: `sessionId`, `phase`, `players` (handCount), `localHand`, стол, козырь, `can*`, события и т.д.  
+На wire Phase 6 — protobuf `GameState`, маппинг в DTO.
 
 ## Реализации
 
@@ -89,12 +95,16 @@ flowchart LR
     GC --> Local[LocalGameClient]
     GC --> Remote[RemoteGameClient]
     Local --> Engine[GameEngine]
-    Remote --> API[Retrofit ApiService]
+    Remote --> Fake[FakeGameApi_Phase5]
+    Remote --> Grpc[grpc_kotlin_Phase6]
 ```
 
 | Реализация | Этап | Источник состояния |
 |------------|------|-------------------|
 | `LocalGameClient` | Phase 4 | `GameEngine` in-process |
-| `RemoteGameClient` | Phase 5–6 | REST API |
+| `RemoteGameClient` + Fake | Phase 5 | stubs |
+| `RemoteGameClient` + gRPC | Phase 6 | Go server bidi Session |
 
-UI и ViewModel **не меняются** при переходе offline → online.
+UI и ViewModel по возможности не меняются при offline → online; Phase 6 убирает poll-циклы лобби/матча в пользу Flow со stream.
+
+Подробности сервера: [`server/docs`](../../server/docs/README.md).

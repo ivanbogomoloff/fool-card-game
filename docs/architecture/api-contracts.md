@@ -1,95 +1,64 @@
 # API-контракты
 
-REST API будет реализован отдельно. В **Phase 5** клиент ходит на заглушки (`FakeGameApi`); живой бэкенд — **Phase 6**.
+Транспорт онлайн-API: **gRPC over HTTP/2** (protobuf).  
+В **Phase 5** клиент использует заглушки (`FakeGameApi`, имитация REST). Живой бэкенд и клиент на gRPC — **после ТЗ сервера** ([`server/docs`](../../server/docs/README.md)) и **Phase 6**.
 
-Префикс игровых маршрутов: **`/game/`** (не `/games/`).
+Источник правды по серверу: [`server/docs`](../../server/docs/README.md). Ниже — сжатое описание для Android.
 
-## Endpoints
+## Сервисы
 
-| Метод | Endpoint | Назначение |
-|-------|----------|------------|
-| POST | `/auth/login` | Вход (UI-gate в Phase 5 на fake) |
-| POST | `/game/fast/join` | Быстрая игра (poll); 200 + sessionId или 204 ещё ждём; тело: displayName, avatarId |
-| POST | `/game/create` | Создать комнату → `{ sessionId, accessCode }` + профиль в теле |
-| POST | `/game/join` | Войти по коду (+ профиль в теле) |
-| GET | `/game/{id}/room` | Состав комнаты (poll 5 с) |
-| POST | `/game/{id}/kick` | Хост удаляет игрока `{ playerId }` |
-| POST | `/game/{id}/start` | Хост начинает матч |
-| GET | `/game/{id}/state` | Tick-опрос состояния матча |
-| POST | `/game/{id}/actions` | Игровые действия |
-| POST | `/game/{id}/leave` | Выход из сессии |
+### Unary
 
-Имя и аватар **не** сохраняются отдельным `/profile` в matchmaking: передаются при `fast/join` / `create` / `join`.
+| RPC | Назначение |
+|-----|------------|
+| `Auth.Login` | Вход → `token`, `display_name`, `avatar_id` |
+| `Matchmaking.CreateGame` | Комната с друзьями → `game_id`/`session_id`, `access_code`, `host_id`, `player_id` |
+| `Matchmaking.JoinGame` | Вход по коду → `game_id`, `player_id` (+ профиль в запросе) |
 
-## POST /game/fast/join
+Auth на всех защищённых RPC: metadata `authorization: Bearer <token>`.
 
-```json
-{ "displayName": "Иван", "avatarId": 3 }
+### Bidi stream
+
+```text
+Session(stream ClientMessage) returns (stream ServerMessage)
 ```
 
-Ответ 200: `{ "sessionId": "abc123" }`. Ответ 204: ещё в очереди.
+Один stream на очередь быстрой игры / waiting / матч. Poll `GET /room` и `GET /state` **не используются**.
 
-## POST /game/create
+**ClientMessage:** `QuickMatch`, `Subscribe`, `Kick`, `StartGame`, `PlayCard`, `AddCard`, `Pass`, `Bito`, `Ready`, `Leave`, `Ping`.
 
-```json
-{ "displayName": "Иван", "avatarId": 3 }
-```
+**ServerMessage:** `QueueState`, `RoomState`, `GameState` (per-player), `Error`, `Kicked`, `MatchStarted`, `LeftAck`, `Pong`.
 
-```json
-{ "sessionId": "abc123", "accessCode": "ABCD12", "hostId": "p1" }
-```
+## Быстрая игра
 
-## POST /game/join
+Не unary poll и не HTTP 204. Клиент открывает `Session` и шлёт `QuickMatch`. Сервер пушит `QueueState` (`SEARCHING` / `FILLING`); при наборе ≥2 + fill ~5 с — **автостарт** (`MatchStarted` + `GameState`) без клиентского `StartGame`.
 
-```json
-{ "code": "ABCD12", "displayName": "Мария", "avatarId": 1 }
-```
+## Игра с друзьями
 
-```json
-{ "sessionId": "abc123" }
-```
+1. `CreateGame` или `JoinGame` (unary)
+2. `Subscribe` на stream → `RoomState`
+3. Хост: `Kick` / `StartGame` (≥2)
+4. Далее `GameState` по событиям
 
-## GET /game/{id}/room
+## Leave
 
-```json
-{
-  "sessionId": "abc123",
-  "accessCode": "ABCD12",
-  "hostId": "p1",
-  "started": false,
-  "players": [
-    { "id": "p1", "displayName": "Иван", "avatarId": 0, "isHost": true },
-    { "id": "p2", "displayName": "Мария", "avatarId": 1, "isHost": false }
-  ]
-}
-```
+`ClientMessage.Leave` — добровольный выход (`LEFT`). Обрыв stream — `DISCONNECTED` (окно reconnect).  
+`leaveSession` на клиенте в Phase 6 обязан слать `Leave`, не только чистить локальный id.
 
-## POST /game/{id}/kick
+## Профиль в matchmaking
 
-```json
-{ "playerId": "p2" }
-```
+Имя и аватар передаются в `QuickMatch` / Create / Join. Отдельный `/profile` для лобби не требуется.
 
-## POST /game/{id}/start
+## DTO на клиенте
 
-Пустое тело. После успеха клиент переходит на `GET /game/{id}/state`.
-
-## GET /game/{id}/state
-
-Tick-опрос. Возвращает полное состояние партии (как раньше).
-
-## POST /game/{id}/actions
-
-Типы: `playCard`, `addCard`, `pass`, `bito`, `ready`.
-
-## DTO
-
-- Все DTO — `@Serializable` data classes в `data/api/dto/`.
-- Ошибки: HTTP 4xx/5xx → sealed class `ApiError` в repository (Phase 6).
+- Kotlin `@Serializable` DTO в `data/api/dto/` остаются для UI/domain mapping.
+- Phase 6: маппинг protobuf ↔ DTO в `RemoteGameClient`.
+- Ошибки gRPC → sealed `ApiError` / `Result`.
 
 ## Заглушки по этапам
 
 | Этап | Реализация |
 |------|------------|
-| Phase 5 | `FakeGameApi` |
-| Phase 6 | Реальный base URL + auth interceptor |
+| Phase 5 | `FakeGameApi` (локальные stubs) |
+| Server | Go gRPC — [`server/docs`](../../server/docs/README.md) |
+| Phase 6 | grpc-kotlin + живой сервер |

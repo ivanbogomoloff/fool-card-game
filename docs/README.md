@@ -9,7 +9,9 @@ Android-клиент карточной игры «Подкидной дурак
 | Язык | Kotlin |
 | UI | Jetpack Compose, Compose Animation |
 | Архитектура | MVVM |
-| Сеть | Retrofit, OkHttp, Kotlin Coroutines |
+| Сеть (клиент Phase 5) | Fake API / Coroutines |
+| Сеть (Phase 6) | gRPC (grpc-kotlin) → Go-сервер |
+| Сервер | Go, gRPC, protobuf, MariaDB — [server/docs](../server/docs/README.md) |
 | Сериализация | Kotlinx Serialization |
 | Мин. версия | Android 13 (API 33) |
 
@@ -20,7 +22,8 @@ Android-клиент карточной игры «Подкидной дурак
 - [Обзор архитектуры](architecture/overview.md) — слои, пакеты, MVVM
 - [Навигация и экраны](architecture/navigation-and-screens.md) — все диаграммы экранов и маршрутов
 - [GameClient](architecture/game-client.md) — абстракция игровой сессии, tick, actions
-- [API-контракты](architecture/api-contracts.md) — REST endpoints (заглушки)
+- [API-контракты](architecture/api-contracts.md) — gRPC (Phase 5 fake; Phase 6 живой)
+- [ТЗ сервера](../server/docs/README.md) — Go gRPC, этапы реализации
 - [Тема и ассеты](architecture/theme-and-assets.md) — цвета, карты, аватары
 - [Юнит-тесты](architecture/testing.md) — стратегия самопроверки по этапам
 
@@ -37,23 +40,24 @@ Android-клиент карточной игры «Подкидной дурак
 | 2 | Профиль | [phase-02-profile](phases/phase-02-profile/) |
 | 3 | UI игры + debug | [phase-03-game-ui-debug](phases/phase-03-game-ui-debug/) |
 | 4 | Оффлайн с ботом | [phase-04-offline-bot](phases/phase-04-offline-bot/) |
-| 5 | Сетевая игра | [phase-05-online](phases/phase-05-online/) |
-| 6 | Подключение API | [phase-06-api-integration](phases/phase-06-api-integration/) |
+| 5 | Сетевая игра (fake) | [phase-05-online](phases/phase-05-online/) |
+| 5b | ТЗ / сервер gRPC | [phase-05b-server](phases/phase-05b-server/) → [server/docs](../server/docs/README.md) |
+| 6 | Подключение gRPC API | [phase-06-api-integration](phases/phase-06-api-integration/) |
 
 ## Порядок работы
 
 1. Двигаться строго по этапам 0 → 6.
-2. **Сейчас:** Phase 5 (сетевая игра). Phase 4 (оффлайн с ботами) завершён; старт приложения — `main`.
+2. **Сейчас:** Phase 5b — ТЗ сервера ([server/docs](../server/docs/README.md)); Phase 5 UI/fake завершён. Далее реализация сервера → Phase 6 (gRPC).
 3. UI на русском языке.
 4. На каждом этапе писать **юнит-тесты** ([testing.md](architecture/testing.md)); `./gradlew testDebugUnitTest` — зелёный перед переходом дальше.
-5. Вход в онлайн: при отсутствии сессии — `LoginScreen` (`POST /auth/login`); аватар и имя — в лобби, не в Настройках.
+5. Вход в онлайн: при отсутствии сессии — `LoginScreen`; аватар и имя — в лобби. Живой API — gRPC ([api-contracts](architecture/api-contracts.md)).
 
 ## Глоссарий
 
 | Термин | Описание |
 |--------|----------|
 | GameClient | Абстракция игровой сессии (local / remote) |
-| Tick | Периодический опрос состояния игры |
+| Tick | Offline: периодический опрос engine; Online Phase 6: push по gRPC stream |
 | Подкидывание | Добавление карты того же достoинства на стол (`addCard`) |
 | Бито | Завершение успешно отбитого раунда |
 
