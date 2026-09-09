@@ -1,9 +1,11 @@
 package com.example.foolcardgame.ui.screens.login
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,12 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.foolcardgame.presentation.login.LoginUiState
 import com.example.foolcardgame.ui.components.common.PrimaryButton
+import com.example.foolcardgame.ui.theme.AccentTeal
 import com.example.foolcardgame.ui.theme.FoolCardGameTheme
 
 @Composable
 fun LoginScreen(
+    uiState: LoginUiState = LoginUiState(),
     onLoginClick: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -37,11 +43,31 @@ fun LoginScreen(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 48.dp),
         )
-        PrimaryButton(
-            text = "Войти",
-            onClick = onLoginClick,
-            fillWidth = false,
-        )
+        if (uiState.isLoading) {
+            CircularProgressIndicator(color = AccentTeal)
+        } else {
+            PrimaryButton(
+                text = "Войти",
+                onClick = onLoginClick,
+                fillWidth = false,
+            )
+        }
+        uiState.errorMessage?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+        onBack?.let { back ->
+            Text(
+                text = "Назад",
+                color = AccentTeal,
+                modifier = Modifier
+                    .padding(top = 24.dp)
+                    .clickable(onClick = back),
+            )
+        }
     }
 }
 

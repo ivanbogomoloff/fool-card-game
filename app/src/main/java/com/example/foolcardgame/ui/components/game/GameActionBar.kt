@@ -1,12 +1,5 @@
 package com.example.foolcardgame.ui.components.game
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.StartOffset
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
@@ -26,14 +18,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.example.foolcardgame.presentation.game.GameActionsUi
 import com.example.foolcardgame.presentation.game.HandPrimaryAction
+import com.example.foolcardgame.ui.components.common.WaitingDots
 import com.example.foolcardgame.ui.theme.GameActionBlue
 import com.example.foolcardgame.ui.theme.SoftCoral
 import com.example.foolcardgame.ui.theme.TrumpGold
@@ -211,31 +202,6 @@ private fun TurnStatus(
                 text = formatReadyTimer(turnSecondsLeft),
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White,
-            )
-        }
-    }
-}
-
-@Composable
-private fun WaitingDots() {
-    val transition = rememberInfiniteTransition(label = "waitingDots")
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        repeat(3) { index ->
-            val alpha by transition.animateFloat(
-                initialValue = 0.3f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse,
-                    initialStartOffset = StartOffset(index * 200),
-                ),
-                label = "dot$index",
-            )
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .graphicsLayer { this.alpha = alpha }
-                    .background(Color.White, CircleShape),
             )
         }
     }

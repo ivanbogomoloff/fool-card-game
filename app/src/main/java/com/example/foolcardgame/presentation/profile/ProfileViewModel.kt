@@ -3,7 +3,6 @@ package com.example.foolcardgame.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.repository.ProfileRepository
-import com.example.foolcardgame.data.repository.SaveProfileResult
 import com.example.foolcardgame.domain.model.CardTheme
 import com.example.foolcardgame.domain.model.ThemeMode
 import com.example.foolcardgame.domain.model.UserProfile
@@ -25,7 +24,6 @@ class ProfileViewModel(
             repository.observeProfile().collect { profile ->
                 _uiState.update {
                     it.copy(
-                        avatarId = profile.avatarId,
                         soundsEnabled = profile.soundsEnabled,
                         themeMode = profile.themeMode,
                         cardTheme = profile.cardTheme,
@@ -34,10 +32,6 @@ class ProfileViewModel(
                 }
             }
         }
-    }
-
-    fun onAvatarSelected(avatarId: Int) {
-        _uiState.update { it.copy(avatarId = avatarId, error = null) }
     }
 
     fun onSoundsEnabledChange(enabled: Boolean) {
@@ -61,39 +55,17 @@ class ProfileViewModel(
         }
     }
 
-    fun saveProfile() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, error = null, snackbarMessage = null) }
-            val result = repository.saveProfile(_uiState.value.toUserProfile())
-            _uiState.update {
-                when (result) {
-                    SaveProfileResult.Success -> it.copy(
-                        isSaving = false,
-                        snackbarMessage = "Профиль сохранён",
-                    )
-                    is SaveProfileResult.SavedLocallyApiFailed -> it.copy(
-                        isSaving = false,
-                        snackbarMessage = "Сохранено локально",
-                        error = result.message ?: "Не удалось отправить на сервер",
-                    )
-                }
-            }
-        }
-    }
-
     fun consumeSnackbarMessage() {
         _uiState.update { it.copy(snackbarMessage = null) }
     }
 
     private fun ProfileUiState.toUserProfile(
-        avatarId: Int? = null,
         soundsEnabled: Boolean? = null,
         themeMode: ThemeMode? = null,
         cardTheme: CardTheme? = null,
     ): UserProfile = UserProfile(
-        // Display name — для онлайн-аккаунтов позже; настройки его не редактируют.
         displayName = UserProfile.DEFAULT_DISPLAY_NAME,
-        avatarId = avatarId ?: this.avatarId,
+        avatarId = UserProfile.DEFAULT_AVATAR_ID,
         soundsEnabled = soundsEnabled ?: this.soundsEnabled,
         themeMode = themeMode ?: this.themeMode,
         cardTheme = cardTheme ?: this.cardTheme,

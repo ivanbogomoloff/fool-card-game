@@ -18,11 +18,13 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     fillWidth: Boolean = true,
+    enabled: Boolean = true,
     containerColor: Color = AccentTeal,
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = if (fillWidth) {
             modifier.fillMaxWidth()
         } else {

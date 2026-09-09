@@ -1,5 +1,5 @@
 ---
-description: Работа по этапам docs/phases — текущий Phase 4
+description: Работа по этапам docs/phases — текущий Phase 5
 globs: "docs/**"
 alwaysApply: false
 ---
@@ -7,10 +7,12 @@ alwaysApply: false
 # Phased Development
 
 - Order: phase-00 → phase-06; checklists live in each phase `README.md`
-- **Done:** 00 login stub, 01 main menu, 02 profile/settings, 03 game UI + debug, **04 offline bots (playable)**
-- **Current focus:** polish Phase 4 / prepare Phase 5 — do not implement online until Phase 4 DoD holds
+- **Done:** 00 login stub, 01 main menu, 02 profile/settings, 03 game UI + debug, **04 offline bots**
+- **Current focus: Phase 5 (online)** — auth gate, лобби, RemoteGameClient (fake), профиль в лобби
 - Launch: `startDestination = Routes.MAIN` (not login, not `game/debug`)
 - Offline path: Main → OfflineSetup → `LocalGameClient.createSession` → GameSession
-- `Routes.LOGIN` / `LoginScreen` remain for future online auth; settings do **not** edit account display name
+- Online path: Main → (Login если нет сессии) → OnlineLobby → create/join → waiting → game
+- Settings: theme / card theme / sounds only — **no** avatar or display name
+- Online lobby: avatar + displayName via `GameClient` profile REST; bots keep avatars offline
 - Wireframes: `docs/architecture/navigation-and-screens.md`
-- Mark checklist items done when finishing work; `./gradlew testDebugUnitTest` must pass before Phase 5
+- Mark checklist items done when finishing work; `./gradlew testDebugUnitTest` must stay green

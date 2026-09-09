@@ -1,11 +1,7 @@
 package com.example.foolcardgame.presentation.offline
 
 import app.cash.turbine.test
-import com.example.foolcardgame.data.api.FakeProfileApi
 import com.example.foolcardgame.data.client.LocalGameClient
-import com.example.foolcardgame.data.local.InMemoryProfileLocalStore
-import com.example.foolcardgame.data.repository.ProfileRepository
-import com.example.foolcardgame.domain.model.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -34,15 +30,8 @@ class OfflineSetupViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(): OfflineSetupViewModel {
-        val repository = ProfileRepository(
-            localStore = InMemoryProfileLocalStore(
-                initial = UserProfile(displayName = "Игрок", avatarId = 1),
-            ),
-            api = FakeProfileApi(),
-        )
-        return OfflineSetupViewModel(LocalGameClient(), repository)
-    }
+    private fun viewModel(): OfflineSetupViewModel =
+        OfflineSetupViewModel(LocalGameClient())
 
     @Test
     fun default_botReactionRangeIsOneToFiveSeconds() {

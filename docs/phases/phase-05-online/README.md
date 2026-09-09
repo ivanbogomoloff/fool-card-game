@@ -1,73 +1,60 @@
 # Phase 5 — Сетевая игра
 
+**Статус: в работе.**
+
 ## Цель
 
-UI лобби и waiting room. `RemoteGameClient` вместо `LocalGameClient` — те же ViewModel и экран игры.
+Онлайн-лобби без списка игр: **быстрая игра** и **игра с друзьями** → комната ожидания → матч через `RemoteGameClient`.
+
+Дополнительно:
+- **Auth gate**: Login → лобби
+- Локальный блок имени/аватара в лобби (профиль уходит в теле при входе в игру)
+- Настройки без аватара; офлайн `"Вы"` + avatar `0`
 
 ## Зависимости
 
-- [Phase 4 — Offline Bot](../phase-04-offline-bot/README.md)
+- [Phase 4 — Offline Bot](../phase-04-offline-bot/README.md) — **завершён**
 
 ## Wireframes
 
 ### Lobby
 
 ```mermaid
-flowchart TB
-    subgraph onlineLobby [OnlineLobbyScreen]
-        GameList[Spisok igr]
-        BtnCreate[Sozdat]
-        BtnJoin[Vojti po kodu]
-    end
+flowchart TD
+  Lobby[OnlineLobbyScreen]
+  Quick[Bystraya igra Ozhidayte]
+  Friends[Igra s druzyami]
+  Create[Sozdat]
+  Join[Voyti po kodu]
+  Wait[WaitingRoom]
+  Match[GameSession]
+  Lobby --> Quick --> Match
+  Lobby --> Friends
+  Friends --> Create --> Wait
+  Friends --> Join --> Wait
+  Wait -->|host start| Match
 ```
 
-### Create / Join / Waiting
+### Waiting room
 
-См. [navigation-and-screens.md](../../architecture/navigation-and-screens.md#online-flow)
-
-## Файлы
-
-```
-ui/screens/online/OnlineLobbyScreen.kt
-ui/screens/online/CreateGameScreen.kt
-ui/screens/online/JoinPrivateScreen.kt
-ui/screens/online/WaitingRoomScreen.kt
-presentation/online/OnlineLobbyViewModel.kt
-presentation/online/CreateGameViewModel.kt
-presentation/online/WaitingRoomViewModel.kt
-data/client/RemoteGameClient.kt
-data/api/GameApi.kt
-data/api/FakeGameApi.kt
-data/api/dto/*.kt
-```
+Список игроков (poll 5 с), код доступа, `WaitingDots`, у хоста «Удалить» и «Начать игру».
 
 ## Задачи
 
-- [ ] `OnlineLobbyScreen`: stub GET список, кнопки create/join
-- [ ] `CreateGameScreen`: игроки 2–4, private toggle
-- [ ] `JoinPrivateScreen`: ввод кода
-- [ ] `WaitingRoomScreen`: tick, isReady, кнопка «Готов»
-- [ ] `RemoteGameClient`: observeState → GET /games/{id}/state
-- [ ] `FakeGameApi` / OkHttp interceptor для stub
-- [ ] Factory: выбор Local vs Remote GameClient по типу сессии
-- [ ] `GameApiDtoTest`, `RemoteGameClientTest`
+- [x] Auth gate + login fake
+- [x] Настройки без аватара; офлайн avatar `0`
+- [x] Лобби: быстрая игра (poll `/game/fast/join`) + друзья (create/join)
+- [x] WaitingRoom: room poll, kick, start, WaitingDots
+- [x] Join по коду
+- [x] FakeGameApi stubs `/game/...`
+- [x] Тесты Remote / Lobby / Waiting
 
 ## DoD
 
-- Лобби + waiting room с tick работают
-- Игра идёт через RemoteGameClient (fake API)
-- disconnect / not-ready видны в UI
-- DTO serialization и RemoteGameClient tests проходят
-
-## Юнит-тесты
-
-| Класс | Сценарии |
-|-------|----------|
-| `GameApiDtoTest` | JSON ↔ DTO: GameStateDto, PlayerStateDto, actions |
-| `RemoteGameClientTest` | MockWebServer: GET state, POST action, leave; tick Flow |
-| `WaitingRoomViewModelTest` | ready → state update; disconnected player в UI state |
-
-MockWebServer (OkHttp test). См. [testing.md](../../architecture/testing.md).
+- [x] Нет списка открытых игр
+- [x] Быстрая игра и друзья работают на fake API
+- [x] Хост стартует матч; kick работает
+- [x] Юнит-тесты зелёные
 
 ## Следующий этап
 

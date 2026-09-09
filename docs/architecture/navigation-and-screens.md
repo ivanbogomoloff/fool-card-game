@@ -4,19 +4,21 @@
 
 ## App NavGraph
 
-Стартовый экран: **`main`**. Маршрут `login` / `LoginScreen` сохранён для будущей сетевой фазы и при запуске не открывается.
+Стартовый экран: **`main`**. `LoginScreen` открывается при входе в онлайн без сессии (не при запуске приложения).
 
 ```mermaid
 flowchart LR
     MainMenu --> OfflineSetup
-    MainMenu --> OnlineLobby
-    MainMenu --> Profile
+    MainMenu -->|no auth| Login
+    MainMenu -->|auth ok| OnlineLobby
+    Login --> OnlineLobby
+    MainMenu --> Settings
     OfflineSetup --> GameSession
-    OnlineLobby --> CreateGame
+    OnlineLobby -->|quick match| GameSession
+    OnlineLobby -->|friends create or join| WaitingRoom
     OnlineLobby --> JoinPrivate
-    CreateGame --> WaitingRoom
     JoinPrivate --> WaitingRoom
-    WaitingRoom -->|all ready| GameSession
+    WaitingRoom -->|host start| GameSession
     GameSession -->|Back confirm| MainMenu
 ```
 
@@ -25,14 +27,18 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph onlineFlow [Online Flow]
-        OnlineLobby[OnlineLobby list plus buttons]
-        CreateGame[CreateGame players private flag]
+        LoginGate[Login if needed]
+        OnlineLobby[OnlineLobby local profile]
+        QuickMatch[Bystraya igra poll]
         JoinPrivate[JoinPrivate enter code]
-        WaitingRoom[WaitingRoom ready indicators tick]
-        OnlineLobby --> CreateGame
+        WaitingRoom[WaitingRoom room poll kick start]
+        LoginGate --> OnlineLobby
+        OnlineLobby --> QuickMatch
         OnlineLobby --> JoinPrivate
-        CreateGame --> WaitingRoom
+        OnlineLobby -->|create| WaitingRoom
         JoinPrivate --> WaitingRoom
+        QuickMatch --> GameSession
+        WaitingRoom -->|host start| GameSession
     end
 ```
 
@@ -40,14 +46,14 @@ flowchart TB
 
 | Экран | Маршрут | Аргументы | Back behaviour |
 |-------|---------|-----------|----------------|
-| Вход | `login` | — | exit app |
+| Вход | `login` | optional returnTo | pop → main (или returnTo) |
 | Главный | `main` | — | exit app |
 | Оффлайн-настройка | `offline/setup` | — | pop → main |
 | Лобби | `online/lobby` | — | pop → main |
 | Создание игры | `online/create` | — | pop → lobby |
 | Вход по коду | `online/join` | — | pop → lobby |
 | Ожидание | `online/waiting/{sessionId}` | sessionId | pop → lobby + leave |
-| Профиль | `profile` | — | pop → main |
+| Настройки | `profile` | — | pop → main |
 | Игра | `game/{sessionId}` | sessionId | LeaveGameDialog → main |
 | Debug игра | `game/debug` | — | pop (Phase 3 only) |
 
@@ -97,12 +103,10 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph profileScreen [ProfileScreen]
-        AvatarPicker[Avatar grid picker]
-        NameField[TextField Imya]
-        BtnSave[Button Sohranit]
+    subgraph profileScreen [ProfileScreen Nastrojki]
+        ThemeChips[Theme and card theme]
+        Sounds[Sounds switch]
     end
-    AvatarPicker --> NameField --> BtnSave
 ```
 
 ### OfflineSetup
@@ -121,24 +125,16 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph onlineLobby [OnlineLobbyScreen]
-        GameList[LazyColumn spisok igr stub]
-        BtnCreate[Button Sozdat igru]
-        BtnJoin[Button Vojti po kodu]
+        ProfileLocal[Avatar plus Imya local]
+        BtnQuick[Bystraya igra]
+        BtnFriends[Igra s druzyami expand]
+        BtnCreate[Sozdat igru]
+        BtnJoin[Voyti po kodu]
     end
-    GameList --> BtnCreate
-    GameList --> BtnJoin
-```
-
-### CreateGame
-
-```mermaid
-flowchart TB
-    subgraph createGame [CreateGameScreen]
-        PlayerCount[Slider igrokov 2-4]
-        PrivateToggle[Switch privatnaya igra]
-        BtnCreate[Button Sozdat]
-    end
-    PlayerCount --> PrivateToggle --> BtnCreate
+    ProfileLocal --> BtnQuick
+    ProfileLocal --> BtnFriends
+    BtnFriends --> BtnCreate
+    BtnFriends --> BtnJoin
 ```
 
 ### JoinPrivate
@@ -156,13 +152,13 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph waitingRoom [WaitingRoom LOBBY_WAITING]
-        PlayerList[List igrokov isReady isConnected]
-        BtnReady[Button Gotov]
-        TickIndicator[Tick obnovlenie sostoyaniya]
+    subgraph waitingRoom [WaitingRoomScreen]
+        AccessCode[Kod dostupa]
+        WaitingDots[WaitingDots anim]
+        PlayerList[List igrokov Kick u hosta]
+        BtnStart[Nachat igru host]
     end
-    PlayerList --> BtnReady
-    TickIndicator --> PlayerList
+    AccessCode --> PlayerList --> BtnStart
 ```
 
 ---

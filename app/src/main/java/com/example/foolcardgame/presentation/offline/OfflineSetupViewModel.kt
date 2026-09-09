@@ -3,8 +3,8 @@ package com.example.foolcardgame.presentation.offline
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.client.LocalGameClient
-import com.example.foolcardgame.data.repository.ProfileRepository
 import com.example.foolcardgame.domain.model.GameConfig
+import com.example.foolcardgame.domain.model.UserProfile
 import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,13 +12,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class OfflineSetupViewModel(
     private val gameClient: LocalGameClient,
-    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OfflineSetupUiState())
@@ -50,13 +48,12 @@ class OfflineSetupViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isStarting = true, errorMessage = null) }
             runCatching {
-                val profile = profileRepository.observeProfile().first()
                 val reactionMinSec = _uiState.value.botReactionMinSec
                 val reactionMaxSec = _uiState.value.botReactionMaxSec
                 val sessionId = gameClient.createSession(
                     GameConfig(
                         botCount = _uiState.value.botCount,
-                        humanAvatarId = profile.avatarId,
+                        humanAvatarId = UserProfile.DEFAULT_AVATAR_ID,
                         seed = Random.Default.nextLong(),
                         botThinkMinMs = reactionMinSec * 1_000L,
                         botThinkMaxMs = reactionMaxSec * 1_000L,

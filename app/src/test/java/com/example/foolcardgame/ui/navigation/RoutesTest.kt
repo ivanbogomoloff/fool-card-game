@@ -16,12 +16,26 @@ class RoutesTest {
     }
 
     @Test
-    fun onlineWaiting_buildsPathWithSessionId() {
-        assertEquals("online/waiting/abc-123", Routes.onlineWaiting("abc-123"))
+    fun onlineWaiting_buildsPathWithSessionAndPlayer() {
+        assertEquals(
+            "online/waiting/abc-123/p1",
+            Routes.onlineWaiting("abc-123", "p1"),
+        )
+    }
+
+    @Test
+    fun onlineJoin_buildsPath() {
+        assertEquals("online/join/%D0%98%D0%B2%D0%B0%D0%BD/2", Routes.onlineJoin("Иван", 2))
     }
 
     @Test
     fun game_buildsPathWithSessionId() {
         assertEquals("game/session-42", Routes.game("session-42"))
+    }
+
+    @Test
+    fun isOnlineSession_detectsPrefix() {
+        assertTrue(Routes.isOnlineSession("online-xyz"))
+        assertTrue(!Routes.isOnlineSession("uuid-local"))
     }
 }

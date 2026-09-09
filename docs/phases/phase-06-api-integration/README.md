@@ -23,12 +23,12 @@ BuildConfig.API_BASE_URL
 ## Задачи
 
 - [ ] Настроить base URL (BuildConfig / local.properties)
-- [ ] Auth: POST `/auth/login`, token в OkHttp interceptor
-- [ ] Profile: GET/POST `/profile`
+- [ ] Auth: POST `/auth/login`, token в OkHttp interceptor (UI-gate уже в Phase 5 на fake)
+- [ ] Profile: GET/POST `/profile` (UI уже в Phase 5 online lobby)
 - [ ] Games: все endpoints из api-contracts.md
 - [ ] Обработка ошибок сети (sealed ApiResult)
 - [ ] Loading / error states в UI
-- [ ] LoginScreen: реальный вход вместо заглушки
+- [ ] LoginScreen: реальный вход вместо fake stub Phase 5
 - [ ] `ApiErrorMapperTest`, smoke-тесты реальных endpoint-контрактов
 
 ## DoD

@@ -6,18 +6,19 @@
 
 ```kotlin
 interface GameClient {
+    suspend fun login(displayName: String? = null): Result<Unit>
+    fun isAuthorized(): Boolean
+    /** Быстрая игра: одна попытка; null = ещё ждать. */
+    suspend fun quickMatch(displayName: String, avatarId: Int): Result<GameSessionId?>
+    suspend fun createPrivateGame(displayName: String, avatarId: Int): Result<CreateGameResult>
+    suspend fun joinByCode(code: String, displayName: String, avatarId: Int): Result<GameSessionId>
+    suspend fun getRoom(sessionId: GameSessionId): Result<RoomStateDto>
+    suspend fun kickPlayer(sessionId: GameSessionId, playerId: String): Result<Unit>
+    suspend fun startGame(sessionId: GameSessionId): Result<Unit>
     suspend fun createSession(config: GameConfig): GameSessionId
     suspend fun getState(sessionId: GameSessionId): GameStateDto
-    fun observeState(
-        sessionId: GameSessionId,
-        pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS, // 2000
-    ): Flow<GameStateDto>
-    suspend fun playCard(sessionId: GameSessionId, card: Card, targetPairId: Int?): Result
-    suspend fun addCard(sessionId: GameSessionId, card: Card): Result
-    suspend fun pass(sessionId: GameSessionId): Result
-    suspend fun bito(sessionId: GameSessionId): Result
-    suspend fun ready(sessionId: GameSessionId): Result
-    suspend fun leaveSession(sessionId: GameSessionId)
+    fun observeState(sessionId: GameSessionId, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<GameStateDto>
+    // playCard, addCard, pass, bito, ready, leaveSession, skipTurn…
 }
 ```
 
@@ -25,12 +26,17 @@ interface GameClient {
 
 | Метод | Назначение |
 |-------|------------|
-| `playCard` | Атака или отбивка (`targetPairId` — id пары на столе) |
-| `addCard` | Подкидывание карты того же достоинства |
-| `pass` | Отказ от дальнейших действий в раунде |
-| `bito` | Завершение успешно отбитого раунда |
-| `ready` | Подтверждение готовности (лобби) |
-| `leaveSession` | Выход из игры, остановка observeState |
+| `login` | Вход (`POST /auth/login`) |
+| `quickMatch` | `POST /game/fast/join` (poll с клиента каждые 5 с) |
+| `createPrivateGame` | `POST /game/create` |
+| `joinByCode` | `POST /game/join` |
+| `getRoom` | `GET /game/{id}/room` |
+| `kickPlayer` | `POST /game/{id}/kick` |
+| `startGame` | `POST /game/{id}/start` |
+| `playCard` / … | Игровые действия |
+| `leaveSession` | Выход |
+
+Профиль в matchmaking передаётся в теле join/create; отдельных get/update profile для лобби нет.
 
 ## Tick и периодический опрос
 
@@ -42,23 +48,14 @@ sequenceDiagram
 
     VM->>GC: observeState(sessionId)
     loop каждые pollIntervalMs
-        GC->>BE: tick / GET state
+        GC->>BE: tick / GET /game/id/state
         BE-->>GC: GameStateDto
         GC-->>VM: emit state
     end
-    VM->>GC: playCard / ready / ...
-    GC->>BE: action
-    GC->>BE: getState немедленно
-    GC-->>VM: emit state
-    VM->>GC: leaveSession on dispose
 ```
 
-### Поведение
-
-- `GameViewModel` подписывается на `observeState()` в `viewModelScope`; при уходе Flow отменяется.
-- После любого action — **немедленный** `getState`, не ждать следующий интервал.
-- **LocalGameClient**: tick → `GameEngine.onTick()` (auto-ready ботов, таймауты).
-- **RemoteGameClient**: tick → `GET /games/{id}/state`.
+- Комната ожидания: poll `getRoom` каждые **5 с** (`ROOM_POLL_INTERVAL_MS`).
+- **RemoteGameClient**: матч → `GET /game/{id}/state`.
 
 ## GameStateDto
 

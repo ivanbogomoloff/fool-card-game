@@ -12,7 +12,8 @@ alwaysApply: false
 - Cards: always `CardFace` — routes via `LocalCardTheme` to `IllustratedCardFace` (WebP) or `MinimalCardFace`
 - Game layout: `GameTableLayout` — opponents around table, deck top-center, hand fan, action button
 - Opponent name plate: compact 2×8 chars (`formatCompactOpponentName`); tap expands avatar + full name (10s auto-collapse)
-- Settings (`ProfileScreen`): avatar, theme mode, card theme, sounds — **no display-name field**
+- Settings (`ProfileScreen`): theme mode, card theme, sounds only — **no** avatar / display name
+- Online: requires login; avatar + displayName only in `OnlineLobbyScreen`
 - Navigation: `AppNavGraph` + `Routes`; all user-facing strings in Russian
 - `@Preview` for standalone components
 

@@ -16,7 +16,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 
@@ -36,10 +35,15 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun init_loadsProfileFromRepository() = runTest {
+    fun init_loadsSettingsFromRepository() = runTest {
         val repository = ProfileRepository(
             localStore = InMemoryProfileLocalStore(
-                initial = UserProfile(displayName = "Тест", avatarId = 3),
+                initial = UserProfile(
+                    displayName = "Тест",
+                    avatarId = 3,
+                    soundsEnabled = false,
+                    themeMode = ThemeMode.DARK,
+                ),
             ),
             api = FakeProfileApi(),
         )
@@ -47,44 +51,9 @@ class ProfileViewModelTest {
         val viewModel = ProfileViewModel(repository)
         advanceUntilIdle()
 
-        assertEquals(3, viewModel.uiState.value.avatarId)
+        assertEquals(false, viewModel.uiState.value.soundsEnabled)
+        assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
         assertEquals(false, viewModel.uiState.value.isLoading)
-    }
-
-    @Test
-    fun saveProfile_updatesStateAndShowsSuccessMessage() = runTest {
-        val api = FakeProfileApi()
-        val repository = ProfileRepository(
-            localStore = InMemoryProfileLocalStore(),
-            api = api,
-        )
-        val viewModel = ProfileViewModel(repository)
-        advanceUntilIdle()
-
-        viewModel.onAvatarSelected(2)
-        viewModel.saveProfile()
-        advanceUntilIdle()
-
-        assertEquals("Профиль сохранён", viewModel.uiState.value.snackbarMessage)
-        assertEquals(UserProfile.DEFAULT_DISPLAY_NAME, api.lastSavedProfile?.displayName)
-        assertEquals(2, api.lastSavedProfile?.avatarId)
-    }
-
-    @Test
-    fun saveProfile_showsApiErrorStateWhenApiFails() = runTest {
-        val repository = ProfileRepository(
-            localStore = InMemoryProfileLocalStore(),
-            api = FakeProfileApi(shouldFail = true),
-        )
-        val viewModel = ProfileViewModel(repository)
-        advanceUntilIdle()
-
-        viewModel.onAvatarSelected(1)
-        viewModel.saveProfile()
-        advanceUntilIdle()
-
-        assertEquals("Сохранено локально", viewModel.uiState.value.snackbarMessage)
-        assertNotNull(viewModel.uiState.value.error)
     }
 
     @Test

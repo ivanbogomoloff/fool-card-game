@@ -6,10 +6,10 @@ alwaysApply: true
 # FoolCardGame — Project Overview
 
 - Kotlin Android app, minSdk 33, Jetpack Compose + MVVM
-- Stack: Coroutines, Kotlinx Serialization, Compose Animation; Retrofit/OkHttp reserved for Phase 5–6
+- Stack: Coroutines, Kotlinx Serialization, Compose Animation; Retrofit/OkHttp for Phase 5–6
 - UI language: **Russian**
 - Architecture docs: `docs/architecture/`; game rules: `docs/game-rules/podkidnoy-durak.md`
-- Phased plan: `docs/phases/` — **current: Phase 4 (offline vs bots) is implemented and playable**
-- Next: Phase 5 (online). Do not start Phase 5 until Phase 4 DoD stays green
-- `startDestination = Routes.MAIN` (login screen kept for future online, not shown on launch)
+- Phased plan: `docs/phases/` — **current: Phase 5 (online)**; Phase 4 offline bots is done
+- `startDestination = Routes.MAIN`; `LoginScreen` opens when entering online without a session
+- Offline human seat: `"Вы"` + default avatar; online: account name/avatar via `GameClient`
 - Unit tests: `docs/architecture/testing.md`; run `./gradlew testDebugUnitTest` before advancing

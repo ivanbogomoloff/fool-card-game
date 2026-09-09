@@ -20,8 +20,17 @@ import androidx.navigation.navArgument
 import com.example.foolcardgame.di.AppGraph
 import com.example.foolcardgame.presentation.game.GameViewModel
 import com.example.foolcardgame.presentation.game.GameViewModelFactory
+import com.example.foolcardgame.presentation.login.LoginViewModel
+import com.example.foolcardgame.presentation.login.LoginViewModelFactory
 import com.example.foolcardgame.presentation.offline.OfflineSetupViewModel
 import com.example.foolcardgame.presentation.offline.OfflineSetupViewModelFactory
+import com.example.foolcardgame.presentation.online.JoinPrivateViewModel
+import com.example.foolcardgame.presentation.online.JoinPrivateViewModelFactory
+import com.example.foolcardgame.presentation.online.OnlineLobbyNavEvent
+import com.example.foolcardgame.presentation.online.OnlineLobbyViewModel
+import com.example.foolcardgame.presentation.online.OnlineLobbyViewModelFactory
+import com.example.foolcardgame.presentation.online.WaitingRoomViewModel
+import com.example.foolcardgame.presentation.online.WaitingRoomViewModelFactory
 import com.example.foolcardgame.presentation.profile.ProfileViewModel
 import com.example.foolcardgame.presentation.profile.ProfileViewModelFactory
 import com.example.foolcardgame.ui.screens.game.GameDebugScreen
@@ -29,8 +38,10 @@ import com.example.foolcardgame.ui.screens.game.GameSessionScreen
 import com.example.foolcardgame.ui.screens.login.LoginScreen
 import com.example.foolcardgame.ui.screens.main.MainMenuScreen
 import com.example.foolcardgame.ui.screens.offline.OfflineSetupScreen
+import com.example.foolcardgame.ui.screens.online.JoinPrivateScreen
+import com.example.foolcardgame.ui.screens.online.OnlineLobbyScreen
+import com.example.foolcardgame.ui.screens.online.WaitingRoomScreen
 import com.example.foolcardgame.ui.screens.profile.ProfileScreen
-import com.example.foolcardgame.ui.screens.stub.PlaceholderScreen
 
 @Composable
 fun AppNavGraph(
@@ -44,27 +55,42 @@ fun AppNavGraph(
         modifier = modifier,
     ) {
         composable(Routes.LOGIN) {
-            LoginScreen(
-                onLoginClick = {
-                    navController.navigate(Routes.MAIN) {
+            val context = LocalContext.current
+            val viewModel: LoginViewModel = viewModel(
+                factory = LoginViewModelFactory(AppGraph.remoteGameClient(context)),
+            )
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(viewModel) {
+                viewModel.navigateToLobby.collect {
+                    navController.navigate(Routes.ONLINE_LOBBY) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
-                },
+                }
+            }
+            LoginScreen(
+                uiState = uiState,
+                onLoginClick = viewModel::onLoginClick,
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.MAIN) {
+            val context = LocalContext.current
             MainMenuScreen(
                 onOfflineClick = { navController.navigate(Routes.OFFLINE_SETUP) },
-                onOnlineClick = { navController.navigate(Routes.ONLINE_LOBBY) },
+                onOnlineClick = {
+                    if (AppGraph.remoteGameClient(context).isAuthorized()) {
+                        navController.navigate(Routes.ONLINE_LOBBY)
+                    } else {
+                        navController.navigate(Routes.LOGIN)
+                    }
+                },
                 onSettingsClick = { navController.navigate(Routes.PROFILE) },
             )
         }
         composable(Routes.OFFLINE_SETUP) {
-            val context = LocalContext.current
             val viewModel: OfflineSetupViewModel = viewModel(
                 factory = OfflineSetupViewModelFactory(
                     gameClient = AppGraph.localGameClient(),
-                    profileRepository = AppGraph.profileRepository(context),
                 ),
             )
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,9 +110,108 @@ fun AppNavGraph(
             )
         }
         composable(Routes.ONLINE_LOBBY) {
-            PlaceholderScreen(
-                title = "Игра по сети",
-                message = "Лобби — скоро",
+            val context = LocalContext.current
+            val viewModel: OnlineLobbyViewModel = viewModel(
+                factory = OnlineLobbyViewModelFactory(AppGraph.remoteGameClient(context)),
+            )
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(viewModel) {
+                viewModel.navEvents.collect { event ->
+                    when (event) {
+                        is OnlineLobbyNavEvent.ToGame -> {
+                            navController.navigate(Routes.game(event.sessionId))
+                        }
+                        is OnlineLobbyNavEvent.ToWaiting -> {
+                            navController.navigate(
+                                Routes.onlineWaiting(event.sessionId, event.playerId),
+                            )
+                        }
+                        is OnlineLobbyNavEvent.ToJoinByCode -> {
+                            navController.navigate(
+                                Routes.onlineJoin(
+                                    displayName = event.displayName,
+                                    avatarId = event.avatarId,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+            OnlineLobbyScreen(
+                uiState = uiState,
+                onDisplayNameChange = viewModel::onDisplayNameChange,
+                onAvatarSelected = viewModel::onAvatarSelected,
+                onQuickMatchClick = viewModel::onQuickMatchClick,
+                onCancelQuickMatch = viewModel::onCancelQuickMatch,
+                onFriendsExpandToggle = viewModel::onFriendsExpandToggle,
+                onCreatePrivateClick = viewModel::onCreatePrivateClick,
+                onJoinByCodeClick = viewModel::onJoinByCodeClick,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.ONLINE_JOIN,
+            arguments = listOf(
+                navArgument("displayName") { type = NavType.StringType },
+                navArgument("avatarId") { type = NavType.IntType },
+            ),
+        ) { entry ->
+            val context = LocalContext.current
+            val displayName = entry.arguments?.getString("displayName").orEmpty()
+            val avatarId = entry.arguments?.getInt("avatarId") ?: 0
+            val viewModel: JoinPrivateViewModel = viewModel(
+                factory = JoinPrivateViewModelFactory(
+                    gameClient = AppGraph.remoteGameClient(context),
+                    displayName = displayName,
+                    avatarId = avatarId,
+                ),
+            )
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(viewModel) {
+                viewModel.navigateToWaiting.collect { target ->
+                    navController.navigate(
+                        Routes.onlineWaiting(target.sessionId, target.playerId),
+                    ) {
+                        popUpTo(Routes.ONLINE_LOBBY) { inclusive = false }
+                    }
+                }
+            }
+            JoinPrivateScreen(
+                uiState = uiState,
+                onCodeChange = viewModel::onCodeChange,
+                onJoinClick = viewModel::onJoinClick,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.ONLINE_WAITING,
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.StringType },
+                navArgument("playerId") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val context = LocalContext.current
+            val sessionId = entry.arguments?.getString("sessionId").orEmpty()
+            val playerId = entry.arguments?.getString("playerId").orEmpty()
+            val viewModel: WaitingRoomViewModel = viewModel(
+                factory = WaitingRoomViewModelFactory(
+                    gameClient = AppGraph.remoteGameClient(context),
+                    sessionId = sessionId,
+                    playerId = playerId,
+                ),
+            )
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(viewModel) {
+                viewModel.navigateToGame.collect { gameSessionId ->
+                    navController.navigate(Routes.game(gameSessionId)) {
+                        popUpTo(Routes.ONLINE_LOBBY) { inclusive = false }
+                    }
+                }
+            }
+            WaitingRoomScreen(
+                uiState = uiState,
+                onKickClick = viewModel::onKickClick,
+                onStartClick = viewModel::onStartClick,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -100,11 +225,9 @@ fun AppNavGraph(
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             ProfileScreen(
                 uiState = uiState,
-                onAvatarSelected = viewModel::onAvatarSelected,
                 onSoundsEnabledChange = viewModel::onSoundsEnabledChange,
                 onThemeModeChange = viewModel::onThemeModeChange,
                 onCardThemeChange = viewModel::onCardThemeChange,
-                onSaveClick = viewModel::saveProfile,
                 onBack = { navController.popBackStack() },
                 onSnackbarShown = viewModel::consumeSnackbarMessage,
             )
@@ -115,9 +238,14 @@ fun AppNavGraph(
         ) { entry ->
             val context = LocalContext.current
             val sessionId = entry.arguments?.getString("sessionId").orEmpty()
+            val gameClient = if (Routes.isOnlineSession(sessionId)) {
+                AppGraph.remoteGameClient(context)
+            } else {
+                AppGraph.localGameClient()
+            }
             val viewModel: GameViewModel = viewModel(
                 factory = GameViewModelFactory(
-                    gameClient = AppGraph.localGameClient(),
+                    gameClient = gameClient,
                     sessionId = sessionId,
                     soundEffects = AppGraph.gameSoundEffects(context),
                 ),
