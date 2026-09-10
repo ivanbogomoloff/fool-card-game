@@ -1,0 +1,16 @@
+# Локальные переопределения (подхватывается автоматически рядом с docker-compose.yaml).
+# Без Let's Encrypt / портов 80 и 443 на хосте.
+
+services:
+  mariadb:
+    ports:
+      - "3306:3306"
+
+  api:
+    environment:
+      TLS_ENABLED: "false"
+      HTTP_ADDR: ":8080"
+      FULL_LOGGING: "true"
+      LOG_DIR: /logs
+    ports:
+      - "8080:8080"

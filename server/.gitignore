@@ -1,0 +1,16 @@
+.env
+.env.local
+
+bin/server
+bin/*
+!bin/.gitkeep
+
+logs/*.log
+logs/**/*.log
+!logs/.gitkeep
+
+# Локальные артефакты Go
+src/vendor/
+*.exe
+*.test
+*.out

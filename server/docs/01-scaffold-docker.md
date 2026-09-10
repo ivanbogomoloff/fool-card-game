@@ -99,10 +99,10 @@ docker compose --env-file .env up
 
 ## Критерии приёмки
 
-- [ ] `docker build` успешен, бинарник в image / `bin/`
-- [ ] `docker compose up` (с override): MariaDB healthy, api стартует, порт доступен
-- [ ] `.env.example` полный; `.env` и `logs/*.log` не коммитятся
-- [ ] `config` пакет загружает env; unit-тест парсинга конфига
+- [x] `docker build` успешен, бинарник в image / `bin/`
+- [x] `docker compose up` (с override): MariaDB healthy, api стартует, порт доступен
+- [x] `.env.example` полный; `.env` и `logs/*.log` не коммитятся
+- [x] `config` пакет загружает env; unit-тест парсинга конфига
 
 ## Тесты этапа
 

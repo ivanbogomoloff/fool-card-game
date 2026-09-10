@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+logs/
+bin/
+docs/
+**/*_test.go
+.git/
