@@ -111,11 +111,11 @@ rpc Session(stream ClientMessage) returns (stream ServerMessage);
 
 ## Критерии приёмки
 
-- [ ] Proto компилируются в Go; сервисы зарегистрированы
-- [ ] Prod-путь: listen 80 + 443 с autocert (или интеграционный тест с mock TLS в local)
-- [ ] Local: insecure gRPC на 8080
-- [ ] Interceptor читает Bearer (пока может принимать любой non-empty до этапа 3)
-- [ ] bufconn-тест: открытие Session stream echo/ping-pong
+- [x] Proto компилируются в Go; сервисы зарегистрированы
+- [x] Prod-путь: listen 80 + 443 с autocert (или интеграционный тест с mock TLS в local)
+- [x] Local: insecure gRPC на 8080
+- [x] Interceptor читает Bearer (пока может принимать любой non-empty до этапа 3)
+- [x] bufconn-тест: открытие Session stream echo/ping-pong
 
 ## Тесты этапа
 

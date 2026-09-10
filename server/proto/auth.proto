@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package foolcard.v1;
+
+option go_package = "foolcardgame/server/internal/pb;pb";
+
+message LoginRequest {
+  optional string display_name = 1;
+}
+
+message LoginResponse {
+  string token = 1;
+  string display_name = 2;
+  int32 avatar_id = 3;
+}
+
+service Auth {
+  rpc Login(LoginRequest) returns (LoginResponse);
+}

@@ -4,10 +4,10 @@
 bin/server
 bin/*
 !bin/.gitkeep
+bin/simclient
 
-logs/*.log
-logs/**/*.log
-!logs/.gitkeep
+autocert-cache/
+*.log
 
 # Локальные артефакты Go
 src/vendor/

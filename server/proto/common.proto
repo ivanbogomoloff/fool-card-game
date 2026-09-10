@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package foolcard.v1;
+
+option go_package = "foolcardgame/server/internal/pb;pb";
+
+// Общая ошибка в ServerMessage.
+message Error {
+  string code = 1;
+  string message = 2;
+}

@@ -45,6 +45,7 @@
 | 4 | [04-matchmaking-session.md](04-matchmaking-session.md) | QuickMatch, private, Leave, hub + playerChannel |
 | 5 | [05-engine-stats-logging.md](05-engine-stats-logging.md) | Engine, MatchLog→flush, FULL_LOGGING, тесты |
 | 6 | [06-android-phase6.md](06-android-phase6.md) | grpc-kotlin, GameClient, reconnect |
+| — | [07-simclient.md](07-simclient.md) | Терминальный gRPC-симулятор (human/bot) |
 
 Каждый этапный файл содержит: цель, зависимости, MUST, контракты/алгоритмы, критерии приёмки, тесты этапа.
 

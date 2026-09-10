@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package foolcard.v1;
+
+option go_package = "foolcardgame/server/internal/pb;pb";
+
+import "common.proto";
+import "game.proto";
+
+message QuickMatch {
+  string display_name = 1;
+  int32 avatar_id = 2;
+}
+
+message Subscribe {
+  string game_id = 1;
+  string player_id = 2;
+}
+
+message Kick {
+  string player_id = 1;
+}
+
+message StartGame {}
+
+message PlayCard {
+  Card card = 1;
+  optional int32 target_pair_id = 2;
+}
+
+message AddCard {
+  Card card = 1;
+}
+
+message Pass {}
+
+message Bito {}
+
+message Ready {}
+
+message Leave {}
+
+message Ping {}
+
+message ClientMessage {
+  oneof payload {
+    QuickMatch quick_match = 1;
+    Subscribe subscribe = 2;
+    Kick kick = 3;
+    StartGame start_game = 4;
+    PlayCard play_card = 5;
+    AddCard add_card = 6;
+    Pass pass = 7;
+    Bito bito = 8;
+    Ready ready = 9;
+    Leave leave = 10;
+    Ping ping = 11;
+  }
+}
+
+message MatchStarted {
+  string game_id = 1;
+}
+
+message Kicked {
+  string reason = 1;
+}
+
+message LeftAck {}
+
+message Pong {}
+
+message ServerMessage {
+  oneof payload {
+    QueueState queue_state = 1;
+    RoomState room_state = 2;
+    GameState game_state = 3;
+    Error error = 4;
+    Kicked kicked = 5;
+    MatchStarted match_started = 6;
+    LeftAck left_ack = 7;
+    Pong pong = 8;
+  }
+}
+
+service GameSession {
+  rpc Session(stream ClientMessage) returns (stream ServerMessage);
+}

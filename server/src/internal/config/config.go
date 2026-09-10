@@ -24,6 +24,8 @@ type Config struct {
 	FullLogging bool
 	LogDir      string
 
+	ACMECacheDir string
+
 	QuickMinPlayers   int
 	QuickMaxPlayers   int
 	QuickFillWindow   time.Duration
@@ -44,6 +46,7 @@ func Load() (Config, error) {
 		DBName:            envOr("DB_NAME", "foolcard"),
 		FullLogging:       envBool("FULL_LOGGING", true),
 		LogDir:            envOr("LOG_DIR", "./logs"),
+		ACMECacheDir:      envOr("ACME_CACHE_DIR", "./autocert-cache"),
 		QuickMinPlayers:   envInt("QUICK_MIN_PLAYERS", 2),
 		QuickMaxPlayers:   envInt("QUICK_MAX_PLAYERS", 4),
 		QuickFillWindow:   0,

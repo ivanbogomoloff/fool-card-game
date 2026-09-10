@@ -13,8 +13,14 @@ import (
 	"time"
 
 	"foolcardgame/server/internal/config"
+	"foolcardgame/server/internal/grpcserver"
+	"foolcardgame/server/internal/logging"
+	"foolcardgame/server/internal/tlssetup"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/soheilhy/cmux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -26,6 +32,11 @@ func main() {
 	if err := os.MkdirAll(cfg.LogDir, 0o755); err != nil {
 		log.Fatalf("log dir: %v", err)
 	}
+	appLog, err := logging.New(cfg.LogDir, cfg.FullLogging)
+	if err != nil {
+		log.Fatalf("logging: %v", err)
+	}
+	defer appLog.Close()
 
 	db, err := openDB(cfg)
 	if err != nil {
@@ -33,14 +44,8 @@ func main() {
 	}
 	defer db.Close()
 
-	addr := cfg.HTTPAddr
-	if cfg.TLSEnabled {
-		// Полный TLS/autocert — этап 2; на этапе 1 слушаем HTTP_ADDR и проверяем DB.
-		log.Printf("TLS_ENABLED=true: ACME/gRPC на :80/:443 будут на этапе 2; сейчас health на %s", addr)
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := db.PingContext(ctx); err != nil {
@@ -51,26 +56,69 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatalf("listen %s: %v", addr, err)
-	}
-	srv := &http.Server{Handler: mux}
+	var (
+		grpcSrv *grpc.Server
+		acmeLn  net.Listener
+	)
 
-	go func() {
-		log.Printf("listening on %s (FULL_LOGGING=%v, LOG_DIR=%s)", addr, cfg.FullLogging, cfg.LogDir)
-		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("serve: %v", err)
+	if cfg.TLSEnabled {
+		mgr, err := tlssetup.Manager(cfg)
+		if err != nil {
+			log.Fatalf("autocert: %v", err)
 		}
-	}()
+		if err := os.MkdirAll(cfg.ACMECacheDir, 0o700); err != nil {
+			log.Fatalf("acme cache: %v", err)
+		}
+		acmeLn, err = tlssetup.ListenACME(mgr)
+		if err != nil {
+			log.Fatalf("acme :80: %v", err)
+		}
+		creds := credentials.NewTLS(tlssetup.TLSConfig(mgr))
+		grpcSrv = grpcserver.New(grpcserver.Options{TLS: creds, Logger: appLog})
+		ln, err := net.Listen("tcp", ":443")
+		if err != nil {
+			log.Fatalf("listen :443: %v", err)
+		}
+		go serveGRPC(grpcSrv, ln, "gRPC+TLS :443")
+		log.Printf("TLS: ACME :80, gRPC :443 host=%s cache=%s", cfg.Host, cfg.ACMECacheDir)
+	} else {
+		grpcSrv = grpcserver.New(grpcserver.Options{Logger: appLog})
+		ln, err := net.Listen("tcp", cfg.HTTPAddr)
+		if err != nil {
+			log.Fatalf("listen %s: %v", cfg.HTTPAddr, err)
+		}
+		m := cmux.New(ln)
+		grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+		httpL := m.Match(cmux.Any())
+		go serveGRPC(grpcSrv, grpcL, "gRPC "+cfg.HTTPAddr)
+		go func() {
+			if err := http.Serve(httpL, healthMux); err != nil {
+				log.Printf("http health: %v", err)
+			}
+		}()
+		go func() {
+			log.Printf("listening cmux on %s (grpc + /healthz), FULL_LOGGING=%v", cfg.HTTPAddr, cfg.FullLogging)
+			if err := m.Serve(); err != nil {
+				log.Fatalf("cmux: %v", err)
+			}
+		}()
+	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(ctx)
+	grpcSrv.GracefulStop()
+	if acmeLn != nil {
+		_ = acmeLn.Close()
+	}
+}
+
+func serveGRPC(s *grpc.Server, ln net.Listener, label string) {
+	log.Printf("serving %s", label)
+	if err := s.Serve(ln); err != nil {
+		log.Printf("%s stopped: %v", label, err)
+	}
 }
 
 func openDB(cfg config.Config) (*sql.DB, error) {

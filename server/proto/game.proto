@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package foolcard.v1;
+
+option go_package = "foolcardgame/server/internal/pb;pb";
+
+enum Suit {
+  SUIT_UNSPECIFIED = 0;
+  SPADES = 1;
+  HEARTS = 2;
+  DIAMONDS = 3;
+  CLUBS = 4;
+}
+
+enum Rank {
+  RANK_UNSPECIFIED = 0;
+  SIX = 1;
+  SEVEN = 2;
+  EIGHT = 3;
+  NINE = 4;
+  TEN = 5;
+  JACK = 6;
+  QUEEN = 7;
+  KING = 8;
+  ACE = 9;
+}
+
+enum GamePhase {
+  GAME_PHASE_UNSPECIFIED = 0;
+  LOBBY_WAITING = 1;
+  IN_PROGRESS = 2;
+  FINISHED = 3;
+}
+
+enum PlayerStatus {
+  PLAYER_STATUS_UNSPECIFIED = 0;
+  WAITING = 1;
+  PLAYING = 2;
+  DISCONNECTED = 3;
+  LEFT = 4;
+}
+
+enum QueuePhase {
+  QUEUE_PHASE_UNSPECIFIED = 0;
+  SEARCHING = 1;
+  FILLING = 2;
+}
+
+enum RoundEventKind {
+  ROUND_EVENT_KIND_UNSPECIFIED = 0;
+  TOOK = 1;
+  BITO = 2;
+}
+
+enum GameActionKind {
+  GAME_ACTION_KIND_UNSPECIFIED = 0;
+  ATTACK = 1;
+  DEFEND = 2;
+  THROW_IN = 3;
+  PASS = 4;
+  TOOK_ACTION = 5;
+  BITO_ACTION = 6;
+}
+
+message Card {
+  Suit suit = 1;
+  Rank rank = 2;
+}
+
+message TablePair {
+  int32 id = 1;
+  Card attack = 2;
+  optional Card defense = 3;
+}
+
+message PlayerState {
+  string id = 1;
+  string display_name = 2;
+  int32 avatar_id = 3;
+  int32 hand_count = 4;
+  bool is_ready = 5;
+  bool is_connected = 6;
+  PlayerStatus status = 7;
+}
+
+message RoundEvent {
+  RoundEventKind kind = 1;
+  string player_id = 2;
+  int64 at_tick = 3;
+}
+
+message GameActionEvent {
+  GameActionKind kind = 1;
+  string player_id = 2;
+  int64 at_tick = 3;
+}
+
+// Персональная проекция для одного игрока (своя рука полная).
+message GameState {
+  string game_id = 1;
+  GamePhase phase = 2;
+  repeated PlayerState players = 3;
+  string local_player_id = 4;
+  optional int64 server_tick = 5;
+  int32 deck_count = 6;
+  optional Card trump = 7;
+  repeated TablePair table_pairs = 8;
+  repeated Card local_hand = 9;
+  optional string current_player_id = 10;
+  optional string attacker_id = 11;
+  optional string defender_id = 12;
+  bool can_bito = 13;
+  bool can_pass = 14;
+  bool can_take = 15;
+  bool can_ready = 16;
+  optional string winner_name = 17;
+  optional string loser_name = 18;
+  optional string loser_id = 19;
+  bool is_draw = 20;
+  repeated Card reveal_loser_cards = 21;
+  optional int64 turn_deadline_at_ms = 22;
+  optional RoundEvent round_event = 23;
+  optional GameActionEvent action_event = 24;
+}
+
+message RoomPlayer {
+  string id = 1;
+  string display_name = 2;
+  int32 avatar_id = 3;
+  bool is_host = 4;
+}
+
+message RoomState {
+  string game_id = 1;
+  string access_code = 2;
+  string host_id = 3;
+  bool started = 4;
+  repeated RoomPlayer players = 5;
+}
+
+message QueueState {
+  string player_id = 1;
+  int32 waiting_count = 2;
+  QueuePhase phase = 3;
+}
