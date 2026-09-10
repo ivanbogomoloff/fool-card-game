@@ -7,6 +7,7 @@ import (
 	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/service"
+	"foolcardgame/server/internal/store"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -19,8 +20,10 @@ import (
 type Options struct {
 	// TLS — credentials для prod; nil = insecure (local).
 	TLS credentials.TransportCredentials
-	// Logger — access/error логи; nil = только stdout-кратко через interceptor без файлов.
+	// Logger — access/error логи; nil = только stdout без файлов.
 	Logger *logging.Logger
+	// Accounts — Login и проверка Bearer; обязателен для защищённых RPC.
+	Accounts *store.Accounts
 }
 
 // New создаёт сервер с keepalive, interceptor и зарегистрированными сервисами.
@@ -39,8 +42,8 @@ func New(opts Options) *grpc.Server {
 	serverOpts := []grpc.ServerOption{
 		grpc.KeepaliveParams(ka),
 		grpc.KeepaliveEnforcementPolicy(enf),
-		grpc.ChainUnaryInterceptor(logging.Unary(opts.Logger), auth.UnaryInterceptor()),
-		grpc.ChainStreamInterceptor(logging.Stream(opts.Logger), auth.StreamInterceptor()),
+		grpc.ChainUnaryInterceptor(logging.Unary(opts.Logger), auth.UnaryInterceptor(opts.Accounts)),
+		grpc.ChainStreamInterceptor(logging.Stream(opts.Logger), auth.StreamInterceptor(opts.Accounts)),
 	}
 	if opts.TLS != nil {
 		serverOpts = append(serverOpts, grpc.Creds(opts.TLS))
@@ -48,7 +51,7 @@ func New(opts Options) *grpc.Server {
 
 	s := grpc.NewServer(serverOpts...)
 
-	pb.RegisterAuthServer(s, service.NewAuthServer())
+	pb.RegisterAuthServer(s, service.NewAuthServer(opts.Accounts))
 	pb.RegisterMatchmakingServer(s, service.NewMatchmakingServer())
 	pb.RegisterGameSessionServer(s, service.NewSessionServer())
 

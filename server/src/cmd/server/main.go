@@ -15,6 +15,8 @@ import (
 	"foolcardgame/server/internal/config"
 	"foolcardgame/server/internal/grpcserver"
 	"foolcardgame/server/internal/logging"
+	"foolcardgame/server/internal/migrate"
+	"foolcardgame/server/internal/store"
 	"foolcardgame/server/internal/tlssetup"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -43,6 +45,13 @@ func main() {
 		log.Fatalf("db: %v", err)
 	}
 	defer db.Close()
+
+	if err := migrate.Up(db); err != nil {
+		log.Fatalf("migrate: %v", err)
+	}
+	log.Printf("migrations ok")
+
+	accounts := &store.Accounts{DB: db}
 
 	healthMux := http.NewServeMux()
 	healthMux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -74,7 +83,7 @@ func main() {
 			log.Fatalf("acme :80: %v", err)
 		}
 		creds := credentials.NewTLS(tlssetup.TLSConfig(mgr))
-		grpcSrv = grpcserver.New(grpcserver.Options{TLS: creds, Logger: appLog})
+		grpcSrv = grpcserver.New(grpcserver.Options{TLS: creds, Logger: appLog, Accounts: accounts})
 		ln, err := net.Listen("tcp", ":443")
 		if err != nil {
 			log.Fatalf("listen :443: %v", err)
@@ -82,7 +91,7 @@ func main() {
 		go serveGRPC(grpcSrv, ln, "gRPC+TLS :443")
 		log.Printf("TLS: ACME :80, gRPC :443 host=%s cache=%s", cfg.Host, cfg.ACMECacheDir)
 	} else {
-		grpcSrv = grpcserver.New(grpcserver.Options{Logger: appLog})
+		grpcSrv = grpcserver.New(grpcserver.Options{Logger: appLog, Accounts: accounts})
 		ln, err := net.Listen("tcp", cfg.HTTPAddr)
 		if err != nil {
 			log.Fatalf("listen %s: %v", cfg.HTTPAddr, err)

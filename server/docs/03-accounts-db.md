@@ -85,10 +85,38 @@ MariaDB: аккаунты и токены входа; схема таблиц с
 
 ## Критерии приёмки
 
-- [ ] Миграции применяются на чистой БД
-- [ ] Login → token → защищённый unary успешен; без token — отказ
-- [ ] Схема `games` / `game_players` существует; до FINISHED строк в `games` нет (проверка на этапе 5)
-- [ ] Генератор id: unit-тест уникальности при параллельных вызовах
+- [x] Миграции применяются на чистой БД
+- [x] Login → token → защищённый unary успешен; без token — отказ
+- [x] Схема `games` / `game_players` существует; до FINISHED строк в `games` нет (проверка на этапе 5)
+- [x] Генератор id: unit-тест уникальности при параллельных вызовах
+
+## Миграции (как устроено)
+
+Файлы лежат в **`server/src/migrations/`** рядом с Go-модулем:
+
+```text
+server/src/migrations/
+  embed.go                 # //go:embed *.sql → package migrations.FS
+  000001_init.up.sql       # accounts, auth_tokens, games, game_players
+  000001_init.down.sql     # DROP в обратном порядке
+```
+
+**Куда писать новые изменения схемы**
+
+1. Добавить пару файлов с следующим номером: `000002_<slug>.up.sql` / `000002_<slug>.down.sql` (формат [golang-migrate](https://github.com/golang-migrate/migrate)).
+2. Не править уже применённые `up` на проде — только новая версия.
+3. Embed подхватывает все `*.sql` автоматически (`embed.go`); отдельный COPY в Dockerfile не нужен — SQL попадает в бинарник через `go:embed`.
+
+**Когда применяются**
+
+При старте `api` в [`cmd/server/main.go`](../src/cmd/server/main.go): после успешного `Ping` MariaDB вызывается `migrate.Up(db)` ([`internal/migrate`](../src/internal/migrate/migrate.go)). Таблица `schema_migrations` ведёт golang-migrate. Повторный старт с той же версией — no-op (`ErrNoChange`).
+
+DSN должен допускать несколько statements в одном файле (`multiStatements=true` уже в `config.DSN`).
+
+**Локально / тесты**
+
+- Compose: `docker compose up -d --build api` — миграции сами при старте контейнера.
+- Unit: `TestMigrate_UpOnEmptyDB` сбрасывает таблицы и гоняет `Up` на `127.0.0.1:3306` (порт из override).
 
 ## Тесты этапа
 

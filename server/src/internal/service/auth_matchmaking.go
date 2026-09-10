@@ -4,28 +4,38 @@ import (
 	"context"
 
 	"foolcardgame/server/internal/pb"
+	"foolcardgame/server/internal/store"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// AuthServer — заглушка Login (реальная БД — этап 3).
+// AuthServer — Login с записью accounts + auth_tokens.
 type AuthServer struct {
 	pb.UnimplementedAuthServer
+	Accounts *store.Accounts
 }
 
-func NewAuthServer() *AuthServer { return &AuthServer{} }
+func NewAuthServer(accounts *store.Accounts) *AuthServer {
+	return &AuthServer{Accounts: accounts}
+}
 
-func (s *AuthServer) Login(_ context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	name := "Игрок"
-	if req.DisplayName != nil && *req.DisplayName != "" {
+func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+	if s.Accounts == nil {
+		return nil, status.Error(codes.Internal, "Auth: store не настроен")
+	}
+	name := ""
+	if req.DisplayName != nil {
 		name = *req.DisplayName
 	}
-	// Этап 2: фиктивный token; этап 3 сохранит в auth_tokens.
+	token, acc, err := s.Accounts.Login(ctx, name)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "login: %v", err)
+	}
 	return &pb.LoginResponse{
-		Token:       "stage2-dev-token",
-		DisplayName: name,
-		AvatarId:    0,
+		Token:       token,
+		DisplayName: acc.DisplayName,
+		AvatarId:    acc.AvatarID,
 	}, nil
 }
 

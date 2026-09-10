@@ -8,6 +8,27 @@ import (
 	"strings"
 )
 
+// LineReader читает строки с одного Scanner (нельзя создавать Scanner на каждый вызов — теряется буфер).
+type LineReader struct {
+	sc *bufio.Scanner
+}
+
+// NewLineReader оборачивает in одним Scanner.
+func NewLineReader(in io.Reader) *LineReader {
+	return &LineReader{sc: bufio.NewScanner(in)}
+}
+
+// Line возвращает следующую trimmed-строку или io.EOF.
+func (r *LineReader) Line() (string, error) {
+	if !r.sc.Scan() {
+		if err := r.sc.Err(); err != nil {
+			return "", err
+		}
+		return "", io.EOF
+	}
+	return strings.TrimSpace(r.sc.Text()), nil
+}
+
 // MenuItem пункт нумерованного меню.
 type MenuItem struct {
 	ID    int
@@ -15,26 +36,14 @@ type MenuItem struct {
 	Key   string
 }
 
-// ReadLine читает строку с stdin.
-func ReadLine(in io.Reader) (string, error) {
-	sc := bufio.NewScanner(in)
-	if !sc.Scan() {
-		if err := sc.Err(); err != nil {
-			return "", err
-		}
-		return "", io.EOF
-	}
-	return strings.TrimSpace(sc.Text()), nil
-}
-
 // PromptMenu печатает меню и возвращает выбранный Key.
-func PromptMenu(out io.Writer, in io.Reader, title string, items []MenuItem) (string, error) {
+func PromptMenu(out io.Writer, in *LineReader, title string, items []MenuItem) (string, error) {
 	fmt.Fprintln(out, title)
 	for _, it := range items {
 		fmt.Fprintf(out, "%d) %s\n", it.ID, it.Label)
 	}
 	fmt.Fprint(out, "> ")
-	line, err := ReadLine(in)
+	line, err := in.Line()
 	if err != nil {
 		return "", err
 	}
@@ -51,7 +60,7 @@ func PromptMenu(out io.Writer, in io.Reader, title string, items []MenuItem) (st
 }
 
 // PromptString запрашивает произвольную строку (код комнаты и т.п.).
-func PromptString(out io.Writer, in io.Reader, prompt string) (string, error) {
+func PromptString(out io.Writer, in *LineReader, prompt string) (string, error) {
 	fmt.Fprint(out, prompt)
-	return ReadLine(in)
+	return in.Line()
 }

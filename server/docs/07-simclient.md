@@ -72,12 +72,24 @@ docker run --rm --network server_default fool-simclient \
 
 Авто: login → quick|join → реакция по `can_*` / случайная карта из `local_hand`.
 
-## Что уже работает на сервере (после этапа 2)
+## Что работает на сервере (после этапа 3)
 
-| RPC | Статус |
-|-----|--------|
-| `Auth.Login` | ok (stub token) |
+| RPC / поведение | Статус |
+|-----------------|--------|
+| `Auth.Login` | создаёт `accounts` + opaque token (`auth_tokens.token_hash`); ответ: token, display_name, avatar_id |
+| Bearer на Create/Join/Session | interceptor → `account_id` в context; без/битый token → `Unauthenticated` |
 | Session `Ping` / `Leave` | ok |
-| Create/Join/ходы | `Unimplemented` до этапов 3–5 |
+| Create/Join/ходы / QuickMatch | `Unimplemented` до этапов 4–5 |
+| Миграции | при старте api из `src/migrations` (см. [03-accounts-db.md](03-accounts-db.md)) |
 
-Симулятор всё равно шлёт реальные запросы и печатает ошибки — удобно наращивать проверку.
+### Проверка Login (human)
+
+```bash
+cd server
+docker compose up -d --build api
+docker build -t fool-simclient --target simclient .
+printf '1\n0\n' | docker run -i --rm --network server_default fool-simclient \
+  --mode human --addr api:8080 --name Алиса
+```
+
+Ожидание: в stdout simclient — token; в `logs/requests.log` — `IN Auth/Login` / `OUT Auth/Login` с реальным token (не stub).

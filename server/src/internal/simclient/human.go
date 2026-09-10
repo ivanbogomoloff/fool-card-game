@@ -78,6 +78,7 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 	hub := &SessionHub{out: out}
 	sessionCtx, sessionCancel := context.WithCancel(ctx)
 	defer sessionCancel()
+	lines := NewLineReader(in)
 
 	ensureSession := func() error {
 		hub.mu.RLock()
@@ -116,8 +117,11 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 			{ID: 13, Label: "показать стол", Key: "table"},
 			{ID: 0, Label: "выход", Key: "quit"},
 		}
-		key, err := PromptMenu(out, in, title, items)
+		key, err := PromptMenu(out, lines, title, items)
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			fmt.Fprintf(out, "! %v\n", err)
 			continue
 		}
@@ -156,7 +160,7 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 				fmt.Fprintln(out, "! сначала login")
 				continue
 			}
-			code, err := PromptString(out, in, "код комнаты: ")
+			code, err := PromptString(out, lines, "код комнаты: ")
 			if err != nil {
 				return err
 			}
@@ -195,8 +199,8 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 			}
 			gid, pid := c.gameID, c.playerID
 			if gid == "" {
-				gid, _ = PromptString(out, in, "game_id: ")
-				pid, _ = PromptString(out, in, "player_id: ")
+				gid, _ = PromptString(out, lines, "game_id: ")
+				pid, _ = PromptString(out, lines, "player_id: ")
 				c.storeIDs(gid, pid)
 			}
 			err := hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Subscribe{Subscribe: &pb.Subscribe{
@@ -218,7 +222,7 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 				fmt.Fprintf(out, "! %v\n", err)
 				continue
 			}
-			if err := promptPlay(out, in, hub); err != nil {
+			if err := promptPlay(out, lines, hub); err != nil {
 				fmt.Fprintf(out, "! %v\n", err)
 			}
 		case "pass", "bito", "ready", "leave":
@@ -246,12 +250,12 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 	}
 }
 
-func promptPlay(out io.Writer, in io.Reader, hub *SessionHub) error {
+func promptPlay(out io.Writer, in *LineReader, hub *SessionHub) error {
 	st := hub.GameState()
 	RenderTable(out, st)
 	fmt.Fprintln(out, "\nХод (рука>пара для отбивки, номер руки для атаки/подкида; p=pass, b=bito):")
 	fmt.Fprint(out, "> ")
-	line, err := ReadLine(in)
+	line, err := in.Line()
 	if err != nil {
 		return err
 	}

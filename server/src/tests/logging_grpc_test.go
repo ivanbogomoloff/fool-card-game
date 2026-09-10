@@ -11,7 +11,9 @@ import (
 
 	"foolcardgame/server/internal/grpcserver"
 	"foolcardgame/server/internal/logging"
+	"foolcardgame/server/internal/migrate"
 	"foolcardgame/server/internal/pb"
+	"foolcardgame/server/internal/store"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,8 +22,14 @@ import (
 
 func startBufServerWithLogger(t *testing.T, logger *logging.Logger) (pb.AuthClient, pb.MatchmakingClient, func()) {
 	t.Helper()
+	db := openTestDB(t)
+	if err := migrate.Up(db); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	accounts := &store.Accounts{DB: db}
+
 	lis := bufconn.Listen(bufSize)
-	srv := grpcserver.New(grpcserver.Options{Logger: logger})
+	srv := grpcserver.New(grpcserver.Options{Logger: logger, Accounts: accounts})
 	go func() {
 		_ = srv.Serve(lis)
 	}()
@@ -68,7 +76,6 @@ func TestLogging_Full_LoginWritesRequestsLog(t *testing.T) {
 		t.Fatal("empty token")
 	}
 
-	// Дать interceptor дописать файл.
 	time.Sleep(20 * time.Millisecond)
 	_ = logger.Close()
 

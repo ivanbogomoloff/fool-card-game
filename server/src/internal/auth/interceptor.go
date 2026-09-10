@@ -2,7 +2,10 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"strings"
+
+	"foolcardgame/server/internal/store"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -12,16 +15,31 @@ import (
 
 type ctxKey int
 
-const tokenCtxKey ctxKey = 1
+const (
+	tokenCtxKey     ctxKey = 1
+	accountIDCtxKey ctxKey = 2
+)
 
-// TokenFromContext возвращает raw Bearer-токен (этап 3 — валидация в БД).
+// TokenValidator проверяет opaque Bearer и возвращает account_id.
+type TokenValidator interface {
+	AccountIDByToken(ctx context.Context, token string) (accountID string, err error)
+}
+
+// TokenFromContext возвращает raw Bearer-токен, если interceptor его положил.
 func TokenFromContext(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(tokenCtxKey).(string)
 	return v, ok && v != ""
 }
 
-func withToken(ctx context.Context, token string) context.Context {
-	return context.WithValue(ctx, tokenCtxKey, token)
+// AccountIDFromContext возвращает id аккаунта после успешной проверки токена.
+func AccountIDFromContext(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(accountIDCtxKey).(string)
+	return v, ok && v != ""
+}
+
+func withAuth(ctx context.Context, token, accountID string) context.Context {
+	ctx = context.WithValue(ctx, tokenCtxKey, token)
+	return context.WithValue(ctx, accountIDCtxKey, accountID)
 }
 
 func isPublicMethod(fullMethod string) bool {
@@ -53,35 +71,52 @@ func bearerToken(ctx context.Context) (string, error) {
 	if token == "" {
 		return "", status.Error(codes.Unauthenticated, "пустой Bearer token")
 	}
-	// Этап 2: любой non-empty token допустим; проверка в БД — этап 3.
 	return token, nil
 }
 
-// UnaryInterceptor проверяет Bearer на unary RPC (кроме публичных).
-func UnaryInterceptor() grpc.UnaryServerInterceptor {
+func authenticate(ctx context.Context, v TokenValidator) (context.Context, error) {
+	token, err := bearerToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, status.Error(codes.Internal, "auth: TokenValidator не задан")
+	}
+	accountID, err := v.AccountIDByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, store.ErrInvalidToken) {
+			return nil, status.Error(codes.Unauthenticated, "недействительный токен")
+		}
+		return nil, status.Errorf(codes.Internal, "проверка токена: %v", err)
+	}
+	return withAuth(ctx, token, accountID), nil
+}
+
+// UnaryInterceptor проверяет Bearer через БД (кроме публичных методов).
+func UnaryInterceptor(v TokenValidator) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if isPublicMethod(info.FullMethod) {
 			return handler(ctx, req)
 		}
-		token, err := bearerToken(ctx)
+		ctx, err := authenticate(ctx, v)
 		if err != nil {
 			return nil, err
 		}
-		return handler(withToken(ctx, token), req)
+		return handler(ctx, req)
 	}
 }
 
 // StreamInterceptor проверяет Bearer на stream RPC.
-func StreamInterceptor() grpc.StreamServerInterceptor {
+func StreamInterceptor(v TokenValidator) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if isPublicMethod(info.FullMethod) {
 			return handler(srv, ss)
 		}
-		token, err := bearerToken(ss.Context())
+		ctx, err := authenticate(ss.Context(), v)
 		if err != nil {
 			return err
 		}
-		return handler(srv, &wrappedStream{ServerStream: ss, ctx: withToken(ss.Context(), token)})
+		return handler(srv, &wrappedStream{ServerStream: ss, ctx: ctx})
 	}
 }
 

@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"foolcardgame/server/internal/grpcserver"
+	"foolcardgame/server/internal/migrate"
 	"foolcardgame/server/internal/pb"
+	"foolcardgame/server/internal/store"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -22,8 +24,14 @@ const bufSize = 1024 * 1024
 
 func startBufServer(t *testing.T) (pb.AuthClient, pb.MatchmakingClient, pb.GameSessionClient, func()) {
 	t.Helper()
+	db := openTestDB(t)
+	if err := migrate.Up(db); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	accounts := &store.Accounts{DB: db}
+
 	lis := bufconn.Listen(bufSize)
-	srv := grpcserver.New(grpcserver.Options{})
+	srv := grpcserver.New(grpcserver.Options{Accounts: accounts})
 	go func() {
 		_ = srv.Serve(lis)
 	}()
@@ -47,13 +55,33 @@ func startBufServer(t *testing.T) (pb.AuthClient, pb.MatchmakingClient, pb.GameS
 	return pb.NewAuthClient(conn), pb.NewMatchmakingClient(conn), pb.NewGameSessionClient(conn), cleanup
 }
 
+func loginToken(t *testing.T, auth pb.AuthClient, name string) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var dn *string
+	if name != "" {
+		dn = &name
+	}
+	resp, err := auth.Login(ctx, &pb.LoginRequest{DisplayName: dn})
+	if err != nil {
+		t.Fatalf("Login: %v", err)
+	}
+	if resp.Token == "" {
+		t.Fatal("empty token")
+	}
+	return resp.Token
+}
+
 func TestSession_PingPong(t *testing.T) {
-	_, _, session, cleanup := startBufServer(t)
+	auth, _, session, cleanup := startBufServer(t)
 	defer cleanup()
+
+	token := loginToken(t, auth, "PingUser")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer test-token"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))
 
 	stream, err := session.Session(ctx)
 	if err != nil {
@@ -89,13 +117,30 @@ func TestAuthInterceptor_MissingBearer(t *testing.T) {
 	}
 }
 
-func TestAuthInterceptor_WithBearer_ReachesHandler(t *testing.T) {
+func TestAuthInterceptor_InvalidToken(t *testing.T) {
 	_, mm, _, cleanup := startBufServer(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer any"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer deadbeef"))
+
+	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{DisplayName: "A", AvatarId: 0})
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.Unauthenticated {
+		t.Fatalf("want Unauthenticated for invalid token, got %v", err)
+	}
+}
+
+func TestAuthInterceptor_WithBearer_ReachesHandler(t *testing.T) {
+	auth, mm, _, cleanup := startBufServer(t)
+	defer cleanup()
+
+	token := loginToken(t, auth, "A")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))
 
 	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{DisplayName: "A", AvatarId: 0})
 	st, ok := status.FromError(err)
@@ -118,6 +163,9 @@ func TestLogin_PublicWithoutBearer(t *testing.T) {
 	if resp.Token == "" {
 		t.Fatal("empty token")
 	}
+	if resp.DisplayName != "Игрок" {
+		t.Fatalf("default name: got %q", resp.DisplayName)
+	}
 }
 
 func TestSession_RequiresBearer(t *testing.T) {
@@ -129,7 +177,6 @@ func TestSession_RequiresBearer(t *testing.T) {
 
 	stream, err := session.Session(ctx)
 	if err != nil {
-		// Некоторые версии gRPC отдают ошибку уже на открытии stream.
 		st, ok := status.FromError(err)
 		if ok && st.Code() == codes.Unauthenticated {
 			return
