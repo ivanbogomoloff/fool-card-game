@@ -13,15 +13,44 @@ import com.example.foolcardgame.domain.model.GameConfig
 import com.example.foolcardgame.domain.model.Rank
 import com.example.foolcardgame.domain.model.Suit
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
+/** События очереди быстрой игры (gRPC QueueState / MatchStarted). */
+sealed interface QueueUpdate {
+    data class Waiting(
+        val playerId: String,
+        val waitingCount: Int,
+        val phase: String,
+    ) : QueueUpdate
+
+    data class Matched(val sessionId: GameSessionId) : QueueUpdate
+}
 
 interface GameClient {
-    /** Вход в online (Remote: POST /auth/login). Local — no-op success. */
-    suspend fun login(displayName: String? = null): Result<Unit> = Result.success(Unit)
+    /**
+     * Вход: Auth.Login.
+     * UI передаёт только [username]; [password] обычно пустой —
+     * [RemoteGameClient] подставляет из Keystore, если имя совпадает с сохранённым.
+     * Без пароля на сервере — регистрация нового имени (или ошибка «имя занято»).
+     */
+    suspend fun login(username: String = "", password: String = ""): Result<Unit> =
+        Result.success(Unit)
 
     /** Есть ли сохранённая online-сессия. */
     fun isAuthorized(): Boolean = false
 
-    /** Одна попытка быстрой игры; null = ещё ждать. */
+    /**
+     * Быстрая игра через Session stream.
+     * Отмена сбора Flow / [cancelQuickMatch] → Leave из очереди.
+     */
+    fun observeQuickMatch(displayName: String, avatarId: Int): Flow<QueueUpdate> = emptyFlow()
+
+    /** Ошибки Session stream (BUSY, timeout, сеть) для UI. */
+    fun observeSessionErrors(): Flow<String> = emptyFlow()
+
+    suspend fun cancelQuickMatch(): Unit = Unit
+
+    /** @deprecated Phase 5 poll; online использует [observeQuickMatch]. */
     suspend fun quickMatch(displayName: String, avatarId: Int): Result<GameSessionId?> =
         Result.failure(UnsupportedOperationException("Только online"))
 
@@ -34,6 +63,9 @@ interface GameClient {
         avatarId: Int,
     ): Result<Pair<GameSessionId, String>> =
         Result.failure(UnsupportedOperationException("Только online"))
+
+    /** Снимок комнаты со stream (replay). */
+    fun observeRoom(sessionId: GameSessionId): Flow<RoomStateDto> = emptyFlow()
 
     suspend fun getRoom(sessionId: GameSessionId): Result<RoomStateDto> =
         Result.failure(UnsupportedOperationException("Только online"))
@@ -50,6 +82,7 @@ interface GameClient {
         sessionId: GameSessionId,
         pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS,
     ): Flow<GameStateDto>
+
     suspend fun playCard(sessionId: GameSessionId, card: Card, targetPairId: Int?): Result<Unit>
     suspend fun addCard(sessionId: GameSessionId, card: Card): Result<Unit>
     suspend fun pass(sessionId: GameSessionId): Result<Unit>

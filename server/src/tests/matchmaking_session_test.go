@@ -157,15 +157,26 @@ func TestQuickMatch_FillWindowAutostart(t *testing.T) {
 	if gameID == "" {
 		t.Fatal("empty game id")
 	}
-	recvUntil(t, s1, 2*time.Second, func(m *pb.ServerMessage) bool {
+	lobby := recvUntil(t, s1, 2*time.Second, func(m *pb.ServerMessage) bool {
 		gs := m.GetGameState()
-		return gs != nil && gs.GameId == gameID && gs.Phase == pb.GamePhase_IN_PROGRESS
+		return gs != nil && gs.GameId == gameID && gs.Phase == pb.GamePhase_LOBBY_WAITING && gs.CanReady
 	})
+	if len(lobby.GetGameState().LocalHand) != 6 {
+		t.Fatalf("lobby hand=%d", len(lobby.GetGameState().LocalHand))
+	}
 	recvUntil(t, s2, 2*time.Second, func(m *pb.ServerMessage) bool {
 		return m.GetMatchStarted() != nil || m.GetGameState() != nil
 	})
 	recvUntil(t, s3, 2*time.Second, func(m *pb.ServerMessage) bool {
 		return m.GetMatchStarted() != nil || m.GetGameState() != nil
+	})
+
+	_ = s1.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Ready{Ready: &pb.Ready{}}})
+	_ = s2.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Ready{Ready: &pb.Ready{}}})
+	_ = s3.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Ready{Ready: &pb.Ready{}}})
+	recvUntil(t, s1, 2*time.Second, func(m *pb.ServerMessage) bool {
+		gs := m.GetGameState()
+		return gs != nil && gs.GameId == gameID && gs.Phase == pb.GamePhase_IN_PROGRESS
 	})
 
 	if path := h.GameLogPath(gameID); path == "" {
@@ -460,10 +471,50 @@ doneDrain:
 		t.Fatal("disconnect не должен писать VoluntaryLeaves")
 	}
 
-	ch2b := make(chan *pb.ServerMessage, 4)
+	// Оппонент получает GameState с is_connected=false.
+	var sawOffline bool
+	deadline := time.After(500 * time.Millisecond)
+	for !sawOffline {
+		select {
+		case m := <-ch1:
+			gs := m.GetGameState()
+			if gs == nil {
+				continue
+			}
+			for _, p := range gs.Players {
+				if p.Id == joined.PlayerId && !p.IsConnected {
+					sawOffline = true
+				}
+			}
+		case <-deadline:
+			t.Fatal("ожидался GameState с is_connected=false у оппонента")
+		}
+	}
+
+	ch2b := make(chan *pb.ServerMessage, 8)
 	if err := h.Subscribe("a2", created.GameId, joined.PlayerId, ch2b); err != nil {
 		t.Fatal(err)
 	}
+	// После reconnect — is_connected=true у обоих.
+	sawOnline := false
+	deadline2 := time.After(500 * time.Millisecond)
+	for !sawOnline {
+		select {
+		case m := <-ch1:
+			gs := m.GetGameState()
+			if gs == nil {
+				continue
+			}
+			for _, p := range gs.Players {
+				if p.Id == joined.PlayerId && p.IsConnected {
+					sawOnline = true
+				}
+			}
+		case <-deadline2:
+			t.Fatal("после Subscribe оппонент должен снова is_connected")
+		}
+	}
+
 	if err := h.Leave("a2", created.GameId, joined.PlayerId); err != nil {
 		t.Fatal(err)
 	}

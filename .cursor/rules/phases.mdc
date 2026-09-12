@@ -1,19 +1,21 @@
 ---
-description: Работа по этапам docs/phases — текущий Phase 5b (ТЗ сервера)
+description: Работа по этапам docs/phases — Phase 6 gRPC клиент
 globs: "docs/**"
 alwaysApply: false
 ---
 
 # Phased Development
 
-- Order: phase-00 → phase-05 → **phase-05b (server TZ)** → phase-06; checklists in each phase `README.md`
-- **Done:** 00–04; Phase 5 online UI + FakeGameApi
-- **Current focus: Phase 5b** — ТЗ и затем реализация Go gRPC-сервера: [`server/docs`](../../server/docs/README.md)
-- Phase 6: grpc-kotlin к живому серверу (не Retrofit poll)
+- Order: phase-00 → phase-05 → phase-05b (server) → **phase-06** → (позже phase-07 account binding)
+- **Done:** 00–05; Phase 5b Go server; Phase 6 Android gRPC client
+- **Current:** MVP online на gRPC (debug LAN / release TLS)
+- Phase 6: grpc-kotlin к живому серверу (не Retrofit poll) — реализовано
+- Phase 7 (не реализовано): привязка/восстановление аккаунта — `docs/phases/phase-07-account-binding/`
 - Launch: `startDestination = Routes.MAIN` (not login, not `game/debug`)
 - Offline path: Main → OfflineSetup → `LocalGameClient.createSession` → GameSession
-- Online path: Main → (Login если нет сессии) → OnlineLobby → create/join/quick → waiting → game
+- Online path: Main → (Login если нет сессии; только имя) → OnlineLobby (имя read-only) → create/join/quick → waiting → game
 - Settings: theme / card theme / sounds only — **no** avatar or display name
-- Online lobby: displayName/avatar в теле matchmaking (QuickMatch/create/join)
+- Online lobby: displayName из account username (не редактируется); avatar в теле matchmaking
+- Debug host: `local.properties` `grpc.host` / `grpc.port` (не 127.0.0.1 с телефона)
 - Wireframes: `docs/architecture/navigation-and-screens.md`
 - Mark checklist items done when finishing work; `./gradlew testDebugUnitTest` must stay green

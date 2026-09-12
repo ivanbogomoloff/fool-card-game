@@ -276,6 +276,21 @@ func (h *Hub) Bito(accountID, gameID, playerID string) error {
 	})
 }
 
+// Ready — готовность в лобби; при всех ready → IN_PROGRESS.
+func (h *Hub) Ready(accountID, gameID, playerID string) error {
+	return h.withMatch(accountID, gameID, playerID, "Ready", func(sess *Session) error {
+		h.logIN(sess, accountID, "Ready", "action=ready")
+		if err := sess.match.Ready(playerID); err != nil {
+			return err
+		}
+		// Синхронизируем room-статус с engine после Ready.
+		if p := sess.room.findPlayer(playerID); p != nil && p.Status != pb.PlayerStatus_LEFT {
+			p.Status = pb.PlayerStatus_PLAYING
+		}
+		return nil
+	})
+}
+
 func (h *Hub) withMatch(accountID, gameID, playerID, _ string, fn func(*Session) error) error {
 	h.mu.Lock()
 	sess := h.sessions[gameID]

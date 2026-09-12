@@ -20,9 +20,10 @@ object Routes {
     fun onlineWaiting(sessionId: String, playerId: String): String =
         "online/waiting/${encode(sessionId)}/${encode(playerId)}"
 
-    fun game(sessionId: String) = "game/$sessionId"
+    fun game(sessionId: String) = "game/${encode(sessionId)}"
 
-    fun isOnlineSession(sessionId: String): Boolean = sessionId.startsWith("online-")
+    fun isOnlineSession(sessionId: String): Boolean =
+        com.example.foolcardgame.data.client.OnlineSessionIds.isOnline(sessionId)
 
     private fun encode(value: String): String =
         URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")

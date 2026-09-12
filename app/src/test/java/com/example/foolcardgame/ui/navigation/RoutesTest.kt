@@ -31,11 +31,15 @@ class RoutesTest {
     @Test
     fun game_buildsPathWithSessionId() {
         assertEquals("game/session-42", Routes.game("session-42"))
+        assertEquals(
+            "game/online%3Aabc",
+            Routes.game("online:abc"),
+        )
     }
 
     @Test
     fun isOnlineSession_detectsPrefix() {
-        assertTrue(Routes.isOnlineSession("online-xyz"))
+        assertTrue(Routes.isOnlineSession("online:xyz"))
         assertTrue(!Routes.isOnlineSession("uuid-local"))
     }
 }

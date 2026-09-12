@@ -37,19 +37,21 @@
 
 ## Изменения UI (минимальные)
 
-- Быстрая игра: экран «Ожидайте» подписан на `QueueState` (число/фаза), переход в матч по `MatchStarted` — без кнопки «Начать»
+- LoginScreen: только поле имени; пароль из Keystore при повторном входе; UI пароля нет (восстановление — Phase 7)
+- OnlineLobby: имя read-only (= username аккаунта)
+- Быстрая игра: экран «Ожидайте» подписан на `QueueState` (число/фаза), переход в матч по `MatchStarted` → стол в `LOBBY_WAITING` с кнопкой «Готов»; партия после Ready всех
 - WaitingRoom друзей: без изменений по смыслу; данные со stream, не poll
 - LeaveGameDialog → реальный `Leave` на сервер
 
 ## DoD Phase 6
 
-- [ ] Login против живого сервера
-- [ ] QuickMatch: набор на сервере, автостарт, матч по stream
-- [ ] Private: код, kick, start хостом
-- [ ] Ходы и состояние по bidi stream
-- [ ] Leave отличается от обрыва (reconnect не помечает LEFT)
-- [ ] Keepalive/reconnect при смене сети
-- [ ] Unit-тесты клиента (metadata, маппинг ошибок, поведение ViewModel на QueueState)
+- [x] Login против живого сервера (клиент готов; проверка на LAN)
+- [x] QuickMatch: набор на сервере, автостарт, матч по stream
+- [x] Private: код, kick, start хостом
+- [x] Ходы и состояние по bidi stream
+- [x] Leave отличается от обрыва (reconnect не помечает LEFT)
+- [x] Keepalive/reconnect при смене сети
+- [x] Unit-тесты клиента (metadata, маппинг ошибок, поведение ViewModel на QueueState)
 
 ## Ссылки
 

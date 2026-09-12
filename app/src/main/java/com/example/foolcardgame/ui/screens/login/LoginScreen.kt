@@ -4,9 +4,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,6 +24,7 @@ import com.example.foolcardgame.ui.theme.FoolCardGameTheme
 @Composable
 fun LoginScreen(
     uiState: LoginUiState = LoginUiState(),
+    onUsernameChange: (String) -> Unit = {},
     onLoginClick: () -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -41,7 +44,17 @@ fun LoginScreen(
         Text(
             text = "Подкидной",
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 48.dp),
+            modifier = Modifier.padding(bottom = 32.dp),
+        )
+        OutlinedTextField(
+            value = uiState.username,
+            onValueChange = onUsernameChange,
+            label = { Text("Имя пользователя") },
+            singleLine = true,
+            enabled = !uiState.isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
         )
         if (uiState.isLoading) {
             CircularProgressIndicator(color = AccentTeal)

@@ -72,4 +72,5 @@ data class CreateGameResult(
     val sessionId: String,
     val accessCode: String,
     val hostId: String,
+    val playerId: String,
 )

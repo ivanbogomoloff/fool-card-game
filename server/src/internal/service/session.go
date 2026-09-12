@@ -188,7 +188,11 @@ func (s *SessionServer) Session(stream pb.GameSession_SessionServer) error {
 			}
 
 		case *pb.ClientMessage_Ready:
-			_ = sendErr(stream, "READY", "ready не требуется: матч стартует сервером")
+			pid, gid, _ := getBinding()
+			gid = resolveGame(pid, gid)
+			if err := s.Hub.Ready(accountID, gid, pid); err != nil {
+				_ = sendErr(stream, "READY", err.Error())
+			}
 
 		case *pb.ClientMessage_Leave:
 			pid, _, _ := getBinding()

@@ -190,8 +190,11 @@ func TestHub_MatchStartedDealsHands(t *testing.T) {
 			t.Fatal("нет GameState")
 		}
 	}
-	if gs.Phase != pb.GamePhase_IN_PROGRESS {
-		t.Fatalf("phase=%v", gs.Phase)
+	if gs.Phase != pb.GamePhase_LOBBY_WAITING {
+		t.Fatalf("phase=%v want LOBBY_WAITING", gs.Phase)
+	}
+	if !gs.CanReady {
+		t.Fatal("can_ready expected in lobby")
 	}
 	if len(gs.LocalHand) != 6 {
 		t.Fatalf("hand=%d want 6", len(gs.LocalHand))
@@ -201,6 +204,25 @@ func TestHub_MatchStartedDealsHands(t *testing.T) {
 	}
 	if gs.Trump == nil {
 		t.Fatal("trump required")
+	}
+
+	if err := h.Ready("deal1", created.GameId, created.PlayerId); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Ready("deal2", created.GameId, joined.PlayerId); err != nil {
+		t.Fatal(err)
+	}
+	var progress *pb.GameState
+	deadline2 := time.After(2 * time.Second)
+	for progress == nil {
+		select {
+		case m := <-ch1:
+			if g := m.GetGameState(); g != nil && g.Phase == pb.GamePhase_IN_PROGRESS {
+				progress = g
+			}
+		case <-deadline2:
+			t.Fatal("нет IN_PROGRESS после Ready")
+		}
 	}
 
 	// До FINISHED в БД нет этой игры.

@@ -16,7 +16,9 @@
 | `Matchmaking.JoinGame` | Вход по коду → `game_id`, `player_id` (+ профиль в запросе) |
 
 Auth на всех защищённых RPC: metadata `authorization: Bearer <token>`.  
-Клиент хранит `account_id` + password в Keystore / EncryptedSharedPreferences (Phase 6). Аватар — только в matchmaking / QuickMatch (`username` + `avatar_id`).
+Клиент хранит `account_id` + password в Keystore / EncryptedSharedPreferences (Phase 6).  
+**UX клиента (MVP):** LoginScreen запрашивает только имя; поле пароля нет; при совпадении username пароль подставляется из Keystore; занятое имя без локального пароля → «Имя занято, введите другое имя». Привязка/восстановление на другом устройстве — [Phase 7](../phases/phase-07-account-binding/README.md).  
+Аватар — только в matchmaking / QuickMatch; в онлайн-лобби имя = account username (**read-only**).
 
 ### Bidi stream
 
@@ -32,18 +34,18 @@ Session(stream ClientMessage) returns (stream ServerMessage)
 
 ## Быстрая игра
 
-Не unary poll и не HTTP 204. Клиент открывает `Session` и шлёт `QuickMatch`. Сервер пушит `QueueState` (`SEARCHING` / `FILLING`); при наборе ≥2 + fill ~5 с — **автостарт** (`MatchStarted` + `GameState`) без клиентского `StartGame`.
+Не unary poll и не HTTP 204. Клиент открывает `Session` и шлёт `QuickMatch`. Сервер пушит `QueueState` (`SEARCHING` / `FILLING`); при наборе ≥2 + fill ~5 с — **создание стола** (`MatchStarted` + `GameState` в фазе `LOBBY_WAITING`, карты розданы, `can_ready=true`) без клиентского `StartGame`. Партия переходит в `IN_PROGRESS` только когда **все** игроки отправили `Ready`.
 
 ## Игра с друзьями
 
 1. `CreateGame` или `JoinGame` (unary)
 2. `Subscribe` на stream → `RoomState`
-3. Хост: `Kick` / `StartGame` (≥2)
-4. Далее `GameState` по событиям
+3. Хост: `Kick` / `StartGame` (≥2) → `MatchStarted` + `GameState` (`LOBBY_WAITING`)
+4. Все игроки: `Ready` → `IN_PROGRESS`; далее ходы по `GameState`
 
 ## Leave
 
-`ClientMessage.Leave` — добровольный выход (`LEFT`). Обрыв stream — `DISCONNECTED` (окно reconnect).  
+`ClientMessage.Leave` — добровольный выход (`LEFT`). Обрыв stream — `DISCONNECTED` (окно reconnect): в следующем `GameState` у оппонентов `is_connected=false` / `status=DISCONNECTED`; после reconnect `Subscribe` — снова online.  
 `leaveSession` на клиенте в Phase 6 обязан слать `Leave`, не только чистить локальный id.
 
 ## Профиль в matchmaking

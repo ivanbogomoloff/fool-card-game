@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.foolcardgame.data.api.dto.RoomPlayerDto
 import com.example.foolcardgame.data.client.GameClient
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class WaitingRoomUiState(
@@ -43,10 +41,10 @@ class WaitingRoomViewModel(
     private val _navigateToGame = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val navigateToGame: SharedFlow<String> = _navigateToGame.asSharedFlow()
 
-    private var pollJob: Job? = null
+    private var observeJob: Job? = null
 
     init {
-        startPolling()
+        startObserving()
     }
 
     fun onKickClick(targetPlayerId: String) {
@@ -54,7 +52,6 @@ class WaitingRoomViewModel(
         if (!state.isHost || state.isStarting) return
         viewModelScope.launch {
             gameClient.kickPlayer(state.sessionId, targetPlayerId)
-                .onSuccess { refreshOnce() }
                 .onFailure { error ->
                     _uiState.update {
                         it.copy(errorMessage = error.message ?: "Не удалось удалить игрока")
@@ -69,10 +66,6 @@ class WaitingRoomViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isStarting = true, errorMessage = null) }
             gameClient.startGame(state.sessionId)
-                .onSuccess {
-                    pollJob?.cancel()
-                    _navigateToGame.emit(state.sessionId)
-                }
                 .onFailure { error ->
                     _uiState.update {
                         it.copy(
@@ -84,41 +77,27 @@ class WaitingRoomViewModel(
         }
     }
 
-    private fun startPolling() {
-        pollJob?.cancel()
-        pollJob = viewModelScope.launch {
-            while (isActive) {
-                val started = refreshOnce()
-                if (started) return@launch
-                delay(GameClient.ROOM_POLL_INTERVAL_MS)
-            }
-        }
-    }
-
-    /** @return true, если матч уже стартовал. */
-    private suspend fun refreshOnce(): Boolean {
-        val sessionId = _uiState.value.sessionId
-        val playerId = _uiState.value.playerId
-        var started = false
-        gameClient.getRoom(sessionId)
-            .onSuccess { room ->
-                _uiState.update {
-                    it.copy(
-                        accessCode = room.accessCode,
-                        hostId = room.hostId,
-                        players = room.players,
-                        isHost = room.hostId == playerId,
-                        isLoading = false,
-                        errorMessage = null,
-                    )
+    private fun startObserving() {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
+            try {
+                gameClient.observeRoom(_uiState.value.sessionId).collect { room ->
+                    val playerId = _uiState.value.playerId
+                    _uiState.update {
+                        it.copy(
+                            accessCode = room.accessCode,
+                            hostId = room.hostId,
+                            players = room.players,
+                            isHost = room.hostId == playerId,
+                            isLoading = false,
+                            errorMessage = null,
+                        )
+                    }
+                    if (room.started) {
+                        _navigateToGame.emit(room.sessionId)
+                    }
                 }
-                if (room.started) {
-                    pollJob?.cancel()
-                    _navigateToGame.emit(room.sessionId)
-                    started = true
-                }
-            }
-            .onFailure { error ->
+            } catch (error: Throwable) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -126,11 +105,11 @@ class WaitingRoomViewModel(
                     )
                 }
             }
-        return started
+        }
     }
 
     override fun onCleared() {
-        pollJob?.cancel()
+        observeJob?.cancel()
         super.onCleared()
     }
 }

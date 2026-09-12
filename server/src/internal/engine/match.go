@@ -22,7 +22,8 @@ type Match struct {
 	clock func() int64
 }
 
-// NewMatch раздаёт колоду 36 (по 6 карт), открывает козырь и сразу переводит партию в IN_PROGRESS.
+// NewMatch раздаёт колоду 36 (по 6 карт), открывает козырь и оставляет партию в LOBBY_WAITING.
+// Переход в IN_PROGRESS — после Ready всех игроков.
 // gameID должен совпадать с session / logs / PK games.id; пустой — сгенерировать UUID.
 func NewMatch(gameID string, seats []SeatIn, seed int64, clock func() int64) *Match {
 	if clock == nil {
@@ -46,9 +47,9 @@ func NewMatch(gameID string, seats []SeatIn, seed int64, clock func() int64) *Ma
 			Username:    seat.Username,
 			AvatarID:    seat.AvatarID,
 			Hand:        hand,
-			IsReady:     true,
+			IsReady:     false,
 			IsConnected: true,
-			Status:      PlayerStatusPlaying,
+			Status:      PlayerStatusWaiting,
 		}
 	}
 
@@ -84,7 +85,7 @@ func NewMatch(gameID string, seats []SeatIn, seed int64, clock func() int64) *Ma
 
 	state := State{
 		GameID:                       gameID,
-		Phase:                        PhaseInProgress,
+		Phase:                        PhaseLobbyWaiting,
 		Players:                      players,
 		Deck:                         deck,
 		TrumpCard:                    trumpCard,
@@ -95,9 +96,8 @@ func NewMatch(gameID string, seats []SeatIn, seed int64, clock func() int64) *Ma
 		CurrentPlayerID:              attackerID,
 		DefenderHandSizeAtRoundStart: defHandSize,
 	}
-
-	now := clock()
-	state.withTurnDeadline(now)
+	// Дедлайн хода только после перехода в IN_PROGRESS (Ready всех).
+	state.withTurnDeadline(clock())
 
 	return &Match{state: state, seed: seed, clock: clock}
 }
@@ -170,6 +170,79 @@ func (m *Match) Bito(playerID string) error {
 			return errBitoNotAllowed
 		}
 		*s = m.declareAttackerBito(*s, playerID)
+		return nil
+	})
+}
+
+// Ready — готовность в LOBBY_WAITING; когда все готовы — переход в IN_PROGRESS.
+func (m *Match) Ready(playerID string) error {
+	return m.mutate(func(s *State) error {
+		if s.Phase != PhaseLobbyWaiting {
+			return errReadyNotAllowed
+		}
+		p := s.Player(playerID)
+		if p == nil {
+			return errUnknownPlayer
+		}
+		if p.Status == PlayerStatusLeft {
+			return errUnknownPlayer
+		}
+		if p.IsReady {
+			return nil
+		}
+		s.updatePlayer(playerID, func(pl *Player) {
+			pl.IsReady = true
+			pl.IsConnected = true
+			pl.Status = PlayerStatusPlaying
+		})
+		allReady := true
+		for i := range s.Players {
+			pl := &s.Players[i]
+			if pl.Status == PlayerStatusLeft {
+				continue
+			}
+			if !pl.IsReady {
+				allReady = false
+				break
+			}
+		}
+		if allReady {
+			s.Phase = PhaseInProgress
+			s.withTurnDeadline(m.clock())
+		}
+		s.bumpTick()
+		return nil
+	})
+}
+
+// SetConnected — обрыв/reconnect стрима (не Leave): только флаг сети и статус.
+func (m *Match) SetConnected(playerID string, connected bool) error {
+	return m.mutate(func(s *State) error {
+		p := s.Player(playerID)
+		if p == nil {
+			return errUnknownPlayer
+		}
+		if p.Status == PlayerStatusLeft {
+			return nil
+		}
+		if connected {
+			s.updatePlayer(playerID, func(pl *Player) {
+				pl.IsConnected = true
+				if pl.Status == PlayerStatusDisconnected {
+					if s.Phase == PhaseLobbyWaiting && !pl.IsReady {
+						pl.Status = PlayerStatusWaiting
+					} else {
+						pl.Status = PlayerStatusPlaying
+					}
+				}
+			})
+		} else {
+			s.updatePlayer(playerID, func(pl *Player) {
+				pl.IsConnected = false
+				pl.Status = PlayerStatusDisconnected
+			})
+		}
+		s.bumpTick()
 		return nil
 	})
 }
@@ -825,4 +898,5 @@ var (
 	errBitoNotAllowed      = errors.New("bito not allowed")
 	errUnknownPlayer       = errors.New("unknown player")
 	errCannotSkipTurn      = errors.New("cannot skip turn in this state")
+	errReadyNotAllowed     = errors.New("ready not allowed")
 )

@@ -30,7 +30,7 @@ func (h *Hub) ActiveGames() []ActiveGameInfo {
 			continue
 		}
 		st := m.State()
-		if st.Phase != engine.PhaseInProgress {
+		if st.Phase != engine.PhaseInProgress && st.Phase != engine.PhaseLobbyWaiting {
 			continue
 		}
 		out = append(out, ActiveGameInfo{

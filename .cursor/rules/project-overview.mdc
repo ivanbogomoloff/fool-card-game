@@ -10,7 +10,7 @@ alwaysApply: true
 - Server TZ: [`server/docs`](../../server/docs/README.md) (gRPC, MariaDB, autocert); при работе в `server/` — правило [`server-golang.mdc`](server-golang.mdc)
 - UI language: **Russian**
 - Architecture docs: `docs/architecture/`; game rules: `docs/game-rules/podkidnoy-durak.md`; backlog recovery: `docs/backlog/game-recovery.doc`
-- Phased plan: `docs/phases/` — **current: Phase 5b (server TZ / implementation)**; Phase 5 fake online done
-- `startDestination = Routes.MAIN`; `LoginScreen` opens when entering online without a session
-- Offline human seat: `"Вы"` + default avatar; online: account name/avatar via `GameClient`
+- Phased plan: `docs/phases/` — **Phase 6 (gRPC Android) done**; debug host via `local.properties` (`grpc.host`); **Phase 7** (account binding) — stub only
+- `startDestination = Routes.MAIN`; `LoginScreen` opens when entering online without a session (username only; password from Keystore)
+- Offline human seat: `"Вы"` + default avatar; online: account name (read-only in lobby) / avatar via `GameClient`
 - Unit tests: `docs/architecture/testing.md`; run `./gradlew testDebugUnitTest` before advancing

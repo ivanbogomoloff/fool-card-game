@@ -1,41 +1,37 @@
 package com.example.foolcardgame.data.client
 
-import com.example.foolcardgame.data.api.FakeGameApi
 import com.example.foolcardgame.data.local.InMemoryAuthSessionStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RemoteGameClientTest {
 
     @Test
-    fun login_thenQuickMatch() = runTest {
+    fun login_thenQuickMatch_viaFakeOnline() = runTest {
         val auth = InMemoryAuthSessionStore()
-        val client = RemoteGameClient(
-            api = FakeGameApi(fastJoinSuccessAfterAttempts = 2),
+        val client = FakeOnlineGameClient(
             authSession = auth,
+            quickMatchSuccessAfterUpdates = 1,
         )
         assertFalse(client.isAuthorized())
         assertTrue(client.login("Иван").isSuccess)
         assertTrue(client.isAuthorized())
 
-        assertNull(client.quickMatch("Иван", 0).getOrThrow())
-        val sessionFromQuick = client.quickMatch("Иван", 0).getOrThrow()
-        assertNotNull(sessionFromQuick)
-        assertTrue(sessionFromQuick!!.startsWith("online-"))
+        val matched = client.observeQuickMatch("Иван", 0).first { it is QueueUpdate.Matched }
+        assertTrue(matched is QueueUpdate.Matched)
+        assertTrue(OnlineSessionIds.isOnline((matched as QueueUpdate.Matched).sessionId))
     }
 
     @Test
-    fun createJoinKickStart_onSharedApi() = runTest {
-        val api = FakeGameApi()
-        val hostAuth = InMemoryAuthSessionStore()
-        val guestAuth = InMemoryAuthSessionStore()
-        val host = RemoteGameClient(api = api, authSession = hostAuth)
-        val guest = RemoteGameClient(api = api, authSession = guestAuth)
+    fun createJoinKickStart_onSharedBackend() = runTest {
+        val backend = FakeOnlineBackend()
+        val host = FakeOnlineGameClient(authSession = InMemoryAuthSessionStore(), backend = backend)
+        val guest = FakeOnlineGameClient(authSession = InMemoryAuthSessionStore(), backend = backend)
 
         assertTrue(host.login("Хост").isSuccess)
         assertTrue(guest.login("Гость").isSuccess)
@@ -58,7 +54,20 @@ class RemoteGameClientTest {
 
     @Test
     fun quickMatch_withoutLogin_fails() = runTest {
-        val client = RemoteGameClient(api = FakeGameApi(), authSession = InMemoryAuthSessionStore())
-        assertTrue(client.quickMatch("Иван", 0).isFailure)
+        val client = FakeOnlineGameClient(authSession = InMemoryAuthSessionStore())
+        val result = runCatching {
+            client.observeQuickMatch("Иван", 0).first()
+        }
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun onlineSessionIds_wrapUnwrap() {
+        val raw = "abc-123"
+        val wrapped = OnlineSessionIds.wrap(raw)
+        assertTrue(OnlineSessionIds.isOnline(wrapped))
+        assertEquals(raw, OnlineSessionIds.unwrap(wrapped))
+        assertNotNull(OnlineSessionIds.wrap(wrapped))
+        assertEquals(wrapped, OnlineSessionIds.wrap(wrapped))
     }
 }

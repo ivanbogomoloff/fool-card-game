@@ -9,12 +9,12 @@ alwaysApply: false
 - `domain/` — pure Kotlin, no Android imports
 - Game logic: `GameEngine`; bots: `BotAI`; bot nicknames: `BotNames` (Hollywood + Russian classics, Russian strings)
 - Offline human seat: `GameConfig.OFFLINE_HUMAN_DISPLAY_NAME` (`"Вы"`) + default avatar `0` — not online profile
-- Online: `GameClient.login` / `getProfile` / `updateProfile` (Remote → REST); Local — no-op
+- Online: `GameClient.login` / matchmaking / stream actions (Remote → gRPC); Local — no-op auth
 - All game actions go through `GameClient` (`LocalGameClient` offline; `RemoteGameClient` online)
 - ViewModels call `GameClient`, never `GameEngine` directly
-- `observeState()` Flow for tick polling; `getState()` after actions
-- Actions: `login`, profile, `playCard`, `addCard`, `pass`, `bito`, `ready`, `leaveSession`
-- DTOs in `data/api/dto/` with `@Serializable`; map in repository / clients
+- Online: `observeState()` / `observeRoom()` / `observeQuickMatch()` — push со stream; offline — tick/poll engine
+- Actions: `login`, `playCard`, `addCard`, `pass`, `bito`, `ready`, `leaveSession` (Leave на сервер)
+- DTOs in `data/api/dto/`; proto → DTO в `data/network/ProtoMappers`
 
 ```kotlin
 // ✅ ViewModel

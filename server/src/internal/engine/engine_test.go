@@ -260,12 +260,15 @@ func TestNewMatch_DealAndStart(t *testing.T) {
 	}
 	m := NewMatch("test-game", seats, 42, fixedClock())
 	st := m.State()
-	if st.Phase != PhaseInProgress {
-		t.Fatalf("want IN_PROGRESS, got %v", st.Phase)
+	if st.Phase != PhaseLobbyWaiting {
+		t.Fatalf("want LOBBY_WAITING, got %v", st.Phase)
 	}
 	for _, p := range st.Players {
 		if len(p.Hand) != 6 {
 			t.Fatalf("player %s should have 6 cards, got %d", p.PlayerID, len(p.Hand))
+		}
+		if p.IsReady {
+			t.Fatalf("player %s should not be ready yet", p.PlayerID)
 		}
 	}
 	if len(st.Deck) != 36-2*6 {
@@ -276,6 +279,86 @@ func TestNewMatch_DealAndStart(t *testing.T) {
 	}
 	if st.AttackerID == "" || st.DefenderID == "" {
 		t.Fatal("roles required")
+	}
+	if st.TurnDeadlineAtMs != nil {
+		t.Fatal("turn deadline only after IN_PROGRESS")
+	}
+}
+
+func TestReady_AllPlayersStartInProgress(t *testing.T) {
+	m := NewMatch("ready-game", []SeatIn{
+		{PlayerID: "p1", Username: "A"},
+		{PlayerID: "p2", Username: "B"},
+	}, 1, fixedClock())
+	if err := m.Ready("p1"); err != nil {
+		t.Fatal(err)
+	}
+	st := m.State()
+	if st.Phase != PhaseLobbyWaiting {
+		t.Fatalf("one ready → still lobby, got %v", st.Phase)
+	}
+	if !st.Player("p1").IsReady || st.Player("p2").IsReady {
+		t.Fatal("only p1 should be ready")
+	}
+	gs := m.Project("p1")
+	if gs.CanReady {
+		t.Fatal("p1 already ready → can_ready false")
+	}
+	gs2 := m.Project("p2")
+	if !gs2.CanReady {
+		t.Fatal("p2 should can_ready")
+	}
+	if err := m.Ready("p2"); err != nil {
+		t.Fatal(err)
+	}
+	st = m.State()
+	if st.Phase != PhaseInProgress {
+		t.Fatalf("all ready → IN_PROGRESS, got %v", st.Phase)
+	}
+	if st.TurnDeadlineAtMs == nil {
+		t.Fatal("deadline after start")
+	}
+	if m.Project("p1").CanReady || m.Project("p2").CanReady {
+		t.Fatal("no can_ready in IN_PROGRESS")
+	}
+}
+
+func TestSetConnected_DisconnectReconnect(t *testing.T) {
+	m := NewMatch("conn", []SeatIn{
+		{PlayerID: "p1", Username: "A"},
+		{PlayerID: "p2", Username: "B"},
+	}, 2, fixedClock())
+	_ = m.Ready("p1")
+	_ = m.Ready("p2")
+	if err := m.SetConnected("p2", false); err != nil {
+		t.Fatal(err)
+	}
+	p2 := m.State().Player("p2")
+	if p2.IsConnected || p2.Status != PlayerStatusDisconnected {
+		t.Fatalf("want disconnected, got connected=%v status=%v", p2.IsConnected, p2.Status)
+	}
+	if len(p2.Hand) != 6 {
+		t.Fatal("hand must remain")
+	}
+	proj := m.Project("p1")
+	found := false
+	for _, pl := range proj.Players {
+		if pl.Id == "p2" {
+			found = true
+			if pl.IsConnected {
+				t.Fatal("projected p2 should be disconnected")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("p2 missing in projection")
+	}
+	if err := m.SetConnected("p2", true); err != nil {
+		t.Fatal(err)
+	}
+	p2 = m.State().Player("p2")
+	if !p2.IsConnected || p2.Status != PlayerStatusPlaying {
+		t.Fatalf("want online playing, got connected=%v status=%v", p2.IsConnected, p2.Status)
 	}
 }
 

@@ -57,7 +57,10 @@ fun AppNavGraph(
         composable(Routes.LOGIN) {
             val context = LocalContext.current
             val viewModel: LoginViewModel = viewModel(
-                factory = LoginViewModelFactory(AppGraph.remoteGameClient(context)),
+                factory = LoginViewModelFactory(
+                    gameClient = AppGraph.remoteGameClient(context),
+                    credentialsStore = AppGraph.accountCredentials(context),
+                ),
             )
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(viewModel) {
@@ -69,6 +72,7 @@ fun AppNavGraph(
             }
             LoginScreen(
                 uiState = uiState,
+                onUsernameChange = viewModel::onUsernameChange,
                 onLoginClick = viewModel::onLoginClick,
                 onBack = { navController.popBackStack() },
             )
@@ -112,7 +116,10 @@ fun AppNavGraph(
         composable(Routes.ONLINE_LOBBY) {
             val context = LocalContext.current
             val viewModel: OnlineLobbyViewModel = viewModel(
-                factory = OnlineLobbyViewModelFactory(AppGraph.remoteGameClient(context)),
+                factory = OnlineLobbyViewModelFactory(
+                    gameClient = AppGraph.remoteGameClient(context),
+                    credentialsStore = AppGraph.accountCredentials(context),
+                ),
             )
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(viewModel) {
@@ -139,7 +146,6 @@ fun AppNavGraph(
             }
             OnlineLobbyScreen(
                 uiState = uiState,
-                onDisplayNameChange = viewModel::onDisplayNameChange,
                 onAvatarSelected = viewModel::onAvatarSelected,
                 onQuickMatchClick = viewModel::onQuickMatchClick,
                 onCancelQuickMatch = viewModel::onCancelQuickMatch,

@@ -333,7 +333,7 @@ func (h *Hub) beginMatchLocked(sess *Session) {
 	sess.room.Started = true
 	for i := range sess.room.Players {
 		if sess.room.Players[i].Status != pb.PlayerStatus_LEFT {
-			sess.room.Players[i].Status = pb.PlayerStatus_PLAYING
+			sess.room.Players[i].Status = pb.PlayerStatus_WAITING
 		}
 	}
 	seats := make([]MatchSeat, 0, len(sess.room.Players))
@@ -550,17 +550,12 @@ func (h *Hub) Subscribe(accountID, gameID, playerID string, ch chan *pb.ServerMe
 	}
 
 	if sess.room.Started && sess.match != nil {
-		// Resnapshot после reconnect.
-		if p.Status == pb.PlayerStatus_DISCONNECTED || p.Status == pb.PlayerStatus_PLAYING {
-			_ = sess.match // статус в engine при reconnect — playing/connected
-		}
+		_ = sess.match.SetConnected(playerID, true)
+		// Resnapshot после reconnect + обновить остальных (is_connected).
 		sess.sendToLocked(playerID, &pb.ServerMessage{
 			Payload: &pb.ServerMessage_MatchStarted{MatchStarted: &pb.MatchStarted{GameId: gameID}},
 		})
-		gs := sess.match.Project(playerID)
-		sess.sendToLocked(playerID, &pb.ServerMessage{
-			Payload: &pb.ServerMessage_GameState{GameState: gs},
-		})
+		h.broadcastEngineLocked(sess)
 	} else {
 		sess.sendToLocked(playerID, &pb.ServerMessage{
 			Payload: &pb.ServerMessage_RoomState{RoomState: sess.room.toProto()},
@@ -754,8 +749,9 @@ func (h *Hub) Disconnect(accountID, gameID, playerID string) {
 		sess.broadcastRoomLocked()
 		return
 	}
-	// Игрок остаётся в партии; таймауты/OnTick продолжают ход.
+	// Игрок остаётся в партии; таймауты/OnTick продолжают ход после старта.
 	if sess.match != nil {
+		_ = sess.match.SetConnected(playerID, false)
 		h.broadcastEngineLocked(sess)
 	}
 }

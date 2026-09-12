@@ -47,7 +47,6 @@ import com.example.foolcardgame.ui.theme.TrumpGold
 @Composable
 fun OnlineLobbyScreen(
     uiState: OnlineLobbyUiState,
-    onDisplayNameChange: (String) -> Unit,
     onAvatarSelected: (Int) -> Unit,
     onQuickMatchClick: () -> Unit,
     onCancelQuickMatch: () -> Unit,
@@ -93,10 +92,10 @@ fun OnlineLobbyScreen(
             item {
                 OutlinedTextField(
                     value = uiState.displayName,
-                    onValueChange = onDisplayNameChange,
+                    onValueChange = {},
                     label = { Text("Имя") },
                     singleLine = true,
-                    enabled = !uiState.isQuickMatching,
+                    enabled = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -200,6 +199,13 @@ fun OnlineLobbyScreen(
             ) {
                 Text(text = "Ожидайте", style = MaterialTheme.typography.titleLarge)
                 WaitingDots(color = AccentTeal)
+                if (uiState.queueWaitingCount > 0) {
+                    Text(
+                        text = "В очереди: ${uiState.queueWaitingCount}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 PrimaryButton(text = "Отмена", onClick = onCancelQuickMatch)
             }
         }
@@ -241,7 +247,6 @@ private fun OnlineLobbyScreenPreview() {
                 avatarId = 1,
                 friendsExpanded = true,
             ),
-            onDisplayNameChange = {},
             onAvatarSelected = {},
             onQuickMatchClick = {},
             onCancelQuickMatch = {},

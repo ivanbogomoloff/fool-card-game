@@ -1,8 +1,9 @@
 package com.example.foolcardgame.presentation.online
 
-import com.example.foolcardgame.data.api.FakeGameApi
+import com.example.foolcardgame.data.client.FakeOnlineGameClient
 import com.example.foolcardgame.data.client.GameClient
-import com.example.foolcardgame.data.client.RemoteGameClient
+import com.example.foolcardgame.data.local.AccountCredentials
+import com.example.foolcardgame.data.local.InMemoryAccountCredentialsStore
 import com.example.foolcardgame.data.local.InMemoryAuthSessionStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,15 +38,30 @@ class OnlineLobbyViewModelTest {
     }
 
     @Test
-    fun quickMatch_pollsUntilSession() = runTest {
+    fun displayName_fromCredentials_isReadOnlySource() = runTest {
+        val creds = InMemoryAccountCredentialsStore().apply {
+            save(AccountCredentials(username = "Алиса", password = "secret", accountId = "a1"))
+        }
+        val vm = OnlineLobbyViewModel(
+            gameClient = FakeOnlineGameClient(),
+            credentialsStore = creds,
+        )
+        assertEquals("Алиса", vm.uiState.value.displayName)
+    }
+
+    @Test
+    fun quickMatch_collectsQueueUntilMatched() = runTest {
         val auth = InMemoryAuthSessionStore()
-        val client = RemoteGameClient(
-            api = FakeGameApi(fastJoinSuccessAfterAttempts = 2),
+        val client = FakeOnlineGameClient(
             authSession = auth,
+            quickMatchSuccessAfterUpdates = 2,
         )
         assertTrue(client.login("Игрок").isSuccess)
+        val creds = InMemoryAccountCredentialsStore().apply {
+            save(AccountCredentials(username = "Игрок", password = "p", accountId = "1"))
+        }
 
-        val vm = OnlineLobbyViewModel(client)
+        val vm = OnlineLobbyViewModel(client, creds)
         val nav = async { vm.navEvents.first() }
 
         vm.onQuickMatchClick()
@@ -63,10 +79,13 @@ class OnlineLobbyViewModelTest {
     @Test
     fun friendsExpand_doesNotTouchApiList() = runTest {
         val auth = InMemoryAuthSessionStore()
-        val client = RemoteGameClient(api = FakeGameApi(), authSession = auth)
+        val client = FakeOnlineGameClient(authSession = auth)
         assertTrue(client.login("Игрок").isSuccess)
+        val creds = InMemoryAccountCredentialsStore().apply {
+            save(AccountCredentials(username = "Игрок", password = "p", accountId = "1"))
+        }
 
-        val vm = OnlineLobbyViewModel(client)
+        val vm = OnlineLobbyViewModel(client, creds)
         assertFalse(vm.uiState.value.friendsExpanded)
         vm.onFriendsExpandToggle()
         assertTrue(vm.uiState.value.friendsExpanded)
@@ -76,15 +95,43 @@ class OnlineLobbyViewModelTest {
     @Test
     fun createPrivate_navigatesToWaiting() = runTest {
         val auth = InMemoryAuthSessionStore()
-        val client = RemoteGameClient(api = FakeGameApi(), authSession = auth)
+        val client = FakeOnlineGameClient(authSession = auth)
         assertTrue(client.login("Хост").isSuccess)
+        val creds = InMemoryAccountCredentialsStore().apply {
+            save(AccountCredentials(username = "Хост", password = "p", accountId = "1"))
+        }
 
-        val vm = OnlineLobbyViewModel(client)
+        val vm = OnlineLobbyViewModel(client, creds)
         val nav = async { vm.navEvents.first() }
         vm.onCreatePrivateClick()
         runCurrent()
 
         val event = nav.await()
         assertTrue(event is OnlineLobbyNavEvent.ToWaiting)
+    }
+
+    @Test
+    fun quickMatch_sessionError_clearsWaitingAndShowsMessage() = runTest {
+        val auth = InMemoryAuthSessionStore()
+        // Долгое ожидание матча, чтобы успеть прислать ошибку
+        val client = FakeOnlineGameClient(
+            authSession = auth,
+            quickMatchSuccessAfterUpdates = 50,
+        )
+        assertTrue(client.login("Игрок").isSuccess)
+        val creds = InMemoryAccountCredentialsStore().apply {
+            save(AccountCredentials(username = "Игрок", password = "p", accountId = "1"))
+        }
+
+        val vm = OnlineLobbyViewModel(client, creds)
+        vm.onQuickMatchClick()
+        runCurrent()
+        assertTrue(vm.uiState.value.isQuickMatching)
+
+        client.emitSessionError("аккаунт уже в очереди или матче")
+        runCurrent()
+
+        assertFalse(vm.uiState.value.isQuickMatching)
+        assertEquals("аккаунт уже в очереди или матче", vm.uiState.value.errorMessage)
     }
 }

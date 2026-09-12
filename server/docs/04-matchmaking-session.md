@@ -86,7 +86,7 @@ flowchart TB
 1. Регистрация в **глобальной in-memory очереди**; `QueueState` при каждом изменении (`SEARCHING` / `FILLING`).
 2. Пока `< QUICK_MIN_PLAYERS` — ждать (с учётом timeout).
 3. При **≥ 2** → фаза `FILLING`, таймер `QUICK_FILL_WINDOW` (5 с); новые QuickMatch вливаются до max.
-4. По окончании окна **или** при max=4: создать Session с **новым UUID game id**, привязать 2–4 игроков, кратко `RoomState`, затем **сервер** стартует → `MatchStarted` + `GameState`.
+4. По окончании окна **или** при max=4: создать Session с **новым UUID game id**, привязать 2–4 игроков, кратко `RoomState`, затем **сервер** открывает стол → `MatchStarted` + `GameState` (`LOBBY_WAITING`, раздача, `can_ready`). Переход в `IN_PROGRESS` — после `Ready` всех игроков.
 5. `Leave` / закрытие stream в SEARCHING — снять из очереди, обновить QueueState.
 6. Если в FILLING после ухода снова `< 2` → **вернуться в SEARCHING**, отменить автостарт.
 
@@ -118,7 +118,7 @@ sequenceDiagram
 | Join | unary по code → game_id + player_id |
 | Subscribe | stream: `Subscribe(game_id, player_id)` → push `RoomState` |
 | Kick | только host, нельзя кикнуть себя как host-единственного по правилам «не кикать host» |
-| StartGame | только host, ≥ 2 игрока → UUID уже есть с create; старт engine → MatchStarted |
+| StartGame | только host, ≥ 2 игрока → UUID уже есть с create; engine в `LOBBY_WAITING` → MatchStarted; далее Ready всех → IN_PROGRESS |
 
 Код: 6 символов из `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; normalize uppercase.
 
@@ -127,7 +127,7 @@ sequenceDiagram
 | Событие | Поведение |
 |---------|-----------|
 | `ClientMessage.Leave` | Статус `LEFT`; MatchLog `VoluntaryLeaves`; снять channel; broadcast; `LeftAck`; закрытие стрима допустимо |
-| Обрыв stream | `DISCONNECTED`; reconnect без пометки «вышел сам» |
+| Обрыв stream | `DISCONNECTED` в room + engine (`is_connected=false` в `GameState`); reconnect `Subscribe` → снова online |
 
 - Leave до старта матча: только снять с очереди/комнаты; **в БД игр не писать**.
 - Leave в `IN_PROGRESS`: факт ухода в MatchLog; статистика — только после FINISHED (этап 5).

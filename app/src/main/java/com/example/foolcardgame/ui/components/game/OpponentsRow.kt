@@ -197,7 +197,7 @@ private fun OpponentSeatView(
         }
         if (!opponent.isConnected) {
             Text(
-                text = "Нет сети",
+                text = "Нет в сети",
                 style = MaterialTheme.typography.labelSmall,
                 color = SoftCoral,
             )
