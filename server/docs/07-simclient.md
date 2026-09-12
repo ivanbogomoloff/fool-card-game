@@ -82,7 +82,7 @@ go run ./cmd/simclient --mode bot --name Бот1 --quick --addr 127.0.0.1:8080
 | `Auth.Login` | уникальный `username`; регистрация → password; повтор → password; ответ: token, username, account_id |
 | Bearer | interceptor → `account_id` |
 | Session Ping/Leave | ok |
-| Create/Join/QuickMatch | Unimplemented до 4–5 |
+| Create/Join/QuickMatch | этап 4: private Create/Join + Session QuickMatch/Subscribe |
 
 ### Проверка Login дважды
 

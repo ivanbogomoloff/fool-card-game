@@ -14,6 +14,7 @@ import (
 
 	"foolcardgame/server/internal/config"
 	"foolcardgame/server/internal/grpcserver"
+	"foolcardgame/server/internal/hub"
 	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/migrate"
 	"foolcardgame/server/internal/store"
@@ -52,6 +53,13 @@ func main() {
 	log.Printf("migrations ok")
 
 	accounts := &store.Accounts{DB: db}
+	matchHub := hub.New(hub.Config{
+		QuickMinPlayers:   cfg.QuickMinPlayers,
+		QuickMaxPlayers:   cfg.QuickMaxPlayers,
+		QuickFillWindow:   cfg.QuickFillWindow,
+		QuickQueueTimeout: cfg.QuickQueueTimeout,
+		LogDir:            cfg.LogDir,
+	})
 
 	healthMux := http.NewServeMux()
 	healthMux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -83,7 +91,7 @@ func main() {
 			log.Fatalf("acme :80: %v", err)
 		}
 		creds := credentials.NewTLS(tlssetup.TLSConfig(mgr))
-		grpcSrv = grpcserver.New(grpcserver.Options{TLS: creds, Logger: appLog, Accounts: accounts})
+		grpcSrv = grpcserver.New(grpcserver.Options{TLS: creds, Logger: appLog, Accounts: accounts, Hub: matchHub})
 		ln, err := net.Listen("tcp", ":443")
 		if err != nil {
 			log.Fatalf("listen :443: %v", err)
@@ -91,7 +99,7 @@ func main() {
 		go serveGRPC(grpcSrv, ln, "gRPC+TLS :443")
 		log.Printf("TLS: ACME :80, gRPC :443 host=%s cache=%s", cfg.Host, cfg.ACMECacheDir)
 	} else {
-		grpcSrv = grpcserver.New(grpcserver.Options{Logger: appLog, Accounts: accounts})
+		grpcSrv = grpcserver.New(grpcserver.Options{Logger: appLog, Accounts: accounts, Hub: matchHub})
 		ln, err := net.Listen("tcp", cfg.HTTPAddr)
 		if err != nil {
 			log.Fatalf("listen %s: %v", cfg.HTTPAddr, err)

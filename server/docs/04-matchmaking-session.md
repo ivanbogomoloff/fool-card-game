@@ -142,12 +142,12 @@ sequenceDiagram
 
 ## Критерии приёмки
 
-- [ ] QuickMatch: 1 ждёт; 2-й → FILLING; 3-й в окне попадает в стол; автостарт без StartGame
-- [ ] max=4 стартует до конца окна; Leave из очереди; QUEUE_TIMEOUT
-- [ ] FILLING → снова SEARCHING если `< 2`
-- [ ] Private: create/join/kick/start; non-host StartGame отказан
-- [ ] Leave → LEFT; disconnect → DISCONNECTED
-- [ ] Broadcast: ход одного видят все через свои каналы
+- [x] QuickMatch: 1 ждёт; 2-й → FILLING; 3-й в окне попадает в стол; автостарт без StartGame
+- [x] max=4 стартует до конца окна; Leave из очереди; QUEUE_TIMEOUT
+- [x] FILLING → снова SEARCHING если `< 2`
+- [x] Private: create/join/kick/start; non-host StartGame отказан
+- [x] Leave → LEFT; disconnect → DISCONNECTED
+- [x] Broadcast: ход одного видят все через свои каналы
 
 ## Тесты этапа
 

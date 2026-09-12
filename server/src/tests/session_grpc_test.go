@@ -69,11 +69,16 @@ func loginRegister(t *testing.T, auth pb.AuthClient, username string) (token, pa
 	return resp.Token, *resp.Password
 }
 
+// uniqName — короткое уникальное имя для регистрации между прогонами.
+func uniqName(prefix string) string {
+	return prefix + "_" + time.Now().Format("150405.000")
+}
+
 func TestSession_PingPong(t *testing.T) {
 	auth, _, session, cleanup := startBufServer(t)
 	defer cleanup()
 
-	token, _ := loginRegister(t, auth, "PingUser_"+t.Name())
+	token, _ := loginRegister(t, auth, uniqName("PingUser"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -132,16 +137,18 @@ func TestAuthInterceptor_WithBearer_ReachesHandler(t *testing.T) {
 	auth, mm, _, cleanup := startBufServer(t)
 	defer cleanup()
 
-	token, _ := loginRegister(t, auth, "BearerUser_"+t.Name())
+	token, _ := loginRegister(t, auth, uniqName("BearerUser"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))
 
-	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{Username: "A", AvatarId: 0})
-	st, ok := status.FromError(err)
-	if !ok || st.Code() != codes.Unimplemented {
-		t.Fatalf("want Unimplemented stub after auth, got %v", err)
+	resp, err := mm.CreateGame(ctx, &pb.PlayerProfile{Username: "A", AvatarId: 0})
+	if err != nil {
+		t.Fatalf("CreateGame after auth: %v", err)
+	}
+	if resp.GameId == "" || resp.AccessCode == "" || resp.PlayerId == "" {
+		t.Fatalf("incomplete CreateGameResponse: %#v", resp)
 	}
 }
 
@@ -163,7 +170,7 @@ func TestLogin_NameTakenNeedsPassword(t *testing.T) {
 	auth, _, _, cleanup := startBufServer(t)
 	defer cleanup()
 
-	name := "Taken_" + t.Name()
+	name := uniqName("Taken")
 	_, _ = loginRegister(t, auth, name)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -179,7 +186,7 @@ func TestLogin_ReloginWithPassword(t *testing.T) {
 	auth, _, _, cleanup := startBufServer(t)
 	defer cleanup()
 
-	name := "Relogin_" + t.Name()
+	name := uniqName("Relogin")
 	_, pwd := loginRegister(t, auth, name)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"foolcardgame/server/internal/auth"
+	"foolcardgame/server/internal/hub"
 	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/service"
@@ -24,6 +25,8 @@ type Options struct {
 	Logger *logging.Logger
 	// Accounts — Login и проверка Bearer; обязателен для защищённых RPC.
 	Accounts *store.Accounts
+	// Hub — matchmaking + session; если nil, создаётся с дефолтами.
+	Hub *hub.Hub
 }
 
 // New создаёт сервер с keepalive, interceptor и зарегистрированными сервисами.
@@ -51,9 +54,14 @@ func New(opts Options) *grpc.Server {
 
 	s := grpc.NewServer(serverOpts...)
 
+	h := opts.Hub
+	if h == nil {
+		h = hub.New(hub.Config{})
+	}
+
 	pb.RegisterAuthServer(s, service.NewAuthServer(opts.Accounts))
-	pb.RegisterMatchmakingServer(s, service.NewMatchmakingServer())
-	pb.RegisterGameSessionServer(s, service.NewSessionServer())
+	pb.RegisterMatchmakingServer(s, service.NewMatchmakingServer(h))
+	pb.RegisterGameSessionServer(s, service.NewSessionServer(h))
 
 	hs := health.NewServer()
 	hs.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)

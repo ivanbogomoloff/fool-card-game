@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"foolcardgame/server/internal/auth"
+	"foolcardgame/server/internal/hub"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/store"
 
@@ -60,17 +62,59 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	return resp, nil
 }
 
-// MatchmakingServer — заглушки private create/join (логика — этап 4).
+// MatchmakingServer — private Create/Join.
 type MatchmakingServer struct {
 	pb.UnimplementedMatchmakingServer
+	Hub *hub.Hub
 }
 
-func NewMatchmakingServer() *MatchmakingServer { return &MatchmakingServer{} }
-
-func (s *MatchmakingServer) CreateGame(context.Context, *pb.PlayerProfile) (*pb.CreateGameResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "CreateGame: этап 4")
+func NewMatchmakingServer(h *hub.Hub) *MatchmakingServer {
+	return &MatchmakingServer{Hub: h}
 }
 
-func (s *MatchmakingServer) JoinGame(context.Context, *pb.JoinGameRequest) (*pb.JoinGameResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "JoinGame: этап 4")
+func (s *MatchmakingServer) CreateGame(ctx context.Context, req *pb.PlayerProfile) (*pb.CreateGameResponse, error) {
+	if s.Hub == nil {
+		return nil, status.Error(codes.Internal, "hub не настроен")
+	}
+	accountID, ok := auth.AccountIDFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "нет account_id")
+	}
+	username := ""
+	var avatar int32
+	if req != nil {
+		username = req.Username
+		avatar = req.AvatarId
+	}
+	resp, err := s.Hub.CreatePrivate(accountID, username, avatar)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "%v", err)
+	}
+	return resp, nil
+}
+
+func (s *MatchmakingServer) JoinGame(ctx context.Context, req *pb.JoinGameRequest) (*pb.JoinGameResponse, error) {
+	if s.Hub == nil {
+		return nil, status.Error(codes.Internal, "hub не настроен")
+	}
+	accountID, ok := auth.AccountIDFromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "нет account_id")
+	}
+	code, username := "", ""
+	var avatar int32
+	if req != nil {
+		code = req.Code
+		username = req.Username
+		avatar = req.AvatarId
+	}
+	resp, err := s.Hub.JoinPrivate(accountID, code, username, avatar)
+	if err != nil {
+		msg := err.Error()
+		if msg == "комната не найдена" {
+			return nil, status.Error(codes.NotFound, msg)
+		}
+		return nil, status.Errorf(codes.FailedPrecondition, "%v", err)
+	}
+	return resp, nil
 }
