@@ -90,12 +90,12 @@ flowchart LR
 
 ## Критерии приёмки
 
-- [ ] Партия 2–4 игрока доходит до FINISHED по правилам
-- [ ] До FINISHED таблица `games` пуста; после — 1 строка + N `game_players`
-- [ ] DRAW vs HAS_FOOL; Leave → `player_result=LEFT`
-- [ ] FULL_LOGGING: есть `game-{id}.log` с IN/OUT; ошибка → `errors.log`
-- [ ] FULL_LOGGING=false: game-файл нет; errors пишется
-- [ ] Тесты в `server/src/tests` зелёные
+- [x] Партия 2–4 игрока доходит до FINISHED по правилам
+- [x] До FINISHED таблица `games` пуста; после — 1 строка + N `game_players`
+- [x] DRAW vs HAS_FOOL; Leave → `player_result=LEFT`
+- [x] FULL_LOGGING: есть `game-{id}.log` с IN/OUT; ошибка → `errors.log`
+- [x] FULL_LOGGING=false: game-файл нет; errors пишется
+- [x] Тесты в `server/src/tests` зелёные
 
 ## Тесты этапа (и сводные MVP)
 

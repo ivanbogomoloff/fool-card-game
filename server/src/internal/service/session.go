@@ -7,11 +7,9 @@ import (
 	"foolcardgame/server/internal/auth"
 	"foolcardgame/server/internal/hub"
 	"foolcardgame/server/internal/pb"
-
-	"google.golang.org/grpc/codes"
 )
 
-// SessionServer — bidi Session: QuickMatch, Subscribe, Kick, StartGame, Leave, Ping.
+// SessionServer — bidi Session: QuickMatch, Subscribe, Kick, StartGame, Leave, ходы, Ping.
 type SessionServer struct {
 	pb.UnimplementedGameSessionServer
 	Hub *hub.Hub
@@ -48,6 +46,12 @@ func (s *SessionServer) Session(stream pb.GameSession_SessionServer) error {
 		mu.Lock()
 		defer mu.Unlock()
 		return playerID, gameID, inQueue
+	}
+	resolveGame := func(pid, gid string) string {
+		if gid != "" {
+			return gid
+		}
+		return s.Hub.FindGameIDPublic(accountID, pid)
 	}
 
 	sendDone := make(chan struct{})
@@ -120,9 +124,7 @@ func (s *SessionServer) Session(stream pb.GameSession_SessionServer) error {
 
 		case *pb.ClientMessage_Kick:
 			pid, gid, _ := getBinding()
-			if gid == "" {
-				gid = s.Hub.FindGameIDPublic(accountID, pid)
-			}
+			gid = resolveGame(pid, gid)
 			if gid == "" || pid == "" {
 				_ = sendErr(stream, "INVALID", "нет активной сессии")
 				continue
@@ -137,9 +139,7 @@ func (s *SessionServer) Session(stream pb.GameSession_SessionServer) error {
 
 		case *pb.ClientMessage_StartGame:
 			pid, gid, _ := getBinding()
-			if gid == "" {
-				gid = s.Hub.FindGameIDPublic(accountID, pid)
-			}
+			gid = resolveGame(pid, gid)
 			if gid == "" || pid == "" {
 				_ = sendErr(stream, "INVALID", "нет активной сессии")
 				continue
@@ -147,6 +147,48 @@ func (s *SessionServer) Session(stream pb.GameSession_SessionServer) error {
 			if err := s.Hub.StartGame(accountID, gid, pid); err != nil {
 				_ = sendErr(stream, "START", err.Error())
 			}
+
+		case *pb.ClientMessage_PlayCard:
+			pid, gid, _ := getBinding()
+			gid = resolveGame(pid, gid)
+			pc := payload.PlayCard
+			var card *pb.Card
+			var target *int32
+			if pc != nil {
+				card = pc.Card
+				target = pc.TargetPairId
+			}
+			if err := s.Hub.PlayCard(accountID, gid, pid, card, target); err != nil {
+				_ = sendErr(stream, "PLAY", err.Error())
+			}
+
+		case *pb.ClientMessage_AddCard:
+			pid, gid, _ := getBinding()
+			gid = resolveGame(pid, gid)
+			var card *pb.Card
+			if payload.AddCard != nil {
+				card = payload.AddCard.Card
+			}
+			if err := s.Hub.AddCard(accountID, gid, pid, card); err != nil {
+				_ = sendErr(stream, "ADD", err.Error())
+			}
+
+		case *pb.ClientMessage_Pass:
+			pid, gid, _ := getBinding()
+			gid = resolveGame(pid, gid)
+			if err := s.Hub.Pass(accountID, gid, pid); err != nil {
+				_ = sendErr(stream, "PASS", err.Error())
+			}
+
+		case *pb.ClientMessage_Bito:
+			pid, gid, _ := getBinding()
+			gid = resolveGame(pid, gid)
+			if err := s.Hub.Bito(accountID, gid, pid); err != nil {
+				_ = sendErr(stream, "BITO", err.Error())
+			}
+
+		case *pb.ClientMessage_Ready:
+			_ = sendErr(stream, "READY", "ready не требуется: матч стартует сервером")
 
 		case *pb.ClientMessage_Leave:
 			pid, _, _ := getBinding()
@@ -159,16 +201,12 @@ func (s *SessionServer) Session(stream pb.GameSession_SessionServer) error {
 			<-sendDone
 			return nil
 
-		case *pb.ClientMessage_PlayCard, *pb.ClientMessage_AddCard,
-			*pb.ClientMessage_Pass, *pb.ClientMessage_Bito, *pb.ClientMessage_Ready:
-			_ = sendErr(stream, codes.Unimplemented.String(), "ходы — этап 5 (engine)")
-
 		case nil:
 			_ = sendErr(stream, "EMPTY", "пустое ClientMessage")
 
 		default:
 			_ = payload
-			_ = sendErr(stream, codes.Unimplemented.String(), "неизвестное сообщение")
+			_ = sendErr(stream, "UNKNOWN", "неизвестное сообщение")
 		}
 	}
 }

@@ -55,11 +55,16 @@ func FormatPair(p *pb.TablePair) string {
 	return FormatCard(p.Attack) + " > " + def
 }
 
-// RenderTable печатает стол и руку.
+// RenderTable печатает козырь, стол и руку.
 func RenderTable(out io.Writer, st *pb.GameState) {
 	if st == nil {
 		fmt.Fprintln(out, "(нет GameState)")
 		return
+	}
+	if t := st.GetTrump(); t != nil {
+		fmt.Fprintf(out, "Козырь: %s\n", FormatCard(t))
+	} else {
+		fmt.Fprintln(out, "Козырь: (нет)")
 	}
 	fmt.Fprintln(out, "Стол:")
 	if len(st.TablePairs) == 0 {

@@ -12,8 +12,9 @@ import (
 
 // BotOptions режим бота.
 type BotOptions struct {
-	Quick bool
-	Join  string // код комнаты; пусто если Quick
+	Quick    bool
+	Join     string // код комнаты; пусто если Quick
+	StartMin int    // минимум игроков в комнате для авто-StartGame (дефолт 2)
 }
 
 // RunBot login → quick|join → авто-реакции по GameState.
@@ -86,31 +87,70 @@ func RunBot(ctx context.Context, c *Client, opt BotOptions, out io.Writer) error
 		}
 	}
 
-	ticker := time.NewTicker(c.Cfg.Think)
-	defer ticker.Stop()
+	startMin := opt.StartMin
+	if startMin < 2 {
+		startMin = 2
+	}
+	if c.Cfg.Think > 0 {
+		fmt.Fprintf(out, "bot think fixed=%s\n", c.Cfg.Think)
+	} else {
+		fmt.Fprintf(out, "bot think random=[%s,%s]\n", c.Cfg.ThinkMin, c.Cfg.ThinkMax)
+	}
+
 	for {
+		delay := nextThinkDelay(c.Cfg)
+		timer := time.NewTimer(delay)
 		select {
 		case <-sessionCtx.Done():
+			timer.Stop()
 			return sessionCtx.Err()
 		case <-ctx.Done():
+			timer.Stop()
 			_ = hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Leave{Leave: &pb.Leave{}}})
 			return ctx.Err()
-		case <-ticker.C:
-			botTick(hub, c, out)
+		case <-timer.C:
+			if st := hub.GameState(); st != nil && st.Phase == pb.GamePhase_FINISHED {
+				fmt.Fprintln(out, "bot match finished, exit")
+				return nil
+			}
+			botTick(hub, c, out, startMin)
 		}
 	}
 }
 
-func botTick(hub *SessionHub, c *Client, out io.Writer) {
+func nextThinkDelay(cfg Config) time.Duration {
+	if cfg.Think > 0 {
+		return cfg.Think
+	}
+	min := cfg.ThinkMin
+	max := cfg.ThinkMax
+	if min <= 0 {
+		min = time.Second
+	}
+	if max < min {
+		max = min
+	}
+	if max == min {
+		return min
+	}
+	span := max - min
+	return min + time.Duration(rand.Int63n(int64(span)+1))
+}
+
+func botTick(hub *SessionHub, c *Client, out io.Writer, startMin int) {
 	st := hub.GameState()
 	if st == nil {
 		hub.mu.RLock()
 		room := hub.room
 		hub.mu.RUnlock()
-		if room != nil && !room.Started && c.playerID != "" && room.HostId == c.playerID && len(room.Players) >= 2 {
+		if room != nil && !room.Started && c.playerID != "" && room.HostId == c.playerID && len(room.Players) >= startMin {
 			_ = hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_StartGame{StartGame: &pb.StartGame{}}})
-			fmt.Fprintln(out, "bot StartGame")
+			fmt.Fprintf(out, "bot StartGame (players=%d min=%d)\n", len(room.Players), startMin)
 		}
+		return
+	}
+	if st.Phase == pb.GamePhase_FINISHED {
+		fmt.Fprintln(out, "bot FINISHED")
 		return
 	}
 	if st.CanReady {
@@ -118,34 +158,19 @@ func botTick(hub *SessionHub, c *Client, out io.Writer) {
 		fmt.Fprintln(out, "bot Ready")
 		return
 	}
-	if st.CanBito {
-		_ = hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Bito{Bito: &pb.Bito{}}})
+	msg := chooseLegalAction(st)
+	if msg == nil {
+		return
+	}
+	_ = hub.Send(msg)
+	switch msg.Payload.(type) {
+	case *pb.ClientMessage_Bito:
 		fmt.Fprintln(out, "bot Bito")
-		return
-	}
-	if st.CanPass || st.CanTake {
-		_ = hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Pass{Pass: &pb.Pass{}}})
+	case *pb.ClientMessage_Pass:
 		fmt.Fprintln(out, "bot Pass")
-		return
+	case *pb.ClientMessage_AddCard:
+		fmt.Fprintln(out, "bot AddCard")
+	case *pb.ClientMessage_PlayCard:
+		fmt.Fprintln(out, "bot PlayCard")
 	}
-	if len(st.LocalHand) == 0 {
-		return
-	}
-	hi := rand.Intn(len(st.LocalHand))
-	var undefended *pb.TablePair
-	for _, p := range st.TablePairs {
-		if p.Defense == nil {
-			undefended = p
-			break
-		}
-	}
-	intent := PlayIntent{Kind: "play", HandIndex: hi, HandCard: st.LocalHand[hi]}
-	if undefended != nil {
-		pid := undefended.Id
-		intent.TargetPairID = &pid
-	} else if len(st.TablePairs) > 0 {
-		intent.Kind = "add"
-	}
-	_ = hub.Send(intent.ToClientMessage())
-	fmt.Fprintf(out, "bot play hand[%d]\n", hi+1)
 }

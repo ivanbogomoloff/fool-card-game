@@ -25,7 +25,10 @@ type Config struct {
 	Password  string // явный пароль или после login
 	AccountID string
 	CredsPath string
-	Think     time.Duration
+	// Think — фиксированная пауза; если 0, используется случайная [ThinkMin, ThinkMax].
+	Think    time.Duration
+	ThinkMin time.Duration
+	ThinkMax time.Duration
 }
 
 // Client обёртка над gRPC без серверной логики.
@@ -45,8 +48,14 @@ func Dial(cfg Config) (*Client, error) {
 	if cfg.Addr == "" {
 		cfg.Addr = "127.0.0.1:8080"
 	}
-	if cfg.Think == 0 {
-		cfg.Think = 300 * time.Millisecond
+	if cfg.ThinkMin == 0 {
+		cfg.ThinkMin = time.Second
+	}
+	if cfg.ThinkMax == 0 {
+		cfg.ThinkMax = 5 * time.Second
+	}
+	if cfg.ThinkMax < cfg.ThinkMin {
+		cfg.ThinkMax = cfg.ThinkMin
 	}
 	var creds credentials.TransportCredentials
 	if cfg.TLS {

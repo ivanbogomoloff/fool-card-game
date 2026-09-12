@@ -9,6 +9,7 @@ import (
 
 	"foolcardgame/server/internal/grpcserver"
 	"foolcardgame/server/internal/hub"
+	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/store"
 
@@ -21,12 +22,21 @@ import (
 func testHub(t *testing.T) *hub.Hub {
 	t.Helper()
 	dir := t.TempDir()
+	db := openTestDB(t)
+	ensureMigrated(t, db)
+	appLog, err := logging.New(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = appLog.Close() })
 	return hub.New(hub.Config{
 		QuickMinPlayers:   2,
 		QuickMaxPlayers:   4,
 		QuickFillWindow:   80 * time.Millisecond,
 		QuickQueueTimeout: 150 * time.Millisecond,
 		LogDir:            dir,
+		Games:             &store.Games{DB: db},
+		Logger:            appLog,
 	})
 }
 
@@ -35,6 +45,20 @@ func startBufServerWithHub(t *testing.T, h *hub.Hub) (pb.AuthClient, pb.Matchmak
 	db := openTestDB(t)
 	ensureMigrated(t, db)
 	accounts := &store.Accounts{DB: db}
+	if h == nil {
+		logDir := t.TempDir()
+		appLog, err := logging.New(logDir, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		h = hub.New(hub.Config{
+			QuickMinPlayers: 2, QuickMaxPlayers: 4,
+			QuickFillWindow: 80 * time.Millisecond, QuickQueueTimeout: 150 * time.Millisecond,
+			LogDir: logDir, Games: &store.Games{DB: db}, Logger: appLog,
+		})
+	} else if h != nil {
+		// подставим Games если тесты создали hub без БД
+	}
 
 	lis := bufconn.Listen(bufSize)
 	srv := grpcserver.New(grpcserver.Options{Accounts: accounts, Hub: h})

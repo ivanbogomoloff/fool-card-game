@@ -23,7 +23,10 @@ func main() {
 	avatar := flag.Int("avatar", 0, "avatar id (matchmaking)")
 	quick := flag.Bool("quick", false, "bot: QuickMatch")
 	join := flag.String("join", "", "bot: код комнаты")
-	think := flag.Duration("think", 300*time.Millisecond, "bot: пауза между ходами")
+	think := flag.Duration("think", 0, "bot: фиксированная пауза (0 = случайная think-min..think-max)")
+	thinkMin := flag.Duration("think-min", time.Second, "bot: мин. «думанья» (как Android)")
+	thinkMax := flag.Duration("think-max", 5*time.Second, "bot: макс. «думанья» (как Android)")
+	startMin := flag.Int("start-min", 2, "bot host: минимум игроков перед StartGame")
 	flag.Parse()
 
 	nameExplicit := false
@@ -50,6 +53,8 @@ func main() {
 		Password:  *password,
 		CredsPath: *creds,
 		Think:     *think,
+		ThinkMin:  *thinkMin,
+		ThinkMax:  *thinkMax,
 	}
 	simclient.ApplyStoredCredentials(&cfg, nameExplicit)
 
@@ -73,7 +78,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "bot":
-		opt := simclient.BotOptions{Quick: *quick, Join: *join}
+		opt := simclient.BotOptions{Quick: *quick, Join: *join, StartMin: *startMin}
 		if err := simclient.RunBot(ctx, client, opt, os.Stdout); err != nil && err != context.Canceled {
 			fmt.Fprintf(os.Stderr, "bot: %v\n", err)
 			os.Exit(1)

@@ -61,6 +61,8 @@ go run ./cmd/simclient --mode bot --name Бот1 --quick --addr 127.0.0.1:8080
 
 Флаги: `--name` / `--username`, `--password`, `--creds` (путь к JSON).
 
+Bot: `--think-min` / `--think-max` (дефолт 1s–5s, как Android); `--think` — фиксированная пауза; `--start-min` — сколько игроков ждать перед StartGame у хоста.
+
 ## Credentials
 
 - Без `--creds`: пароль только **в памяти** процесса (повторный login в том же simclient работает; после выхода — нет).
@@ -82,7 +84,9 @@ go run ./cmd/simclient --mode bot --name Бот1 --quick --addr 127.0.0.1:8080
 | `Auth.Login` | уникальный `username`; регистрация → password; повтор → password; ответ: token, username, account_id |
 | Bearer | interceptor → `account_id` |
 | Session Ping/Leave | ok |
-| Create/Join/QuickMatch | этап 4: private Create/Join + Session QuickMatch/Subscribe |
+| Create/Join/QuickMatch | этап 4–5: private + QuickMatch, автостарт |
+| Ходы / FINISHED | engine: PlayCard/AddCard/Pass/Bito; flush `games` после FINISHED |
+| FULL_LOGGING | `logs/game-{id}.log` IN/OUT/domain |
 
 ### Проверка Login дважды
 

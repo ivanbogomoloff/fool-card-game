@@ -8,19 +8,24 @@ import (
 	"sync"
 	"time"
 
+	"foolcardgame/server/internal/engine"
 	"foolcardgame/server/internal/ids"
+	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/pb"
+	"foolcardgame/server/internal/store"
 
 	"github.com/google/uuid"
 )
 
-// Config — параметры QuickMatch и логов.
+// Config — параметры QuickMatch, логов и flush статистики.
 type Config struct {
 	QuickMinPlayers   int
 	QuickMaxPlayers   int
 	QuickFillWindow   time.Duration
 	QuickQueueTimeout time.Duration
 	LogDir            string
+	Games             *store.Games
+	Logger            *logging.Logger
 }
 
 func (c Config) withDefaults() Config {
@@ -172,6 +177,10 @@ func (h *Hub) EnqueueQuickMatch(accountID, username string, avatarID int32, ch c
 	h.accountBusy[accountID] = playerID
 	h.recalcQueuePhaseLocked()
 	h.sendQueueStateLocked()
+	if h.cfg.Logger != nil {
+		h.cfg.Logger.Matchmaking("enqueue account=%s player=%s count=%d phase=%s",
+			accountID, playerID, len(h.queue), h.queuePhase.String())
+	}
 	return playerID, nil
 }
 
@@ -316,7 +325,7 @@ func (h *Hub) startQuickMatch() {
 	sess.mu.Unlock()
 }
 
-// beginMatchLocked стартует engine-заглушку; sess.mu уже Lock, h.mu Lock.
+// beginMatchLocked стартует engine; sess.mu уже Lock.
 func (h *Hub) beginMatchLocked(sess *Session) {
 	if sess.room == nil || sess.room.Started {
 		return
@@ -328,6 +337,7 @@ func (h *Hub) beginMatchLocked(sess *Session) {
 		}
 	}
 	seats := make([]MatchSeat, 0, len(sess.room.Players))
+	engineSeats := make([]engine.SeatIn, 0, len(sess.room.Players))
 	for _, p := range sess.room.Players {
 		if p.Status == pb.PlayerStatus_LEFT {
 			continue
@@ -338,19 +348,32 @@ func (h *Hub) beginMatchLocked(sess *Session) {
 			Username:  p.Username,
 			AvatarID:  p.AvatarID,
 		})
+		engineSeats = append(engineSeats, engine.SeatIn{
+			PlayerID:  p.PlayerID,
+			AccountID: p.AccountID,
+			Username:  p.Username,
+			AvatarID:  p.AvatarID,
+		})
 	}
 	sess.log = newMatchLog(sess.room.GameID, sess.room.AccessCode, seats)
-	if sess.gameLogPath == "" {
+	if h.cfg.Logger != nil {
+		path, _ := h.cfg.Logger.OpenGame(sess.room.GameID)
+		sess.gameLogPath = path
+		h.cfg.Logger.Game(sess.room.GameID, "DOMAIN матч начался, игроков=%d", len(engineSeats))
+	} else if sess.gameLogPath == "" {
 		path, _ := PrepareGameLog(h.cfg.LogDir, sess.room.GameID)
 		sess.gameLogPath = path
 	}
-	sess.state = stubGameState(sess.room.GameID, sess.room)
+
+	seed := time.Now().UnixNano()
+	sess.match = engine.NewMatch(sess.room.GameID, engineSeats, seed, nil)
 
 	started := &pb.ServerMessage{
 		Payload: &pb.ServerMessage_MatchStarted{MatchStarted: &pb.MatchStarted{GameId: sess.room.GameID}},
 	}
 	sess.broadcastAllLocked(started)
-	sess.broadcastPersonalGameLocked()
+	h.broadcastEngineLocked(sess)
+	go h.runTicker(sess.room.GameID)
 }
 
 // LeaveQueue снимает из очереди QuickMatch.
@@ -526,12 +549,18 @@ func (h *Hub) Subscribe(accountID, gameID, playerID string, ch chan *pb.ServerMe
 		}
 	}
 
-	if sess.room.Started && sess.state != nil {
-		// Resnapshot.
+	if sess.room.Started && sess.match != nil {
+		// Resnapshot после reconnect.
+		if p.Status == pb.PlayerStatus_DISCONNECTED || p.Status == pb.PlayerStatus_PLAYING {
+			_ = sess.match // статус в engine при reconnect — playing/connected
+		}
 		sess.sendToLocked(playerID, &pb.ServerMessage{
 			Payload: &pb.ServerMessage_MatchStarted{MatchStarted: &pb.MatchStarted{GameId: gameID}},
 		})
-		sess.sendToLocked(playerID, personalGameMsg(sess.state, playerID))
+		gs := sess.match.Project(playerID)
+		sess.sendToLocked(playerID, &pb.ServerMessage{
+			Payload: &pb.ServerMessage_GameState{GameState: gs},
+		})
 	} else {
 		sess.sendToLocked(playerID, &pb.ServerMessage{
 			Payload: &pb.ServerMessage_RoomState{RoomState: sess.room.toProto()},
@@ -676,15 +705,14 @@ func (h *Hub) Leave(accountID, gameID, playerID string) error {
 		return nil
 	}
 
-	// IN_PROGRESS: обновляем state и broadcast.
-	if sess.state != nil {
-		for _, ps := range sess.state.Players {
-			if ps != nil && ps.Id == playerID {
-				ps.Status = pb.PlayerStatus_LEFT
-				ps.IsConnected = false
-			}
+	// IN_PROGRESS: Leave в engine + MatchLog.
+	if sess.match != nil {
+		if h.cfg.Logger != nil {
+			h.cfg.Logger.Game(gameID, "DOMAIN выход из игры account=%s player_id=%s", accountID, playerID)
 		}
-		sess.broadcastPersonalGameLocked()
+		_ = sess.match.Leave(playerID)
+		h.broadcastEngineLocked(sess)
+		h.applyFinishedLocked(sess)
 	}
 	sess.mu.Unlock()
 
@@ -726,14 +754,9 @@ func (h *Hub) Disconnect(accountID, gameID, playerID string) {
 		sess.broadcastRoomLocked()
 		return
 	}
-	if sess.state != nil {
-		for _, ps := range sess.state.Players {
-			if ps != nil && ps.Id == playerID {
-				ps.Status = pb.PlayerStatus_DISCONNECTED
-				ps.IsConnected = false
-			}
-		}
-		sess.broadcastPersonalGameLocked()
+	// Игрок остаётся в партии; таймауты/OnTick продолжают ход.
+	if sess.match != nil {
+		h.broadcastEngineLocked(sess)
 	}
 }
 

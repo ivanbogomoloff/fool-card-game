@@ -53,12 +53,15 @@ func main() {
 	log.Printf("migrations ok")
 
 	accounts := &store.Accounts{DB: db}
+	gameStore := &store.Games{DB: db}
 	matchHub := hub.New(hub.Config{
 		QuickMinPlayers:   cfg.QuickMinPlayers,
 		QuickMaxPlayers:   cfg.QuickMaxPlayers,
 		QuickFillWindow:   cfg.QuickFillWindow,
 		QuickQueueTimeout: cfg.QuickQueueTimeout,
 		LogDir:            cfg.LogDir,
+		Games:             gameStore,
+		Logger:            appLog,
 	})
 
 	healthMux := http.NewServeMux()

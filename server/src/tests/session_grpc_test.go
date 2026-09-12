@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"foolcardgame/server/internal/grpcserver"
+	"foolcardgame/server/internal/hub"
+	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/store"
 
@@ -26,9 +28,24 @@ func startBufServer(t *testing.T) (pb.AuthClient, pb.MatchmakingClient, pb.GameS
 	db := openTestDB(t)
 	ensureMigrated(t, db)
 	accounts := &store.Accounts{DB: db}
+	gameStore := &store.Games{DB: db}
+	logDir := t.TempDir()
+	appLog, err := logging.New(logDir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := hub.New(hub.Config{
+		QuickMinPlayers:   2,
+		QuickMaxPlayers:   4,
+		QuickFillWindow:   80 * time.Millisecond,
+		QuickQueueTimeout: 150 * time.Millisecond,
+		LogDir:            logDir,
+		Games:             gameStore,
+		Logger:            appLog,
+	})
 
 	lis := bufconn.Listen(bufSize)
-	srv := grpcserver.New(grpcserver.Options{Accounts: accounts})
+	srv := grpcserver.New(grpcserver.Options{Accounts: accounts, Hub: h})
 	go func() {
 		_ = srv.Serve(lis)
 	}()
@@ -48,6 +65,7 @@ func startBufServer(t *testing.T) (pb.AuthClient, pb.MatchmakingClient, pb.GameS
 		_ = conn.Close()
 		srv.Stop()
 		_ = lis.Close()
+		_ = appLog.Close()
 	}
 	return pb.NewAuthClient(conn), pb.NewMatchmakingClient(conn), pb.NewGameSessionClient(conn), cleanup
 }
