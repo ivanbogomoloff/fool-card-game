@@ -120,21 +120,22 @@ func TestLoad_MissingDB(t *testing.T) {
 	}
 }
 
-func TestLoad_FullLoggingFalse(t *testing.T) {
+func TestLoad_GamesActiveSecret(t *testing.T) {
 	clearDBEnv(t)
 	setEnv(t, map[string]string{
-		"TLS_ENABLED":   "false",
-		"DB_HOST":       "mariadb",
-		"DB_USER":       "fool",
-		"DB_PASSWORD":   "secret",
-		"FULL_LOGGING":  "false",
+		"TLS_ENABLED":         "false",
+		"DB_HOST":             "mariadb",
+		"DB_USER":             "fool",
+		"DB_PASSWORD":         "secret",
+		"DB_NAME":             "foolcard",
+		"GAMES_ACTIVE_SECRET": "ops-secret",
 	})
-
 	cfg, err := config.Load()
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatal(err)
 	}
-	if cfg.FullLogging {
-		t.Fatal("want FullLogging false")
+	if cfg.GamesActiveSecret != "ops-secret" {
+		t.Fatalf("secret=%q", cfg.GamesActiveSecret)
 	}
 }
+

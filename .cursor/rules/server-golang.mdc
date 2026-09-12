@@ -1,0 +1,16 @@
+---
+description: Go gRPC-сервер в ./server — hub, engine, store, simclient
+globs: server/**/*
+alwaysApply: false
+---
+
+# FoolCardGame — Go server (`./server`)
+
+- Стек: Go gRPC (HTTP/2), MariaDB, autocert; код в `server/src`, контракты `server/proto`, ТЗ `server/docs/`
+- Пакеты: `hub` (сессии, QuickMatch, private), `engine` (авторитетная логика матча), `store` + `migrations` (аккаунты и статистика **после FINISHED**), `simclient`, `logging`, `httpapi` (`/healthz`, `/games/active`)
+- Mid-game state **только в RAM** (`Hub` → `Session` → `Match` → `State`). БД не хранит стол/колоду в realtime
+- Crash-recovery mid-game — backlog [`docs/backlog/game-recovery.doc`](../../docs/backlog/game-recovery.doc) (`game_state_checkpoints`); не реализовывать без явного запроса
+- Ops: `GET /games/active` + заголовок `X-Secret-Key` (`GAMES_ACTIVE_SECRET`) — список IN_PROGRESS для drain перед рестартом
+- Комментарии в Go — **на русском** (как в проекте для Kotlin)
+- Тесты: `cd server/src && go test ./...`; e2e — docker compose + `simclient` (`server/docs/07-simclient.md`)
+- Не подменять серверный `engine` правками Android `domain/` без явного запроса; эталон правил — `docs/game-rules/podkidnoy-durak.md` + порт в `server/src/internal/engine`

@@ -30,6 +30,9 @@ type Config struct {
 	QuickMaxPlayers   int
 	QuickFillWindow   time.Duration
 	QuickQueueTimeout time.Duration
+
+	// GamesActiveSecret — ключ для GET /games/active (заголовок X-Secret-Key).
+	GamesActiveSecret string
 }
 
 // Load читает окружение и проверяет обязательные поля.
@@ -51,6 +54,7 @@ func Load() (Config, error) {
 		QuickMaxPlayers:   envInt("QUICK_MAX_PLAYERS", 4),
 		QuickFillWindow:   0,
 		QuickQueueTimeout: 0,
+		GamesActiveSecret: os.Getenv("GAMES_ACTIVE_SECRET"),
 	}
 
 	fillWindow, err := envDuration("QUICK_FILL_WINDOW", 5*time.Second)

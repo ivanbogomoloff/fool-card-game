@@ -83,6 +83,7 @@ docker compose --env-file .env up
 | `QUICK_MAX_PLAYERS` | `4` | |
 | `QUICK_FILL_WINDOW` | `5s` | |
 | `QUICK_QUEUE_TIMEOUT` | `120s` | |
+| `GAMES_ACTIVE_SECRET` | (пусто → `/games/active` всегда 401) | Секрет заголовка `X-Secret-Key` для `GET /games/active` |
 
 ## Слушатели (заготовка; полная TLS-логика — этап 2)
 

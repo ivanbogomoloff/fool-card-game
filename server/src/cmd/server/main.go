@@ -15,6 +15,7 @@ import (
 	"foolcardgame/server/internal/config"
 	"foolcardgame/server/internal/grpcserver"
 	"foolcardgame/server/internal/hub"
+	"foolcardgame/server/internal/httpapi"
 	"foolcardgame/server/internal/logging"
 	"foolcardgame/server/internal/migrate"
 	"foolcardgame/server/internal/store"
@@ -75,6 +76,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	httpapi.MountGamesActive(healthMux, matchHub, cfg.GamesActiveSecret)
 
 	var (
 		grpcSrv *grpc.Server
@@ -89,7 +91,7 @@ func main() {
 		if err := os.MkdirAll(cfg.ACMECacheDir, 0o700); err != nil {
 			log.Fatalf("acme cache: %v", err)
 		}
-		acmeLn, err = tlssetup.ListenACME(mgr)
+		acmeLn, err = tlssetup.ListenACME(mgr, healthMux)
 		if err != nil {
 			log.Fatalf("acme :80: %v", err)
 		}
@@ -100,7 +102,7 @@ func main() {
 			log.Fatalf("listen :443: %v", err)
 		}
 		go serveGRPC(grpcSrv, ln, "gRPC+TLS :443")
-		log.Printf("TLS: ACME :80, gRPC :443 host=%s cache=%s", cfg.Host, cfg.ACMECacheDir)
+		log.Printf("TLS: ACME+HTTP :80 (/healthz,/games/active), gRPC :443 host=%s cache=%s", cfg.Host, cfg.ACMECacheDir)
 	} else {
 		grpcSrv = grpcserver.New(grpcserver.Options{Logger: appLog, Accounts: accounts, Hub: matchHub})
 		ln, err := net.Listen("tcp", cfg.HTTPAddr)
@@ -113,11 +115,11 @@ func main() {
 		go serveGRPC(grpcSrv, grpcL, "gRPC "+cfg.HTTPAddr)
 		go func() {
 			if err := http.Serve(httpL, healthMux); err != nil {
-				log.Printf("http health: %v", err)
+				log.Printf("http: %v", err)
 			}
 		}()
 		go func() {
-			log.Printf("listening cmux on %s (grpc + /healthz), FULL_LOGGING=%v", cfg.HTTPAddr, cfg.FullLogging)
+			log.Printf("listening cmux on %s (grpc + /healthz + /games/active), FULL_LOGGING=%v", cfg.HTTPAddr, cfg.FullLogging)
 			if err := m.Serve(); err != nil {
 				log.Fatalf("cmux: %v", err)
 			}

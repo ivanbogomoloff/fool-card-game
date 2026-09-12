@@ -7,9 +7,9 @@ alwaysApply: true
 
 - Kotlin Android app, minSdk 33, Jetpack Compose + MVVM
 - Stack: Coroutines, Kotlinx Serialization, Compose Animation; Phase 5 Fake API; Phase 6 **grpc-kotlin** → Go server
-- Server TZ: [`server/docs`](../../server/docs/README.md) (gRPC, MariaDB, autocert)
+- Server TZ: [`server/docs`](../../server/docs/README.md) (gRPC, MariaDB, autocert); при работе в `server/` — правило [`server-golang.mdc`](server-golang.mdc)
 - UI language: **Russian**
-- Architecture docs: `docs/architecture/`; game rules: `docs/game-rules/podkidnoy-durak.md`
+- Architecture docs: `docs/architecture/`; game rules: `docs/game-rules/podkidnoy-durak.md`; backlog recovery: `docs/backlog/game-recovery.doc`
 - Phased plan: `docs/phases/` — **current: Phase 5b (server TZ / implementation)**; Phase 5 fake online done
 - `startDestination = Routes.MAIN`; `LoginScreen` opens when entering online without a session
 - Offline human seat: `"Вы"` + default avatar; online: account name/avatar via `GameClient`

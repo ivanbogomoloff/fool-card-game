@@ -38,14 +38,14 @@ func TLSConfig(m *autocert.Manager) *tls.Config {
 	return cfg
 }
 
-// ListenACME поднимает :80 для HTTP-01 challenge.
-func ListenACME(m *autocert.Manager) (net.Listener, error) {
+// ListenACME поднимает :80 для HTTP-01 challenge и опционального fallback (health, /games/active).
+func ListenACME(m *autocert.Manager, fallback http.Handler) (net.Listener, error) {
 	ln, err := net.Listen("tcp", ":80")
 	if err != nil {
 		return nil, fmt.Errorf("listen :80: %w", err)
 	}
 	go func() {
-		_ = http.Serve(ln, m.HTTPHandler(nil))
+		_ = http.Serve(ln, m.HTTPHandler(fallback))
 	}()
 	return ln, nil
 }

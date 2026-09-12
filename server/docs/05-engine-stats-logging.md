@@ -107,6 +107,20 @@ flowchart LR
 | `hub_*` / `quick_match_*` / `leave_*` / `auth_*` / `game_id_*` | см. этапы 3–4 |
 | reconnect | resnapshot после нового stream |
 
+## Ops: активные партии
+
+**`GET /games/active`** (HTTP рядом с `/healthz`; в prod — на `:80` через ACME fallback) — JSON со списком партий `IN_PROGRESS` из RAM:
+
+```json
+{ "count": 1, "games": [ { "game_id": "…", "players": 3, "deck_count": 18 } ] }
+```
+
+Обязательный заголовок: `X-Secret-Key: <GAMES_ACTIVE_SECRET>`. Без секрета в env или с неверным ключом — `401`.
+
+Плановый рестарт без обрыва партий: опрашивать endpoint, пока `count == 0`, затем SIGTERM/redeploy.
+
+Crash-recovery mid-game **не реализован** (нужны checkpoints в БД) — см. backlog [game-recovery.doc](../../docs/backlog/game-recovery.doc).
+
 ## Следующий этап (клиент)
 
 [06-android-phase6.md](06-android-phase6.md)

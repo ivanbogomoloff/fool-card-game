@@ -1,0 +1,108 @@
+# Backlog: восстановление незавершённых партий после аварии сервера
+
+Статус: **не реализовано** (дизайн / план).  
+Связано: live-список активных игр — `GET /games/active` (см. [server/docs/05-engine-stats-logging.md](../../server/docs/05-engine-stats-logging.md)); Phase 6 recovery out of scope — [06-android-phase6.md](../../server/docs/06-android-phase6.md).
+
+## 1. Проблема сейчас
+
+Авторитетное состояние матча живёт **только в RAM**:
+
+- `Hub.sessions` → `Session` → `engine.Match` → `engine.State` (колода, руки, стол, роли, таймеры).
+- MariaDB получает строки в `games` / `game_players` **только после `FINISHED`** (`MatchLog` → `InsertFinished`).
+- Файлы `logs/game-{id}.log` — аудит (IN/OUT/DOMAIN), **не** источник истины для replay и не загружаются при старте.
+
+Следствия:
+
+| Сценарий | Результат |
+|----------|-----------|
+| Плановый рестарт, пока есть IN_PROGRESS | Партии обрываются; статистика не flush'ится |
+| Аварийный crash / kill -9 | То же: матчи потеряны; клиенты после reconnect не находят `game_id` |
+| Reconnect при живом процессе | Работает: новый stream + resnapshot из RAM |
+
+**`GET /games/active` для crash-recovery недостаточен** — он читает тот же RAM и исчезает вместе с процессом. Он нужен для **безопасного планового** рестарта (drain).
+
+## 2. Плановый рестарт (уже доступен без checkpoints)
+
+1. Перед redeploy опрашивать:
+   ```bash
+   curl -sH "X-Secret-Key: $GAMES_ACTIVE_SECRET" http://host:8080/games/active
+   # или :80 в TLS/prod
+   ```
+2. Дождаться `"count": 0` (игроки доиграли / вышли).
+3. `SIGTERM` / `docker compose up -d --build`.
+
+Опционально позже: drain-mode (отклонять новые QuickMatch/Create), пока `count > 0`.
+
+## 3. Crash-recovery — целевое решение `game_state_checkpoints`
+
+Нужно сохранять **временное** полное состояние партии в БД (или аналог: Redis / файл), чтобы после boot восстановить `Session`+`Match` с теми же `game_id` / `player_id`.
+
+### 3.1. Предлагаемая таблица
+
+```sql
+CREATE TABLE game_state_checkpoints (
+  game_id       CHAR(36) PRIMARY KEY,
+  updated_at    DATETIME(3) NOT NULL,
+  -- полный снимок: engine.State + мета комнаты (access_code, host, account↔player)
+  state_json    LONGTEXT NOT NULL,
+  INDEX (updated_at)
+);
+```
+
+Содержимое `state_json` (логическая схема, не финальный контракт):
+
+- весь `engine.State`: `phase`, `players[]` (в т.ч. руки, account_id, status), `deck`, `trump`, `table_pairs`, attacker/defender/current, passed, bito flags, tick, deadlines, discard, winners/loser;
+- мета: `access_code`, `host_player_id`, при необходимости seed не нужен если колода уже в снимке.
+
+Альтернатива: отдельная колонка `room_json` + `state_json`.
+
+### 3.2. Когда писать (RPO ≈ один ход)
+
+- После каждого **успешного** мутирующего действия: PlayCard / AddCard / Pass / Bito / Leave (если матч ещё IN_PROGRESS).
+- На `OnTick`, если изменились дедлайны / авто-pass / авто-bito / конец партии.
+- UPSERT по `game_id` (последний снимок побеждает).
+
+Не писать на каждый broadcast без изменения State.
+
+### 3.3. Boot restore (RTO = рестарт процесса)
+
+1. После migrate: `SELECT * FROM game_state_checkpoints`.
+2. Для каждой строки: deserialize → `engine.Match` из State + `Session` в `Hub.sessions` (+ `byCode` если private).
+3. Пересчитать или сдвинуть таймеры (`TurnDeadlineAtMs`): либо от «сейчас» с тем же оставшимся интервалом, либо пауза до первого действия игрока.
+4. Запустить ticker сессии.
+5. Клиент: существующий reconnect + Subscribe → полный `GameState` (как сейчас при живом процессе).
+
+### 3.4. Удаление checkpoint
+
+- После успешного flush `FINISHED` → `DELETE` checkpoint.
+- При уничтожении пустого waiting-лобби (матч не начинался) — checkpoint не создавался.
+- Все вышли / матч отменён до старта — строки нет.
+
+### 3.5. Клиент
+
+Доработки минимальны, если сервер поднимает тот же `game_id` / `player_id`: Android уже делает keepalive + reconnect + resnapshot. Нужно сохранить локально id сессии между запусками приложения (уже есть в online-потоке).
+
+## 4. Этапы внедрения (когда возьмём в работу)
+
+1. Миграция `game_state_checkpoints`.
+2. `engine`: стабильный JSON (или protobuf) serialize/deserialize `State` + round-trip тесты.
+3. `store`: UpsertCheckpoint / LoadAll / Delete.
+4. `hub`: хуки после мутаций и tick; boot `RestoreFromCheckpoints` в `main` после `hub.New`.
+5. Политика таймеров после restore (зафиксировать в коде + тестах).
+6. Интеграционные тесты: ход → kill hub в тесте / reload из JSON → тот же стол/руки; FINISHED удаляет checkpoint.
+7. Документация ops: «после crash сервер сам поднимает IN_PROGRESS; клиенты reconnect».
+
+## 5. Риски и вне scope первой версии checkpoints
+
+- RPO один ход: последний неуспевший flush после crash теряется (редкий edge).
+- Это **snapshot**, не event-sourcing / полный replay из `game-*.log`.
+- Не хранить секреты игроков в checkpoint (паролей там и нет).
+- Нагрузка на MariaDB при частых UPSERT на 4 игроках приемлема; при росте — batch / Redis.
+- Не смешивать checkpoint с итоговой статистикой `games` (разные жизненные циклы).
+
+## 6. Краткий вердикт
+
+| Цель | Средство |
+|------|----------|
+| Не убить живые партии плановым рестартом | `GET /games/active` + drain |
+| Пережить crash / kill | Таблица **`game_state_checkpoints`** + restore на boot (этот backlog) |
