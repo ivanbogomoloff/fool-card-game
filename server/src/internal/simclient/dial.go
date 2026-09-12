@@ -17,12 +17,15 @@ import (
 
 // Config параметры подключения симулятора.
 type Config struct {
-	Addr   string
-	TLS    bool
-	Name   string
-	Avatar int32
-	Token  string
-	Think  time.Duration
+	Addr      string
+	TLS       bool
+	Name      string // username
+	Avatar    int32
+	Token     string
+	Password  string // явный пароль или после login
+	AccountID string
+	CredsPath string
+	Think     time.Duration
 }
 
 // Client обёртка над gRPC без серверной логики.

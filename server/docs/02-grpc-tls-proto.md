@@ -25,14 +25,14 @@
 ### Auth
 
 - `rpc Login(LoginRequest) returns (LoginResponse)`
-- Request: optional `display_name`
-- Response: `token`, `display_name`, `avatar_id`
+- Request: optional `username`, optional `password`
+- Response: `token`, `username`, `account_id`, optional `password` (только регистрация); **без** `avatar_id`
 
 ### Matchmaking (unary, только private)
 
 - `rpc CreateGame(PlayerProfile) returns (CreateGameResponse)` → `session_id` / `game_id`, `access_code`, `host_id`, `player_id`
 - `rpc JoinGame(JoinGameRequest) returns (JoinGameResponse)` → `session_id` / `game_id`, `player_id`  
-  Request: `code`, `display_name`, `avatar_id`
+  Request: `code`, `username`, `avatar_id`
 
 Идентификатор сессии матча = **уникальный game id** (UUID); в ответах одно поле (рекомендуется `game_id`, алиас `session_id` на клиенте допустим).
 
@@ -46,7 +46,7 @@ rpc Session(stream ClientMessage) returns (stream ServerMessage);
 
 | Вариант | Поля / смысл |
 |---------|----------------|
-| `QuickMatch` | `display_name`, `avatar_id` |
+| `QuickMatch` | `username`, `avatar_id` |
 | `Subscribe` | `game_id`, `player_id` (после Create/Join) |
 | `Kick` | `player_id` |
 | `StartGame` | пусто (только private host) |

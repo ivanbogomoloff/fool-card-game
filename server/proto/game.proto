@@ -75,7 +75,7 @@ message TablePair {
 
 message PlayerState {
   string id = 1;
-  string display_name = 2;
+  string username = 2;
   int32 avatar_id = 3;
   int32 hand_count = 4;
   bool is_ready = 5;
@@ -125,7 +125,7 @@ message GameState {
 
 message RoomPlayer {
   string id = 1;
-  string display_name = 2;
+  string username = 2;
   int32 avatar_id = 3;
   bool is_host = 4;
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/store"
@@ -10,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthServer — Login с записью accounts + auth_tokens.
+// AuthServer — Login с уникальным username и паролем.
 type AuthServer struct {
 	pb.UnimplementedAuthServer
 	Accounts *store.Accounts
@@ -24,19 +25,39 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	if s.Accounts == nil {
 		return nil, status.Error(codes.Internal, "Auth: store не настроен")
 	}
-	name := ""
-	if req.DisplayName != nil {
-		name = *req.DisplayName
+	username := ""
+	if req.Username != nil {
+		username = *req.Username
 	}
-	token, acc, err := s.Accounts.Login(ctx, name)
+	password := ""
+	if req.Password != nil {
+		password = *req.Password
+	}
+
+	res, err := s.Accounts.Login(ctx, username, password)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "login: %v", err)
+		switch {
+		case errors.Is(err, store.ErrEmptyUsername):
+			return nil, status.Error(codes.InvalidArgument, "укажите username")
+		case errors.Is(err, store.ErrNameTakenNeedPassword):
+			return nil, status.Error(codes.FailedPrecondition, "имя занято, укажите пароль")
+		case errors.Is(err, store.ErrInvalidPassword):
+			return nil, status.Error(codes.Unauthenticated, "неверный пароль")
+		default:
+			return nil, status.Errorf(codes.Internal, "login: %v", err)
+		}
 	}
-	return &pb.LoginResponse{
-		Token:       token,
-		DisplayName: acc.DisplayName,
-		AvatarId:    acc.AvatarID,
-	}, nil
+
+	resp := &pb.LoginResponse{
+		Token:     res.Token,
+		Username:  res.Account.Username,
+		AccountId: res.Account.ID,
+	}
+	if res.IsRegistration && res.PlainPassword != "" {
+		pwd := res.PlainPassword
+		resp.Password = &pwd
+	}
+	return resp, nil
 }
 
 // MatchmakingServer — заглушки private create/join (логика — этап 4).

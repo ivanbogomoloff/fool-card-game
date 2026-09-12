@@ -130,23 +130,40 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 			_ = hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_Leave{Leave: &pb.Leave{}}})
 			return nil
 		case "login":
-			resp, err := c.Auth.Login(ctx, &pb.LoginRequest{DisplayName: &c.Cfg.Name})
+			pwd := ResolvePassword(c.Cfg)
+			req := &pb.LoginRequest{Username: &c.Cfg.Name}
+			if pwd != "" {
+				req.Password = &pwd
+			}
+			resp, err := c.Auth.Login(ctx, req)
 			if err != nil {
 				fmt.Fprintf(out, "! Login: %v\n", err)
 				continue
 			}
 			c.Cfg.Token = resp.Token
-			if resp.DisplayName != "" {
-				c.Cfg.Name = resp.DisplayName
+			if resp.Username != "" {
+				c.Cfg.Name = resp.Username
 			}
-			fmt.Fprintf(out, "ok token=%s name=%s avatar=%d\n", resp.Token, resp.DisplayName, resp.AvatarId)
+			plain := ""
+			if resp.Password != nil {
+				plain = *resp.Password
+			}
+			if err := PersistLoginResult(&c.Cfg, resp.AccountId, resp.Username, plain); err != nil {
+				fmt.Fprintf(out, "! save credentials: %v\n", err)
+			}
+			if plain != "" {
+				fmt.Fprintf(out, "ok registered account_id=%s username=%s password=%s (сохранён в credentials)\n",
+					resp.AccountId, resp.Username, plain)
+			} else {
+				fmt.Fprintf(out, "ok login account_id=%s username=%s\n", resp.AccountId, resp.Username)
+			}
 		case "create":
 			if c.Cfg.Token == "" {
 				fmt.Fprintln(out, "! сначала login")
 				continue
 			}
 			resp, err := c.Match.CreateGame(c.AuthedContext(ctx), &pb.PlayerProfile{
-				DisplayName: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
+				Username: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
 			})
 			if err != nil {
 				fmt.Fprintf(out, "! CreateGame: %v\n", err)
@@ -165,7 +182,7 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 				return err
 			}
 			resp, err := c.Match.JoinGame(c.AuthedContext(ctx), &pb.JoinGameRequest{
-				Code: code, DisplayName: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
+				Code: code, Username: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
 			})
 			if err != nil {
 				fmt.Fprintf(out, "! JoinGame: %v\n", err)
@@ -179,7 +196,7 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 				continue
 			}
 			err := hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_QuickMatch{QuickMatch: &pb.QuickMatch{
-				DisplayName: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
+				Username: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
 			}}})
 			if err != nil {
 				fmt.Fprintf(out, "! QuickMatch: %v\n", err)

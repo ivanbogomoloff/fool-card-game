@@ -161,16 +161,18 @@ func compactProto(m proto.Message) string {
 	switch x := m.(type) {
 	case *pb.LoginRequest:
 		name := ""
-		if x.DisplayName != nil {
-			name = *x.DisplayName
+		if x.Username != nil {
+			name = *x.Username
 		}
-		return fmt.Sprintf("display_name=%q", name)
+		hasPwd := x.Password != nil && *x.Password != ""
+		return fmt.Sprintf("username=%q password_set=%v", name, hasPwd)
 	case *pb.LoginResponse:
-		return fmt.Sprintf("token=%s display_name=%q avatar_id=%d", x.Token, x.DisplayName, x.AvatarId)
+		reg := x.Password != nil && *x.Password != ""
+		return fmt.Sprintf("token=%s username=%q account_id=%s registered=%v", x.Token, x.Username, x.AccountId, reg)
 	case *pb.PlayerProfile:
-		return fmt.Sprintf("display_name=%q avatar_id=%d", x.DisplayName, x.AvatarId)
+		return fmt.Sprintf("username=%q avatar_id=%d", x.Username, x.AvatarId)
 	case *pb.JoinGameRequest:
-		return fmt.Sprintf("code=%q display_name=%q", x.Code, x.DisplayName)
+		return fmt.Sprintf("code=%q username=%q", x.Code, x.Username)
 	default:
 		return fmt.Sprintf("%T{%v}", m, m)
 	}

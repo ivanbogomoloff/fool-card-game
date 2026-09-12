@@ -8,14 +8,26 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// Ошибки lookup токена.
+const (
+	// MinPasswordLen — минимальная длина пароля аккаунта.
+	MinPasswordLen = 18
+	// GeneratedPasswordLen — длина пароля, выдаваемого при регистрации.
+	GeneratedPasswordLen = 24
+)
+
 var (
-	ErrInvalidToken = errors.New("недействительный токен")
+	ErrInvalidToken           = errors.New("недействительный токен")
+	ErrEmptyUsername          = errors.New("пустой username")
+	ErrNameTakenNeedPassword  = errors.New("имя занято, укажите пароль")
+	ErrInvalidPassword        = errors.New("неверный пароль")
 )
 
 // Accounts — аккаунты и opaque Bearer-токены.
@@ -27,26 +39,87 @@ type Accounts struct {
 
 // Account — строка accounts.
 type Account struct {
-	ID          string
-	DisplayName string
-	AvatarID    int32
+	ID       string
+	Username string
+	AvatarID int32
 }
 
-// Login создаёт новый аккаунт и opaque token; в БД хранится только sha256(token).
-func (a *Accounts) Login(ctx context.Context, displayName string) (token string, acc Account, err error) {
-	if displayName == "" {
-		displayName = "Игрок"
+// LoginResult — результат Login (password заполнен только при регистрации).
+type LoginResult struct {
+	Token          string
+	Account        Account
+	PlainPassword  string // только при первой регистрации
+	IsRegistration bool
+}
+
+// Login: новый username → регистрация + plaintext password; занятый → проверка password.
+func (a *Accounts) Login(ctx context.Context, username, password string) (LoginResult, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return LoginResult{}, ErrEmptyUsername
 	}
-	acc = Account{
-		ID:          uuid.NewString(),
-		DisplayName: displayName,
-		AvatarID:    0,
+	if containsSpace(username) {
+		return LoginResult{}, fmt.Errorf("%w: username не должен содержать пробелы", ErrEmptyUsername)
 	}
-	token, err = newOpaqueToken()
+
+	var (
+		id           string
+		avatarID     int32
+		passwordHash string
+	)
+	err := a.DB.QueryRowContext(ctx,
+		`SELECT id, avatar_id, password_hash FROM accounts WHERE username = ?`,
+		username,
+	).Scan(&id, &avatarID, &passwordHash)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return a.register(ctx, username)
+	}
 	if err != nil {
-		return "", Account{}, err
+		return LoginResult{}, fmt.Errorf("lookup username: %w", err)
 	}
-	hash := HashToken(token)
+
+	if strings.TrimSpace(password) == "" {
+		return LoginResult{}, ErrNameTakenNeedPassword
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
+		return LoginResult{}, ErrInvalidPassword
+	}
+
+	token, err := a.issueToken(ctx, id)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	return LoginResult{
+		Token: token,
+		Account: Account{
+			ID:       id,
+			Username: username,
+			AvatarID: avatarID,
+		},
+	}, nil
+}
+
+func (a *Accounts) register(ctx context.Context, username string) (LoginResult, error) {
+	plain, err := generatePassword(GeneratedPasswordLen)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("bcrypt: %w", err)
+	}
+
+	acc := Account{
+		ID:       uuid.NewString(),
+		Username: username,
+		AvatarID: 0,
+	}
+	token, err := newOpaqueToken()
+	if err != nil {
+		return LoginResult{}, err
+	}
+	tokenHash := HashToken(token)
 
 	var expires any
 	if a.TokenTTL > 0 {
@@ -55,26 +128,53 @@ func (a *Accounts) Login(ctx context.Context, displayName string) (token string,
 
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return "", Account{}, fmt.Errorf("begin: %w", err)
+		return LoginResult{}, fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO accounts (id, display_name, avatar_id) VALUES (?, ?, ?)`,
-		acc.ID, acc.DisplayName, acc.AvatarID,
+		`INSERT INTO accounts (id, username, avatar_id, password_hash) VALUES (?, ?, ?, ?)`,
+		acc.ID, acc.Username, acc.AvatarID, string(hash),
 	); err != nil {
-		return "", Account{}, fmt.Errorf("insert account: %w", err)
+		// Гонка: имя заняли параллельно.
+		if isDuplicateKey(err) {
+			return LoginResult{}, ErrNameTakenNeedPassword
+		}
+		return LoginResult{}, fmt.Errorf("insert account: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO auth_tokens (token_hash, account_id, expires_at) VALUES (?, ?, ?)`,
-		hash, acc.ID, expires,
+		tokenHash, acc.ID, expires,
 	); err != nil {
-		return "", Account{}, fmt.Errorf("insert token: %w", err)
+		return LoginResult{}, fmt.Errorf("insert token: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return "", Account{}, fmt.Errorf("commit: %w", err)
+		return LoginResult{}, fmt.Errorf("commit: %w", err)
 	}
-	return token, acc, nil
+	return LoginResult{
+		Token:          token,
+		Account:        acc,
+		PlainPassword:  plain,
+		IsRegistration: true,
+	}, nil
+}
+
+func (a *Accounts) issueToken(ctx context.Context, accountID string) (string, error) {
+	token, err := newOpaqueToken()
+	if err != nil {
+		return "", err
+	}
+	var expires any
+	if a.TokenTTL > 0 {
+		expires = time.Now().UTC().Add(a.TokenTTL)
+	}
+	if _, err := a.DB.ExecContext(ctx,
+		`INSERT INTO auth_tokens (token_hash, account_id, expires_at) VALUES (?, ?, ?)`,
+		HashToken(token), accountID, expires,
+	); err != nil {
+		return "", fmt.Errorf("insert token: %w", err)
+	}
+	return token, nil
 }
 
 // AccountIDByToken проверяет opaque token и возвращает account_id.
@@ -117,6 +217,40 @@ func newOpaqueToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+const passwordAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+
+func generatePassword(n int) (string, error) {
+	if n < MinPasswordLen {
+		n = MinPasswordLen
+	}
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("password: %w", err)
+	}
+	out := make([]byte, n)
+	for i := range b {
+		out[i] = passwordAlphabet[int(b[i])%len(passwordAlphabet)]
+	}
+	return string(out), nil
+}
+
+func containsSpace(s string) bool {
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+			return true
+		}
+	}
+	return false
+}
+
+func isDuplicateKey(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Duplicate") || strings.Contains(msg, "1062")
+}
+
 // FinishedGame — данные для INSERT после FINISHED (вызывается на этапе 5).
 type FinishedGame struct {
 	ID             string
@@ -124,7 +258,7 @@ type FinishedGame struct {
 	FinishedAt     time.Time
 	AccessCode     sql.NullString
 	PlayersAtStart int
-	Result         string // DRAW | HAS_FOOL
+	Result         string
 	FoolAccountID  sql.NullString
 	Players        []GamePlayerRow
 }
@@ -132,7 +266,7 @@ type FinishedGame struct {
 // GamePlayerRow — строка game_players.
 type GamePlayerRow struct {
 	AccountID    string
-	PlayerResult string // WIN | FOOL | DRAW | LEFT
+	PlayerResult string
 }
 
 // Games — репозиторий статистики; flush только после FINISHED.

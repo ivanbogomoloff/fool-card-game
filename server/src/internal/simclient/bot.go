@@ -18,16 +18,27 @@ type BotOptions struct {
 
 // RunBot login → quick|join → авто-реакции по GameState.
 func RunBot(ctx context.Context, c *Client, opt BotOptions, out io.Writer) error {
-	resp, err := c.Auth.Login(ctx, &pb.LoginRequest{DisplayName: &c.Cfg.Name})
+	pwd := ResolvePassword(c.Cfg)
+	req := &pb.LoginRequest{Username: &c.Cfg.Name}
+	if pwd != "" {
+		req.Password = &pwd
+	}
+	resp, err := c.Auth.Login(ctx, req)
 	if err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
 	c.Cfg.Token = resp.Token
-	fmt.Fprintf(out, "bot login ok name=%s\n", resp.DisplayName)
+	plain := ""
+	if resp.Password != nil {
+		plain = *resp.Password
+	}
+	_ = PersistLoginResult(&c.Cfg, resp.AccountId, resp.Username, plain)
+	fmt.Fprintf(out, "bot login ok username=%s account_id=%s registered=%v\n",
+		resp.Username, resp.AccountId, plain != "")
 
 	if !opt.Quick && opt.Join != "" {
 		jr, err := c.Match.JoinGame(c.AuthedContext(ctx), &pb.JoinGameRequest{
-			Code: opt.Join, DisplayName: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
+			Code: opt.Join, Username: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
 		})
 		if err != nil {
 			return fmt.Errorf("join: %w", err)
@@ -36,7 +47,7 @@ func RunBot(ctx context.Context, c *Client, opt BotOptions, out io.Writer) error
 		fmt.Fprintf(out, "bot join game=%s player=%s\n", jr.GameId, jr.PlayerId)
 	} else if !opt.Quick && opt.Join == "" {
 		cr, err := c.Match.CreateGame(c.AuthedContext(ctx), &pb.PlayerProfile{
-			DisplayName: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
+			Username: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
 		})
 		if err != nil {
 			fmt.Fprintf(out, "bot create (may be unimplemented): %v\n", err)
@@ -58,7 +69,7 @@ func RunBot(ctx context.Context, c *Client, opt BotOptions, out io.Writer) error
 
 	if opt.Quick {
 		if err := hub.Send(&pb.ClientMessage{Payload: &pb.ClientMessage_QuickMatch{QuickMatch: &pb.QuickMatch{
-			DisplayName: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
+			Username: c.Cfg.Name, AvatarId: c.Cfg.Avatar,
 		}}}); err != nil {
 			return err
 		}
@@ -89,7 +100,6 @@ func RunBot(ctx context.Context, c *Client, opt BotOptions, out io.Writer) error
 func botTick(hub *SessionHub, c *Client, out io.Writer) {
 	st := hub.GameState()
 	if st == nil {
-		// если мы host в room — пробуем start
 		hub.mu.RLock()
 		room := hub.room
 		hub.mu.RUnlock()
@@ -117,7 +127,6 @@ func botTick(hub *SessionHub, c *Client, out io.Writer) {
 	if len(st.LocalHand) == 0 {
 		return
 	}
-	// простая политика: случайная карта; если есть незакрытая пара — бьём первой
 	hi := rand.Intn(len(st.LocalHand))
 	var undefended *pb.TablePair
 	for _, p := range st.TablePairs {

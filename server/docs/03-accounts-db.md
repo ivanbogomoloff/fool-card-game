@@ -25,9 +25,10 @@ MariaDB: аккаунты и токены входа; схема таблиц с
 
 | Колонка | Тип | Описание |
 |---------|-----|----------|
-| `id` | PK (UUID/CHAR) | |
-| `display_name` | VARCHAR | |
-| `avatar_id` | INT | |
+| `id` | PK (UUID/CHAR) | account_id / User ID |
+| `username` | VARCHAR UNIQUE | уникальный логин |
+| `password_hash` | VARCHAR | bcrypt пароля (≥18 символов plaintext) |
+| `avatar_id` | INT | дефолт 0; в игру передаётся отдельно, не через Login |
 | `created_at` | DATETIME | |
 
 ### `auth_tokens`
@@ -66,12 +67,15 @@ MariaDB: аккаунты и токены входа; схема таблиц с
 
 ## Login
 
-1. Клиент вызывает `Auth.Login` (optional display_name).
-2. Сервер создаёт аккаунт (или обновляет имя) + token.
-3. Response: `token`, `display_name`, `avatar_id` (дефолт avatar `0` если не задан).
-4. Дальнейшие RPC — Bearer.
+1. Клиент вызывает `Auth.Login` с `username` и опционально `password`.
+2. Если `username` свободен — сервер создаёт аккаунт, генерирует пароль (≥18 символов), сохраняет bcrypt-hash, выдаёт opaque token. В ответе: `token`, `username`, `account_id`, **plaintext `password` (один раз)**.
+3. Если `username` занят и пароль не передан → `FailedPrecondition`.
+4. Если пароль передан — сверка bcrypt; при успехе новый token + `account_id` (**без** plaintext password в ответе); при ошибке → `Unauthenticated`.
+5. Пустой username → `InvalidArgument`.
+6. `avatar_id` в Login **нет** — аватар задаётся при Create/Join/QuickMatch.
+7. Дальнейшие RPC — Bearer. Клиент хранит `account_id` + password в защищённом хранилище (Android: Keystore / EncryptedSharedPreferences — Phase 6; simclient: credentials-файл).
 
-Профиль для matchmaking (`display_name`, `avatar_id`) также передаётся в `QuickMatch` / Create / Join — как на Android Phase 5.
+Профиль для matchmaking (`username`, `avatar_id`) передаётся в `QuickMatch` / Create / Join.
 
 ## Уникальность game id
 
@@ -80,8 +84,8 @@ MariaDB: аккаунты и токены входа; схема таблиц с
 
 ## Нефункциональные требования
 
-- Пароли / OAuth вне MVP Login (упрощённый вход по аналогии с Phase 5 fake gate допустим; token всё равно обязателен).
-- Секреты БД только из env.
+- Пароль генерируется сервером при регистрации (длина ≥18); OAuth вне MVP.
+- Секреты БД только из env; plaintext password не писать в access-логи.
 
 ## Критерии приёмки
 
@@ -96,9 +100,9 @@ MariaDB: аккаунты и токены входа; схема таблиц с
 
 ```text
 server/src/migrations/
-  embed.go                 # //go:embed *.sql → package migrations.FS
-  000001_init.up.sql       # accounts, auth_tokens, games, game_players
-  000001_init.down.sql     # DROP в обратном порядке
+  embed.go
+  000001_init.up.sql / .down.sql
+  000002_account_password.up.sql / .down.sql   # username, password_hash, UNIQUE
 ```
 
 **Куда писать новые изменения схемы**

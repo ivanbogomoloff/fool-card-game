@@ -11,11 +11,12 @@
 
 | RPC | Назначение |
 |-----|------------|
-| `Auth.Login` | Вход → `token`, `display_name`, `avatar_id` |
+| `Auth.Login` | Вход по уникальному `username` (+ `password` если имя занято) → `token`, `username`, `account_id`; при регистрации ещё plaintext `password` (≥18). Без `avatar_id`. |
 | `Matchmaking.CreateGame` | Комната с друзьями → `game_id`/`session_id`, `access_code`, `host_id`, `player_id` |
 | `Matchmaking.JoinGame` | Вход по коду → `game_id`, `player_id` (+ профиль в запросе) |
 
-Auth на всех защищённых RPC: metadata `authorization: Bearer <token>`.
+Auth на всех защищённых RPC: metadata `authorization: Bearer <token>`.  
+Клиент хранит `account_id` + password в Keystore / EncryptedSharedPreferences (Phase 6). Аватар — только в matchmaking / QuickMatch (`username` + `avatar_id`).
 
 ### Bidi stream
 

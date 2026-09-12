@@ -28,13 +28,14 @@ BuildConfig / local.properties    # host:port или https host
 
 - [ ] Codegen stubs из `server/proto`
 - [ ] gRPC channel: TLS (prod) / plaintext (debug); keepalive ~30s
-- [ ] Auth: `Auth.Login` + metadata `authorization: Bearer`
+- [ ] Auth: `Auth.Login` (username + password / регистрация) + metadata `authorization: Bearer`
+- [ ] Хранение `account_id` + password в EncryptedSharedPreferences / Keystore
 - [ ] QuickMatch: stream + `QuickMatch`; UI на `QueueState` → `MatchStarted` (без poll 5 с)
 - [ ] Private: Create/Join unary → `Subscribe`; kick/start через stream
 - [ ] `observeState` / actions / **`Leave`** через bidi Session
 - [ ] Reconnect при смене сети + resnapshot
 - [ ] Ошибки gRPC → UiError; loading states
-- [ ] LoginScreen против живого Login
+- [ ] LoginScreen против живого Login (без avatar на Login; avatar в лобби/matchmaking)
 
 ## DoD
 

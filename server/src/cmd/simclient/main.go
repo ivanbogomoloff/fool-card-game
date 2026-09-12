@@ -16,19 +16,32 @@ func main() {
 	mode := flag.String("mode", "human", "human | bot")
 	addr := flag.String("addr", "127.0.0.1:8080", "gRPC host:port")
 	tlsOn := flag.Bool("tls", false, "использовать TLS")
-	name := flag.String("name", "Игрок", "display name")
-	avatar := flag.Int("avatar", 0, "avatar id")
+	name := flag.String("name", "", "username (логин)")
+	username := flag.String("username", "", "alias для --name")
+	password := flag.String("password", "", "пароль (если имя занято); иначе из credentials-файла")
+	creds := flag.String("creds", "", "путь к credentials.json (пусто = ~/.config/foolcard-simclient/)")
+	avatar := flag.Int("avatar", 0, "avatar id (matchmaking)")
 	quick := flag.Bool("quick", false, "bot: QuickMatch")
 	join := flag.String("join", "", "bot: код комнаты")
 	think := flag.Duration("think", 300*time.Millisecond, "bot: пауза между ходами")
 	flag.Parse()
 
+	uname := *name
+	if *username != "" {
+		uname = *username
+	}
+	if uname == "" {
+		uname = "player"
+	}
+
 	cfg := simclient.Config{
-		Addr:   *addr,
-		TLS:    *tlsOn,
-		Name:   *name,
-		Avatar: int32(*avatar),
-		Think:  *think,
+		Addr:      *addr,
+		TLS:       *tlsOn,
+		Name:      uname,
+		Avatar:    int32(*avatar),
+		Password:  *password,
+		CredsPath: *creds,
+		Think:     *think,
 	}
 	client, err := simclient.Dial(cfg)
 	if err != nil {

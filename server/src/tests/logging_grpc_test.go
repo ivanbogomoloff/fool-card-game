@@ -11,7 +11,6 @@ import (
 
 	"foolcardgame/server/internal/grpcserver"
 	"foolcardgame/server/internal/logging"
-	"foolcardgame/server/internal/migrate"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/store"
 
@@ -23,9 +22,7 @@ import (
 func startBufServerWithLogger(t *testing.T, logger *logging.Logger) (pb.AuthClient, pb.MatchmakingClient, func()) {
 	t.Helper()
 	db := openTestDB(t)
-	if err := migrate.Up(db); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	ensureMigrated(t, db)
 	accounts := &store.Accounts{DB: db}
 
 	lis := bufconn.Listen(bufSize)
@@ -67,13 +64,16 @@ func TestLogging_Full_LoginWritesRequestsLog(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	name := "Тест"
-	resp, err := auth.Login(ctx, &pb.LoginRequest{DisplayName: &name})
+	name := "LogUser_" + t.Name()
+	resp, err := auth.Login(ctx, &pb.LoginRequest{Username: &name})
 	if err != nil {
 		t.Fatalf("Login: %v", err)
 	}
 	if resp.Token == "" {
 		t.Fatal("empty token")
+	}
+	if resp.Password == nil {
+		t.Fatal("want generated password on register")
 	}
 
 	time.Sleep(20 * time.Millisecond)
@@ -93,8 +93,12 @@ func TestLogging_Full_LoginWritesRequestsLog(t *testing.T) {
 	if !strings.Contains(text, "token="+resp.Token) {
 		t.Fatalf("want raw token in OUT, got:\n%s", text)
 	}
-	if !strings.Contains(text, `display_name="Тест"`) {
-		t.Fatalf("want display_name in log, got:\n%s", text)
+	if !strings.Contains(text, `username="`+name+`"`) {
+		t.Fatalf("want username in log, got:\n%s", text)
+	}
+	// Plaintext password не должен попадать в access-лог.
+	if strings.Contains(text, *resp.Password) {
+		t.Fatalf("plaintext password leaked into requests.log:\n%s", text)
 	}
 }
 
@@ -116,7 +120,7 @@ func TestLogging_FullFalse_NoRequestsFile_ErrorStillLogged(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = mm.CreateGame(ctx, &pb.PlayerProfile{DisplayName: "A", AvatarId: 0})
+	_, err = mm.CreateGame(ctx, &pb.PlayerProfile{Username: "A", AvatarId: 0})
 	if err == nil {
 		t.Fatal("expected Unauthenticated")
 	}

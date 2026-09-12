@@ -5,7 +5,7 @@ package foolcard.v1;
 option go_package = "foolcardgame/server/internal/pb;pb";
 
 message PlayerProfile {
-  string display_name = 1;
+  string username = 1;
   int32 avatar_id = 2;
 }
 
@@ -18,7 +18,7 @@ message CreateGameResponse {
 
 message JoinGameRequest {
   string code = 1;
-  string display_name = 2;
+  string username = 2;
   int32 avatar_id = 3;
 }
 

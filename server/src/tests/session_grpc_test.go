@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"foolcardgame/server/internal/grpcserver"
-	"foolcardgame/server/internal/migrate"
 	"foolcardgame/server/internal/pb"
 	"foolcardgame/server/internal/store"
 
@@ -25,9 +24,7 @@ const bufSize = 1024 * 1024
 func startBufServer(t *testing.T) (pb.AuthClient, pb.MatchmakingClient, pb.GameSessionClient, func()) {
 	t.Helper()
 	db := openTestDB(t)
-	if err := migrate.Up(db); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	ensureMigrated(t, db)
 	accounts := &store.Accounts{DB: db}
 
 	lis := bufconn.Listen(bufSize)
@@ -55,29 +52,28 @@ func startBufServer(t *testing.T) (pb.AuthClient, pb.MatchmakingClient, pb.GameS
 	return pb.NewAuthClient(conn), pb.NewMatchmakingClient(conn), pb.NewGameSessionClient(conn), cleanup
 }
 
-func loginToken(t *testing.T, auth pb.AuthClient, name string) string {
+func loginRegister(t *testing.T, auth pb.AuthClient, username string) (token, password string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var dn *string
-	if name != "" {
-		dn = &name
-	}
-	resp, err := auth.Login(ctx, &pb.LoginRequest{DisplayName: dn})
+	resp, err := auth.Login(ctx, &pb.LoginRequest{Username: &username})
 	if err != nil {
-		t.Fatalf("Login: %v", err)
+		t.Fatalf("Login register %q: %v", username, err)
 	}
-	if resp.Token == "" {
-		t.Fatal("empty token")
+	if resp.Token == "" || resp.AccountId == "" {
+		t.Fatal("empty token/account_id")
 	}
-	return resp.Token
+	if resp.Password == nil || len(*resp.Password) < store.MinPasswordLen {
+		t.Fatalf("want generated password, got %v", resp.Password)
+	}
+	return resp.Token, *resp.Password
 }
 
 func TestSession_PingPong(t *testing.T) {
 	auth, _, session, cleanup := startBufServer(t)
 	defer cleanup()
 
-	token := loginToken(t, auth, "PingUser")
+	token, _ := loginRegister(t, auth, "PingUser_"+t.Name())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -107,7 +103,7 @@ func TestAuthInterceptor_MissingBearer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{DisplayName: "A", AvatarId: 0})
+	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{Username: "A", AvatarId: 0})
 	if err == nil {
 		t.Fatal("expected Unauthenticated")
 	}
@@ -125,7 +121,7 @@ func TestAuthInterceptor_InvalidToken(t *testing.T) {
 	defer cancel()
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer deadbeef"))
 
-	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{DisplayName: "A", AvatarId: 0})
+	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{Username: "A", AvatarId: 0})
 	st, ok := status.FromError(err)
 	if !ok || st.Code() != codes.Unauthenticated {
 		t.Fatalf("want Unauthenticated for invalid token, got %v", err)
@@ -136,35 +132,67 @@ func TestAuthInterceptor_WithBearer_ReachesHandler(t *testing.T) {
 	auth, mm, _, cleanup := startBufServer(t)
 	defer cleanup()
 
-	token := loginToken(t, auth, "A")
+	token, _ := loginRegister(t, auth, "BearerUser_"+t.Name())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("authorization", "Bearer "+token))
 
-	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{DisplayName: "A", AvatarId: 0})
+	_, err := mm.CreateGame(ctx, &pb.PlayerProfile{Username: "A", AvatarId: 0})
 	st, ok := status.FromError(err)
 	if !ok || st.Code() != codes.Unimplemented {
 		t.Fatalf("want Unimplemented stub after auth, got %v", err)
 	}
 }
 
-func TestLogin_PublicWithoutBearer(t *testing.T) {
+func TestLogin_EmptyUsername(t *testing.T) {
 	auth, _, _, cleanup := startBufServer(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := auth.Login(ctx, &pb.LoginRequest{})
+	_, err := auth.Login(ctx, &pb.LoginRequest{})
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.InvalidArgument {
+		t.Fatalf("want InvalidArgument, got %v", err)
+	}
+}
+
+func TestLogin_NameTakenNeedsPassword(t *testing.T) {
+	auth, _, _, cleanup := startBufServer(t)
+	defer cleanup()
+
+	name := "Taken_" + t.Name()
+	_, _ = loginRegister(t, auth, name)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := auth.Login(ctx, &pb.LoginRequest{Username: &name})
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.FailedPrecondition {
+		t.Fatalf("want FailedPrecondition, got %v", err)
+	}
+}
+
+func TestLogin_ReloginWithPassword(t *testing.T) {
+	auth, _, _, cleanup := startBufServer(t)
+	defer cleanup()
+
+	name := "Relogin_" + t.Name()
+	_, pwd := loginRegister(t, auth, name)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resp, err := auth.Login(ctx, &pb.LoginRequest{Username: &name, Password: &pwd})
 	if err != nil {
-		t.Fatalf("Login: %v", err)
+		t.Fatalf("relogin: %v", err)
 	}
-	if resp.Token == "" {
-		t.Fatal("empty token")
+	if resp.Password != nil {
+		t.Fatal("password must not be in relogin response")
 	}
-	if resp.DisplayName != "Игрок" {
-		t.Fatalf("default name: got %q", resp.DisplayName)
+	if resp.AccountId == "" || resp.Token == "" {
+		t.Fatal("empty account/token")
 	}
 }
 
