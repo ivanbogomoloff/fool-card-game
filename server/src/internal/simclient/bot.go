@@ -28,13 +28,17 @@ func RunBot(ctx context.Context, c *Client, opt BotOptions, out io.Writer) error
 		return fmt.Errorf("login: %w", err)
 	}
 	c.Cfg.Token = resp.Token
-	plain := ""
-	if resp.Password != nil {
-		plain = *resp.Password
+	plain := resp.GetPassword()
+	if plain == "" {
+		plain = pwd
 	}
-	_ = PersistLoginResult(&c.Cfg, resp.AccountId, resp.Username, plain)
-	fmt.Fprintf(out, "bot login ok username=%s account_id=%s registered=%v\n",
-		resp.Username, resp.AccountId, plain != "")
+	if at, err := PersistLoginResult(&c.Cfg, resp.AccountId, resp.Username, plain); err != nil {
+		fmt.Fprintf(out, "bot save credentials: %v\n", err)
+	} else {
+		fmt.Fprintf(out, "bot credentials → %s\n", at)
+	}
+	fmt.Fprintf(out, "bot login ok username=%s account_id=%s password=%s\n",
+		resp.Username, resp.AccountId, c.Cfg.Password)
 
 	if !opt.Quick && opt.Join != "" {
 		jr, err := c.Match.JoinGame(c.AuthedContext(ctx), &pb.JoinGameRequest{

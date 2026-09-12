@@ -133,7 +133,9 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 			pwd := ResolvePassword(c.Cfg)
 			req := &pb.LoginRequest{Username: &c.Cfg.Name}
 			if pwd != "" {
-				req.Password = &pwd
+				p := pwd
+				req.Password = &p
+				c.Cfg.Password = pwd
 			}
 			resp, err := c.Auth.Login(ctx, req)
 			if err != nil {
@@ -144,18 +146,26 @@ func RunHuman(ctx context.Context, c *Client, in io.Reader, out io.Writer) error
 			if resp.Username != "" {
 				c.Cfg.Name = resp.Username
 			}
-			plain := ""
-			if resp.Password != nil {
-				plain = *resp.Password
+			plain := resp.GetPassword()
+			if plain == "" {
+				plain = pwd
 			}
-			if err := PersistLoginResult(&c.Cfg, resp.AccountId, resp.Username, plain); err != nil {
+			at, err := PersistLoginResult(&c.Cfg, resp.AccountId, resp.Username, plain)
+			if err != nil {
 				fmt.Fprintf(out, "! save credentials: %v\n", err)
-			}
-			if plain != "" {
-				fmt.Fprintf(out, "ok registered account_id=%s username=%s password=%s (сохранён в credentials)\n",
-					resp.AccountId, resp.Username, plain)
 			} else {
-				fmt.Fprintf(out, "ok login account_id=%s username=%s\n", resp.AccountId, resp.Username)
+				fmt.Fprintf(out, "credentials → %s\n", at)
+			}
+			showPwd := c.Cfg.Password
+			if showPwd == "" {
+				showPwd = plain
+			}
+			if showPwd != "" {
+				fmt.Fprintf(out, "ok login account_id=%s username=%s password=%s\n",
+					resp.AccountId, resp.Username, showPwd)
+			} else {
+				fmt.Fprintf(out, "ok login account_id=%s username=%s (пароль неизвестен)\n",
+					resp.AccountId, resp.Username)
 			}
 		case "create":
 			if c.Cfg.Token == "" {

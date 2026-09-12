@@ -17,18 +17,30 @@ type Credentials struct {
 
 var credsMu sync.Mutex
 
-func defaultCredsPath() string {
-	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
-		return filepath.Join(dir, "foolcard-simclient", "credentials.json")
+// DiskCredsPath — путь к файлу, если включена запись на диск.
+// Диск: явный --creds или env FOOLCARD_CREDS; иначе только память процесса.
+func DiskCredsPath(cfg Config) (path string, onDisk bool) {
+	if cfg.CredsPath != "" {
+		return cfg.CredsPath, true
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".foolcard-simclient-credentials.json")
+	if p := os.Getenv("FOOLCARD_CREDS"); p != "" {
+		return p, true
+	}
+	return "", false
 }
 
-// LoadCredentials читает файл; path пустой → default.
+// CredsPathLabel для логов UI.
+func CredsPathLabel(cfg Config) string {
+	if p, ok := DiskCredsPath(cfg); ok {
+		return p
+	}
+	return "memory"
+}
+
+// LoadCredentials читает файл по path; пустой path → пустые credentials.
 func LoadCredentials(path string) (Credentials, error) {
 	if path == "" {
-		path = defaultCredsPath()
+		return Credentials{}, nil
 	}
 	credsMu.Lock()
 	defer credsMu.Unlock()
@@ -46,15 +58,18 @@ func LoadCredentials(path string) (Credentials, error) {
 	return c, nil
 }
 
-// SaveCredentials атомарно пишет credentials.
+// SaveCredentials атомарно пишет credentials на path.
 func SaveCredentials(path string, c Credentials) error {
 	if path == "" {
-		path = defaultCredsPath()
+		return fmt.Errorf("пустой path")
 	}
 	credsMu.Lock()
 	defer credsMu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+	dir := filepath.Dir(path)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -67,13 +82,40 @@ func SaveCredentials(path string, c Credentials) error {
 	return os.Rename(tmp, path)
 }
 
-// ResolvePassword: флаг --password, иначе из файла если username совпадает.
+// ApplyStoredCredentials подставляет password из файла (если диск включён).
+// nameExplicit — передан ли --name/--username в CLI.
+func ApplyStoredCredentials(cfg *Config, nameExplicit bool) {
+	path, onDisk := DiskCredsPath(*cfg)
+	if !onDisk {
+		return
+	}
+	c, err := LoadCredentials(path)
+	if err != nil || c.Password == "" || c.Username == "" {
+		return
+	}
+	if !nameExplicit {
+		cfg.Name = c.Username
+		cfg.Password = c.Password
+		cfg.AccountID = c.AccountID
+		return
+	}
+	if cfg.Name == c.Username && cfg.Password == "" {
+		cfg.Password = c.Password
+		cfg.AccountID = c.AccountID
+	}
+}
+
+// ResolvePassword: сначала память cfg.Password, иначе файл (если есть).
 func ResolvePassword(cfg Config) string {
 	if cfg.Password != "" {
 		return cfg.Password
 	}
-	c, err := LoadCredentials(cfg.CredsPath)
-	if err != nil || c.Username == "" {
+	path, onDisk := DiskCredsPath(cfg)
+	if !onDisk {
+		return ""
+	}
+	c, err := LoadCredentials(path)
+	if err != nil || c.Password == "" {
 		return ""
 	}
 	if c.Username == cfg.Name {
@@ -82,27 +124,41 @@ func ResolvePassword(cfg Config) string {
 	return ""
 }
 
-// PersistLoginResult сохраняет credentials после успешного Login.
-func PersistLoginResult(cfg *Config, accountID, username, plainPassword string) error {
+// PersistLoginResult всегда кладёт пароль в память; на диск — только если задан --creds / FOOLCARD_CREDS.
+// Возвращает куда сохранили: "memory" или путь файла.
+func PersistLoginResult(cfg *Config, accountID, username, plainPassword string) (storedAt string, err error) {
 	if plainPassword == "" {
-		// Повторный вход: обновить token-side метаданные, пароль оставить из файла/флага.
-		existing, _ := LoadCredentials(cfg.CredsPath)
-		if existing.Password != "" && existing.Username == username {
-			plainPassword = existing.Password
-		} else if cfg.Password != "" {
+		if cfg.Password != "" {
 			plainPassword = cfg.Password
+		} else if path, ok := DiskCredsPath(*cfg); ok {
+			existing, _ := LoadCredentials(path)
+			if existing.Password != "" && existing.Username == username {
+				plainPassword = existing.Password
+			}
 		}
 	}
 	if plainPassword == "" {
-		return fmt.Errorf("нет пароля для сохранения")
+		return "", fmt.Errorf("нет пароля для сохранения")
+	}
+
+	cfg.Password = plainPassword
+	cfg.AccountID = accountID
+	if username != "" {
+		cfg.Name = username
+	}
+
+	path, onDisk := DiskCredsPath(*cfg)
+	if !onDisk {
+		return "memory", nil
 	}
 	c := Credentials{
-		Username:  username,
+		Username:  cfg.Name,
 		AccountID: accountID,
 		Password:  plainPassword,
 	}
-	cfg.Password = plainPassword
-	cfg.AccountID = accountID
-	cfg.Name = username
-	return SaveCredentials(cfg.CredsPath, c)
+	if err := SaveCredentials(path, c); err != nil {
+		// Пароль уже в памяти — повторный login в этой сессии сработает.
+		return "memory", fmt.Errorf("диск недоступен (%s): %w; пароль оставлен в памяти", path, err)
+	}
+	return path, nil
 }

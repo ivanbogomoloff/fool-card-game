@@ -19,16 +19,24 @@ func main() {
 	name := flag.String("name", "", "username (логин)")
 	username := flag.String("username", "", "alias для --name")
 	password := flag.String("password", "", "пароль (если имя занято); иначе из credentials-файла")
-	creds := flag.String("creds", "", "путь к credentials.json (пусто = ~/.config/foolcard-simclient/)")
+	creds := flag.String("creds", "", "путь к credentials.json (пусто = только память процесса; либо FOOLCARD_CREDS)")
 	avatar := flag.Int("avatar", 0, "avatar id (matchmaking)")
 	quick := flag.Bool("quick", false, "bot: QuickMatch")
 	join := flag.String("join", "", "bot: код комнаты")
 	think := flag.Duration("think", 300*time.Millisecond, "bot: пауза между ходами")
 	flag.Parse()
 
+	nameExplicit := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "name" || f.Name == "username" {
+			nameExplicit = true
+		}
+	})
+
 	uname := *name
 	if *username != "" {
 		uname = *username
+		nameExplicit = true
 	}
 	if uname == "" {
 		uname = "player"
@@ -43,6 +51,11 @@ func main() {
 		CredsPath: *creds,
 		Think:     *think,
 	}
+	simclient.ApplyStoredCredentials(&cfg, nameExplicit)
+
+	fmt.Fprintf(os.Stderr, "simclient username=%s creds=%s password_loaded=%v\n",
+		cfg.Name, simclient.CredsPathLabel(cfg), cfg.Password != "")
+
 	client, err := simclient.Dial(cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "dial: %v\n", err)
